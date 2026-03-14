@@ -105,7 +105,7 @@ class TaskCard(QFrame):
         self.btn_del.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 10px; border-radius: 10px; }}"
-            "QPushButton:hover { color: #ff5e78; background: #ff5e7822; }"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.with_alpha(config.ACCENT, 0x22)}; }}"
         )
         self.btn_del.clicked.connect(lambda: self.sig_delete.emit(self.index))
 
