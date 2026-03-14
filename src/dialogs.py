@@ -5,7 +5,7 @@ Contiene:
   - AddDialog: formulario modal para crear una nueva tarea.
 """
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFrame,
@@ -223,6 +223,8 @@ class EditDialog(AddDialog):
 class HistoryDialog(QDialog):
     """Diálogo para ver el historial de tareas completadas."""
 
+    sig_restore_task = pyqtSignal(int)
+
     def __init__(self, history: list[dict], parent=None):
         super().__init__(parent)
         self.history = history
@@ -296,7 +298,8 @@ class HistoryDialog(QDialog):
             item_lay.addWidget(empty)
         else:
             # Mostrar de más reciente a más antigua
-            for h in reversed(self.history):
+            for history_idx in range(len(self.history) - 1, -1, -1):
+                h = self.history[history_idx]
                 f = QFrame()
                 f.setStyleSheet(
                     f"background: {BG_SURFACE}; border: 1px solid {BORDER};"
@@ -304,17 +307,35 @@ class HistoryDialog(QDialog):
                 )
                 flay = QVBoxLayout(f)
                 flay.setContentsMargins(10, 8, 10, 8)
-                flay.setSpacing(2)
+                flay.setSpacing(6)
 
                 name = QLabel(h["name"])
                 name.setStyleSheet(f"color: {TEXT_HI}; font-size: 13px; font-weight: 600; border: none;")
 
                 date_str = h.get("completed_at", "Desconocido")
-                date = QLabel(date_str)
+                mode = "Manual" if h.get("completed_manually") else "Por temporizador"
+                date = QLabel(f"{date_str} · {mode}")
                 date.setStyleSheet(f"color: {TEXT_MID}; font-size: 10px; border: none;")
 
+                btn_restore = QPushButton("Restaurar")
+                btn_restore.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+                btn_restore.setStyleSheet(
+                    f"QPushButton {{ background: transparent; color: {ACCENT_LT};"
+                    f" border: 1px solid {BORDER}; border-radius: 7px;"
+                    " padding: 4px 8px; font-size: 11px; font-weight: 600; }}"
+                    f"QPushButton:hover {{ background: {ACCENT}22; border-color: {ACCENT}; }}"
+                )
+                btn_restore.clicked.connect(
+                    lambda _checked=False, idx=history_idx: self._restore(idx)
+                )
+
+                footer = QHBoxLayout()
+                footer.addWidget(date)
+                footer.addStretch()
+                footer.addWidget(btn_restore)
+
                 flay.addWidget(name)
-                flay.addWidget(date)
+                flay.addLayout(footer)
                 item_lay.addWidget(f)
 
         item_lay.addStretch()
@@ -322,6 +343,11 @@ class HistoryDialog(QDialog):
         lay.addWidget(scroll)
 
         outer.addWidget(card)
+
+    def _restore(self, history_idx: int) -> None:
+        """Notifica que se quiere restaurar una tarea del historial."""
+        self.sig_restore_task.emit(history_idx)
+        self.accept()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:

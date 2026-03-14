@@ -27,6 +27,7 @@ class TaskCard(QFrame):
     sig_tick = pyqtSignal()
     sig_play_requested = pyqtSignal(int)  # index de la tarea
     sig_completed = pyqtSignal(int)      # index de la tarea
+    sig_completed_manual = pyqtSignal(int)  # index de la tarea
 
     def __init__(self, task: dict, index: int, parent=None):
         super().__init__(parent)
@@ -116,7 +117,7 @@ class TaskCard(QFrame):
         row1.addWidget(self.btn_edit)
         row1.addWidget(self.btn_del)
 
-        # Fila 2: tiempo + play/pause
+        # Fila 2: tiempo + play/pause + completar manualmente
         row2 = QHBoxLayout()
         row2.setSpacing(10)
 
@@ -133,7 +134,22 @@ class TaskCard(QFrame):
         self.btn_play.clicked.connect(self.toggle)
         self._style_play()
 
+        self.btn_done = QPushButton("✓")
+        self.btn_done.setFixedSize(24, 24)
+        self.btn_done.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_done.setToolTip("Marcar como completada")
+        self.btn_done.setObjectName("btnDone")
+        self.btn_done.setStyleSheet(
+            f"QPushButton#btnDone {{ background: {pri['pill']}; color: {pri['fg']};"
+            "  border: none; border-radius: 12px; font-size: 12px;"
+            "  font-weight: 800; }}"
+            f"QPushButton#btnDone:hover {{ background: {pri['pill']}ee; }}"
+            f"QPushButton#btnDone:pressed {{ background: {pri['pill']}cc; }}"
+        )
+        self.btn_done.clicked.connect(self._complete_manually)
+
         row2.addWidget(self.lbl_time, 1)
+        row2.addWidget(self.btn_done)
         row2.addWidget(self.btn_play)
 
         # Barra de progreso
@@ -216,6 +232,11 @@ class TaskCard(QFrame):
                 f"#cardInner {{ background: {BG_SURFACE};"
                 "  border-radius: 0 10px 10px 0; }}"
             )
+
+    def _complete_manually(self) -> None:
+        """Marca la tarea como completada sin esperar al temporizador."""
+        self.stop()
+        self.sig_completed_manual.emit(self.index)
 
     def stop(self) -> None:
         """Detiene el temporizador de esta tarjeta."""
