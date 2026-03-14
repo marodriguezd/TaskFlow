@@ -18,9 +18,17 @@ ASSETS_DIR = ROOT / "assets"
 
 
 def _resolve_icon() -> Path:
-    preferred = ASSETS_DIR / "taskflow.ico"
-    if preferred.exists():
-        return preferred
+    preferred_candidates = (
+        ASSETS_DIR / "taskflow.ico",
+        ASSETS_DIR / "TaskFlow.ico",
+        ASSETS_DIR / "taskflow.png",
+        ASSETS_DIR / "TaskFlow.png",
+        ASSETS_DIR / "taskflow.icns",
+        ASSETS_DIR / "TaskFlow.icns",
+    )
+    for candidate in preferred_candidates:
+        if candidate.exists():
+            return candidate
 
     for pattern in ("*.ico", "*.icns", "*.png"):
         matches = sorted(ASSETS_DIR.glob(pattern))
@@ -28,7 +36,7 @@ def _resolve_icon() -> Path:
             return matches[0]
 
     raise FileNotFoundError(
-        "No se encontró icono en ./assets. Añade por ejemplo assets/taskflow.ico"
+        "No se encontró icono en ./assets. Añade por ejemplo assets/taskflow.ico o assets/TaskFlow.png"
     )
 
 

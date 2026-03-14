@@ -25,8 +25,11 @@ def _icon_path() -> Path | None:
 
     candidates = [
         base / "assets" / "taskflow.ico",
+        base / "assets" / "TaskFlow.ico",
         base / "assets" / "taskflow.png",
+        base / "assets" / "TaskFlow.png",
         base / "assets" / "taskflow.icns",
+        base / "assets" / "TaskFlow.icns",
     ]
     for icon in candidates:
         if icon.exists():
