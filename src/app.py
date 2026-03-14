@@ -25,7 +25,7 @@ from config import (
 )
 from widgets import DragHeader
 from task_card import TaskCard
-from dialogs import AddDialog, HistoryDialog
+from dialogs import AddDialog, EditDialog, HistoryDialog
 
 # Margen en px para detección de bordes de redimensionamiento
 _RESIZE_MARGIN = 8
@@ -343,6 +343,7 @@ class TaskFlow(QMainWindow):
             for orig_idx, task in ordered:
                 card = TaskCard(task, orig_idx)
                 card.sig_delete.connect(self._delete)
+                card.sig_edit.connect(self._edit)
                 card.sig_tick.connect(lambda: save_tasks(self.tasks))
                 card.sig_play_requested.connect(self._on_play_requested)
                 card.sig_completed.connect(self._on_task_completed)
@@ -363,6 +364,23 @@ class TaskFlow(QMainWindow):
         dlg.move(max(0, geo.left() - 305), geo.top() + 60)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.tasks.append(dlg.get())
+            save_tasks(self.tasks)
+            self._render()
+
+    def _edit(self, idx: int) -> None:
+        if not (0 <= idx < len(self.tasks)):
+            return
+
+        for card in self._cards:
+            if card.index == idx:
+                card.stop()
+                break
+
+        dlg = EditDialog(self.tasks[idx], self)
+        geo = self.frameGeometry()
+        dlg.move(max(0, geo.left() - 305), geo.top() + 60)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self.tasks[idx] = dlg.get()
             save_tasks(self.tasks)
             self._render()
 

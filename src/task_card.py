@@ -23,6 +23,7 @@ class TaskCard(QFrame):
     """Tarjeta visual para una tarea individual con temporizador."""
 
     sig_delete = pyqtSignal(int)
+    sig_edit = pyqtSignal(int)
     sig_tick = pyqtSignal()
     sig_play_requested = pyqtSignal(int)  # index de la tarea
     sig_completed = pyqtSignal(int)      # index de la tarea
@@ -71,7 +72,7 @@ class TaskCard(QFrame):
         lay.setContentsMargins(12, 10, 10, 10)
         lay.setSpacing(6)
 
-        # Fila 1: nombre + pill + borrar
+        # Fila 1: nombre + pill + editar + borrar
         row1 = QHBoxLayout()
         row1.setSpacing(6)
 
@@ -90,6 +91,16 @@ class TaskCard(QFrame):
         )
         self.pill.setFixedHeight(18)
 
+        self.btn_edit = QPushButton("✎")
+        self.btn_edit.setFixedSize(20, 20)
+        self.btn_edit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_edit.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            "  border: none; font-size: 11px; border-radius: 10px; }}"
+            f"QPushButton:hover {{ color: {ACCENT_LT}; background: {ACCENT_LT}22; }}"
+        )
+        self.btn_edit.clicked.connect(lambda: self.sig_edit.emit(self.index))
+
         self.btn_del = QPushButton("✕")
         self.btn_del.setFixedSize(20, 20)
         self.btn_del.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -102,6 +113,7 @@ class TaskCard(QFrame):
 
         row1.addWidget(self.lbl_name, 1)
         row1.addWidget(self.pill)
+        row1.addWidget(self.btn_edit)
         row1.addWidget(self.btn_del)
 
         # Fila 2: tiempo + play/pause

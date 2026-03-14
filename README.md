@@ -16,6 +16,7 @@ Está preparada para:
   - Prioridad (`Alta`, `Media`, `Baja`)
   - Temporizador
   - Barra de progreso
+  - Acciones rápidas de edición (✎) y borrado (✕)
 - Solo una tarea puede estar en reproducción simultánea (autopausa del resto).
 - Historial de tareas completadas.
 - Persistencia local de:
@@ -36,7 +37,7 @@ Está preparada para:
 │   ├── main.py           # Entry point
 │   ├── app.py            # Ventana principal y layout global
 │   ├── task_card.py      # Tarjetas + temporizador por tarea
-│   ├── dialogs.py        # Diálogos (crear tarea, historial)
+│   ├── dialogs.py        # Diálogos (crear/editar tarea, historial)
 │   ├── widgets.py        # Widgets reutilizables
 │   └── config.py         # Config visual + persistencia
 ├── assets/
@@ -133,13 +134,16 @@ Salida esperada:
 
 ## Persistencia de datos
 
-TaskFlow guarda datos en el home del usuario:
+TaskFlow guarda datos en una carpeta dedicada dentro del home del usuario:
 
-- `~/.taskflow_data.json`
-- `~/.taskflow_history.json`
-- `~/.taskflow_geometry.json`
+- `~/.TaskFlow/taskflow_data.json`
+- `~/.TaskFlow/taskflow_history.json`
+- `~/.TaskFlow/taskflow_geometry.json`
 
-> En Windows se resuelven dentro de `C:\Users\<usuario>\`.
+> En Windows se resuelven dentro de `C:\Users\<usuario>\.TaskFlow\`.
+>
+> Compatibilidad legacy: si existen ficheros antiguos (`~/.taskflow_*.json`),
+> se migran automáticamente a `~/.TaskFlow/` en el arranque.
 
 ---
 
