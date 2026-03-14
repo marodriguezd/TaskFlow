@@ -347,6 +347,7 @@ class TaskFlow(QMainWindow):
                 card.sig_tick.connect(lambda: save_tasks(self.tasks))
                 card.sig_play_requested.connect(self._on_play_requested)
                 card.sig_completed.connect(self._on_task_completed)
+                card.sig_completed_manual.connect(self._on_task_completed_manual)
                 self._cards.append(card)
                 self.task_lay.addWidget(card)
 
@@ -400,24 +401,58 @@ class TaskFlow(QMainWindow):
             if card.index != index and card.running:
                 card.toggle() # toggle() pausará si estaba running y actualizará UI
 
+    def _store_task_in_history(self, idx: int, manual: bool = False) -> None:
+        """Guarda una copia de la tarea en historial con metadata de finalización."""
+        if not (0 <= idx < len(self.tasks)):
+            return
+
+        task = self.tasks[idx].copy()
+        task["completed_at"] = datetime.now().strftime("%H:%M  —  %d/%m/%y")
+        task["completed_manually"] = manual
+        task["remaining"] = max(0, int(task.get("remaining", task.get("total_seconds", 0))))
+
+        history = load_history()
+        history.append(task)
+        save_history(history)
+
     def _on_task_completed(self, idx: int) -> None:
-        """Registra la tarea en el historial cuando termina."""
-        if 0 <= idx < len(self.tasks):
-            task = self.tasks[idx].copy()
-            task["completed_at"] = datetime.now().strftime("%H:%M  —  %d/%m/%y")
-            
-            history = load_history()
-            history.append(task)
-            save_history(history)
+        """Registra la tarea en el historial cuando termina por temporizador."""
+        self._store_task_in_history(idx, manual=False)
+
+    def _on_task_completed_manual(self, idx: int) -> None:
+        """Registra y elimina una tarea completada manualmente."""
+        self._store_task_in_history(idx, manual=True)
+        self._delete(idx)
 
     def _show_history(self) -> None:
         """Muestra el diálogo de historial."""
         history = load_history()
         dlg = HistoryDialog(history, self)
+        dlg.sig_restore_task.connect(self._restore_task_from_history)
         # Posicionar cerca del botón de historial
         geo = self.frameGeometry()
         dlg.move(max(0, geo.left() - 325), geo.top() + 40)
         dlg.exec()
+
+    def _restore_task_from_history(self, history_idx: int) -> None:
+        """Restaura una tarea del historial al listado principal."""
+        history = load_history()
+        if not (0 <= history_idx < len(history)):
+            return
+
+        task = history.pop(history_idx)
+        task.pop("completed_at", None)
+        task.pop("completed_manually", None)
+
+        total_seconds = max(60, int(task.get("total_seconds", 1500)))
+        remaining = int(task.get("remaining", total_seconds))
+        task["total_seconds"] = total_seconds
+        task["remaining"] = min(total_seconds, max(0, remaining))
+
+        self.tasks.append(task)
+        save_tasks(self.tasks)
+        save_history(history)
+        self._render()
 
     def _toggle_always_on_top(self, enabled: bool) -> None:
         """Activa o desactiva mantener la ventana en primer plano."""
