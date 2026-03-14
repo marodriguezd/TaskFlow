@@ -222,6 +222,8 @@ class HistoryDialog(QDialog):
 
     sig_restore_task = pyqtSignal(int)
 
+    sig_restore_task = pyqtSignal(int)
+
     def __init__(self, history: list[dict], parent=None):
         super().__init__(parent)
         self.history = history
@@ -327,6 +329,23 @@ class HistoryDialog(QDialog):
                     f" border: 1px solid {config.BORDER}; border-radius: 7px;"
                     " padding: 4px 8px; font-size: 11px; font-weight: 600; }}"
                     f"QPushButton:hover {{ background: {config.ACCENT}22; border-color: {config.ACCENT}; }}"
+                )
+                btn_restore.clicked.connect(
+                    lambda _checked=False, idx=history_idx: self._restore(idx)
+                )
+
+                footer = QHBoxLayout()
+                footer.addWidget(date)
+                footer.addStretch()
+                footer.addWidget(btn_restore)
+
+                btn_restore = QPushButton("Restaurar")
+                btn_restore.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+                btn_restore.setStyleSheet(
+                    f"QPushButton {{ background: transparent; color: {ACCENT_LT};"
+                    f" border: 1px solid {BORDER}; border-radius: 7px;"
+                    " padding: 4px 8px; font-size: 11px; font-weight: 600; }}"
+                    f"QPushButton:hover {{ background: {ACCENT}22; border-color: {ACCENT}; }}"
                 )
                 btn_restore.clicked.connect(
                     lambda _checked=False, idx=history_idx: self._restore(idx)
