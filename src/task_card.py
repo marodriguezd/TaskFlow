@@ -160,7 +160,7 @@ class TaskCard(QFrame):
     # -- estilos dinámicos ---------------------------------------------------
     def _refresh_style(self) -> None:
         pri = config.PRIORITY[self.task["priority"]]
-        bg = pri["bg"] if self._hovered else config.BG_SURFACE
+        bg = config.CARD_HOVER if self._hovered else config.BG_SURFACE
         border = pri["fg"] if self._hovered else config.BORDER
         self.setStyleSheet(
             f"TaskCard {{ background: transparent; border: 1px solid {border};"

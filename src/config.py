@@ -32,6 +32,7 @@ THEMES = {
         "TEXT_LO": "#606078",
         "ACCENT": "#7c6af7",
         "ACCENT_LT": "#a898ff",
+        "CARD_HOVER": "#212129",
     },
     "light": {
         "BG_BASE": "#f4f7fc",
@@ -44,6 +45,7 @@ THEMES = {
         "TEXT_LO": "#7b8faa",
         "ACCENT": "#2f7ef7",
         "ACCENT_LT": "#5a9bff",
+        "CARD_HOVER": "#eef2f8",
     },
 }
 
@@ -57,6 +59,7 @@ TEXT_MID = THEMES["dark"]["TEXT_MID"]
 TEXT_LO = THEMES["dark"]["TEXT_LO"]
 ACCENT = THEMES["dark"]["ACCENT"]
 ACCENT_LT = THEMES["dark"]["ACCENT_LT"]
+CARD_HOVER = THEMES["dark"]["CARD_HOVER"]
 
 
 
@@ -79,7 +82,7 @@ def apply_theme(theme_name: str) -> str:
     effective_name = theme_name if theme_name in THEMES else "dark"
 
     global BG_BASE, BG_SURFACE, BG_ELEVATED, BORDER, BORDER_LIGHT
-    global TEXT_HI, TEXT_MID, TEXT_LO, ACCENT, ACCENT_LT
+    global TEXT_HI, TEXT_MID, TEXT_LO, ACCENT, ACCENT_LT, CARD_HOVER
 
     BG_BASE = theme["BG_BASE"]
     BG_SURFACE = theme["BG_SURFACE"]
@@ -91,6 +94,7 @@ def apply_theme(theme_name: str) -> str:
     TEXT_LO = theme["TEXT_LO"]
     ACCENT = theme["ACCENT"]
     ACCENT_LT = theme["ACCENT_LT"]
+    CARD_HOVER = theme["CARD_HOVER"]
 
     return effective_name
 
