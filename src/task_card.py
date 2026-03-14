@@ -259,6 +259,9 @@ class TaskCard(QFrame):
 
     def _complete_manually(self) -> None:
         """Marca la tarea como completada sin esperar al temporizador."""
+        if self.remaining <= 0:
+            self.sig_delete.emit(self.index)
+            return
         self.stop()
         self.sig_completed_manual.emit(self.index)
 
