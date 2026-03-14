@@ -195,8 +195,8 @@ class TaskFlow(QMainWindow):
         self.btn_pin.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 14px; border-radius: 13px; }}"
-            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.ACCENT}20; }}"
-            f"QPushButton:checked {{ color: {config.ACCENT_LT}; background: {config.ACCENT}33; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.with_alpha(config.ACCENT, 0x20)}; }}"
+            f"QPushButton:checked {{ color: {config.ACCENT_LT}; background: {config.with_alpha(config.ACCENT, 0x33)}; }}"
         )
         self.btn_pin.toggled.connect(self._toggle_always_on_top)
 
@@ -206,7 +206,7 @@ class TaskFlow(QMainWindow):
         self.btn_history.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 14px; border-radius: 13px; }}"
-            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.ACCENT}20; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.with_alpha(config.ACCENT, 0x20)}; }}"
         )
         self.btn_history.clicked.connect(self._show_history)
 
@@ -217,7 +217,7 @@ class TaskFlow(QMainWindow):
         self.btn_theme.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 14px; border-radius: 13px; }}"
-            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.ACCENT}20; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.with_alpha(config.ACCENT, 0x20)}; }}"
         )
         self.btn_theme.clicked.connect(self._toggle_theme)
 

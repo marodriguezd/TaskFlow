@@ -95,7 +95,7 @@ class TaskCard(QFrame):
         self.btn_edit.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 11px; border-radius: 10px; }}"
-            f"QPushButton:hover {{ color: {config.ACCENT_LT}; background: {config.ACCENT_LT}22; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT_LT}; background: {config.with_alpha(config.ACCENT_LT, 0x22)}; }}"
         )
         self.btn_edit.clicked.connect(lambda: self.sig_edit.emit(self.index))
 
@@ -140,8 +140,8 @@ class TaskCard(QFrame):
             f"QPushButton#btnDone {{ background: {pri['pill']}; color: {pri['fg']};"
             "  border: none; border-radius: 12px; font-size: 12px;"
             "  font-weight: 800; }}"
-            f"QPushButton#btnDone:hover {{ background: {pri['pill']}ee; }}"
-            f"QPushButton#btnDone:pressed {{ background: {pri['pill']}cc; }}"
+            f"QPushButton#btnDone:hover {{ background: {config.with_alpha(pri['pill'], 0xEE)}; }}"
+            f"QPushButton#btnDone:pressed {{ background: {config.with_alpha(pri['pill'], 0xCC)}; }}"
         )
         self.btn_done.clicked.connect(self._complete_manually)
 
@@ -173,7 +173,7 @@ class TaskCard(QFrame):
         self.btn_play.setObjectName("btnPlay")
         if self.remaining <= 0:
             icon, bg_col, fg_col = "✓", config.TEXT_LO, config.TEXT_LO
-            bg_alpha = "1a"
+            bg_alpha = config.with_alpha(bg_col, 0x1A)
         else:
             icon = "❚❚" if self.running else "▶"
             fg_col = pri["fg"]    # Color vibrante de la prioridad
@@ -184,7 +184,7 @@ class TaskCard(QFrame):
         icon_size = 14 if icon == "❚❚" else 16
         self.btn_play.setStyleSheet(
             f"QPushButton#btnPlay {{ "
-            f"  background: {bg_col}{bg_alpha}; "
+            f"  background: {bg_alpha if self.remaining <= 0 else bg_col}; "
             f"  color: {fg_col}; "
             f"  border: none; "
             f"  border-radius: 18px; "
@@ -192,8 +192,8 @@ class TaskCard(QFrame):
             f"  font-weight: 900; "
             f"  padding-left: {2 if icon == '▶' else 0}px; "
             f"}} "
-            f"QPushButton#btnPlay:hover {{ background: {bg_col}ee; }} "
-            f"QPushButton#btnPlay:pressed {{ background: {bg_col}cc; }} "
+            f"QPushButton#btnPlay:hover {{ background: {config.with_alpha(bg_col, 0xEE)}; }} "
+            f"QPushButton#btnPlay:pressed {{ background: {config.with_alpha(bg_col, 0xCC)}; }} "
         )
 
     # -- control del temporizador --------------------------------------------

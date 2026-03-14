@@ -59,6 +59,20 @@ ACCENT = THEMES["dark"]["ACCENT"]
 ACCENT_LT = THEMES["dark"]["ACCENT_LT"]
 
 
+
+
+def with_alpha(color: str, alpha: int) -> str:
+    """Devuelve un color rgba() a partir de #RRGGBB + alpha [0..255]."""
+    if not isinstance(color, str) or not color.startswith("#") or len(color) != 7:
+        return color
+    try:
+        r = int(color[1:3], 16)
+        g = int(color[3:5], 16)
+        b = int(color[5:7], 16)
+        a = max(0, min(255, int(alpha)))
+    except ValueError:
+        return color
+    return f"rgba({r}, {g}, {b}, {a})"
 def apply_theme(theme_name: str) -> str:
     """Aplica el tema indicado y devuelve el nombre efectivo."""
     theme = THEMES.get(theme_name, THEMES["dark"])
