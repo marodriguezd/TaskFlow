@@ -227,7 +227,7 @@ class HistoryDialog(QDialog):
         self.history = history
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setFixedSize(320, 400)
+        self.setFixedSize(420, 420)
         self._drag_pos = None
         self._build()
 
@@ -265,7 +265,7 @@ class HistoryDialog(QDialog):
         btn_close.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {config.TEXT_MID};"
             "  border: none; font-size: 11px; border-radius: 12px; }}"
-            "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.with_alpha(config.ACCENT, 0x20)}; }}"
         )
         btn_close.clicked.connect(self.accept)
 
@@ -277,6 +277,7 @@ class HistoryDialog(QDialog):
         # Área de scroll
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
             "QScrollArea { border: none; background: transparent; }"
             f"QScrollBar:vertical {{ background: transparent; width: 4px; }}"
