@@ -139,11 +139,15 @@ TaskFlow guarda datos en una carpeta dedicada dentro del home del usuario:
 - `~/.TaskFlow/taskflow_data.json`
 - `~/.TaskFlow/taskflow_history.json`
 - `~/.TaskFlow/taskflow_geometry.json`
+- `~/.TaskFlow/bell.mp3` (sonido de fin de temporizador, personalizable)
 
 > En Windows se resuelven dentro de `C:\Users\<usuario>\.TaskFlow\`.
 >
 > Compatibilidad legacy: si existen ficheros antiguos (`~/.taskflow_*.json`),
 > se migran automáticamente a `~/.TaskFlow/` en el arranque.
+
+Para cambiar la campana, sustituye `~/.TaskFlow/bell.mp3` por tu propio mp3 (mismo nombre).
+Si no existe, TaskFlow intentará copiar el sonido por defecto incluido en `assets/bell.mp3`.
 
 ---
 

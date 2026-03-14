@@ -63,6 +63,17 @@ def build() -> None:
         str(MAIN_FILE),
     ]
 
+    bell_candidates = (
+        ASSETS_DIR / "bell.mp3",
+        ASSETS_DIR / "Bell.mp3",
+    )
+    bell_sound = next((candidate for candidate in bell_candidates if candidate.exists()), None)
+    if bell_sound is not None:
+        command[command.index(str(MAIN_FILE)):command.index(str(MAIN_FILE))] = [
+            "--add-data",
+            f"{bell_sound}{';' if sys.platform.startswith('win') else ':'}assets",
+        ]
+
     print("Ejecutando:", " ".join(command))
     subprocess.run(command, check=True, cwd=ROOT)
     print("Build completada. Ejecutable en ./dist/TaskFlow")

@@ -8,6 +8,8 @@ proporcionar funciones puras de lectura/escritura de datos.
 import json
 import os
 import shutil
+import sys
+from pathlib import Path
 
 # ─────────────────────────────────────────────
 #  Dimensiones por defecto
@@ -118,6 +120,7 @@ DATA_FILE = os.path.join(DATA_DIR, "taskflow_data.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "taskflow_history.json")
 GEOMETRY_FILE = os.path.join(DATA_DIR, "taskflow_geometry.json")
 PREFS_FILE = os.path.join(DATA_DIR, "taskflow_settings.json")
+SOUND_FILE = os.path.join(DATA_DIR, "bell.mp3")
 
 LEGACY_FILES = {
     os.path.join(HOME_DIR, ".taskflow_data.json"): DATA_FILE,
@@ -132,6 +135,53 @@ def _ensure_data_dir() -> None:
         os.makedirs(DATA_DIR, exist_ok=True)
     except OSError:
         pass
+
+
+def _bundled_sound_candidates() -> list[Path]:
+    """Devuelve posibles rutas del mp3 de campana incluido con la app."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        base = Path(sys._MEIPASS)
+    else:
+        base = Path(__file__).resolve().parent.parent
+
+    return [
+        base / "assets" / "bell.mp3",
+        base / "assets" / "Bell.mp3",
+        base / "Assets" / "bell.mp3",
+        base / "Assets" / "Bell.mp3",
+    ]
+
+
+def ensure_user_sound_file() -> None:
+    """Copia el sonido por defecto a ~/.TaskFlow/bell.mp3 si aún no existe."""
+    if os.path.exists(SOUND_FILE):
+        return
+
+    bundled_sound = next((path for path in _bundled_sound_candidates() if path.exists()), None)
+    if bundled_sound is None:
+        return
+
+    _ensure_data_dir()
+    try:
+        shutil.copy2(bundled_sound, SOUND_FILE)
+    except OSError:
+        pass
+
+
+def resolve_completion_sound_path() -> str | None:
+    """Resuelve el sonido de campana priorizando ~/.TaskFlow/bell.mp3."""
+    ensure_user_sound_file()
+
+    candidates = [
+        Path(SOUND_FILE),
+        Path(DATA_DIR) / "Bell.mp3",
+        *_bundled_sound_candidates(),
+    ]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return None
 
 
 def _migrate_legacy_files() -> None:
@@ -152,6 +202,7 @@ def _migrate_legacy_files() -> None:
 
 
 _migrate_legacy_files()
+ensure_user_sound_file()
 
 
 def fmt(seconds: int) -> str:
