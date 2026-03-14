@@ -92,9 +92,14 @@ class TaskFlow(QMainWindow):
 
         # Dimensiones flexibles (no fixed)
         self.setMinimumWidth(PANEL_MIN_WIDTH)
-        self.setMaximumWidth(PANEL_MAX_WIDTH)
         self.setMinimumHeight(PANEL_MIN_HEIGHT)
-        self.setMaximumHeight(PANEL_MAX_HEIGHT)
+        if self._is_windows:
+            # Permite snap vertical completo y anchura libre en Windows.
+            self.setMaximumWidth(16777215)
+            self.setMaximumHeight(16777215)
+        else:
+            self.setMaximumWidth(PANEL_MAX_WIDTH)
+            self.setMaximumHeight(PANEL_MAX_HEIGHT)
         self.resize(PANEL_MIN_WIDTH, PANEL_MIN_HEIGHT)
 
         self._build()
@@ -162,6 +167,20 @@ class TaskFlow(QMainWindow):
             f"border: 1px solid {BORDER}; border-radius: 9px; padding: 2px 8px;"
         )
 
+        self.btn_pin = QPushButton("📌")
+        self.btn_pin.setCheckable(True)
+        self.btn_pin.setChecked(self._always_on_top)
+        self.btn_pin.setFixedSize(26, 26)
+        self.btn_pin.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_pin.setToolTip("Alternar siempre en primer plano")
+        self.btn_pin.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            "  border: none; font-size: 14px; border-radius: 13px; }}"
+            f"QPushButton:hover {{ color: {ACCENT}; background: {ACCENT}20; }}"
+            f"QPushButton:checked {{ color: {ACCENT_LT}; background: {ACCENT}33; }}"
+        )
+        self.btn_pin.toggled.connect(self._toggle_always_on_top)
+
         self.btn_history = QPushButton("📜")
         self.btn_history.setFixedSize(26, 26)
         self.btn_history.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -190,6 +209,8 @@ class TaskFlow(QMainWindow):
         header_layout.addStretch()
         header_layout.addWidget(self.lbl_count)
         header_layout.addSpacing(6)
+        header_layout.addWidget(self.btn_pin)
+        header_layout.addSpacing(4)
         header_layout.addWidget(self.btn_history)
         if btn_close is not None:
             header_layout.addSpacing(6)
@@ -374,6 +395,14 @@ class TaskFlow(QMainWindow):
         geo = self.frameGeometry()
         dlg.move(max(0, geo.left() - 325), geo.top() + 40)
         dlg.exec()
+
+    def _toggle_always_on_top(self, enabled: bool) -> None:
+        """Activa o desactiva mantener la ventana en primer plano."""
+        self._always_on_top = enabled
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, enabled)
+        self.show()
+        if enabled:
+            self.raise_()
 
     def _close(self) -> None:
         save_tasks(self.tasks)
