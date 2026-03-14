@@ -18,18 +18,68 @@ PANEL_MIN_HEIGHT = 420
 PANEL_MAX_HEIGHT = 800
 
 # ─────────────────────────────────────────────
-#  Paleta de colores
+#  Temas
 # ─────────────────────────────────────────────
-BG_BASE = "#111114"
-BG_SURFACE = "#1a1a1f"
-BG_ELEVATED = "#222228"
-BORDER = "#2e2e38"
-BORDER_LIGHT = "#3e3e4e"
-TEXT_HI = "#f0f0f8"
-TEXT_MID = "#a0a0b8"
-TEXT_LO = "#606078"
-ACCENT = "#7c6af7"
-ACCENT_LT = "#a898ff"
+THEMES = {
+    "dark": {
+        "BG_BASE": "#111114",
+        "BG_SURFACE": "#1a1a1f",
+        "BG_ELEVATED": "#222228",
+        "BORDER": "#2e2e38",
+        "BORDER_LIGHT": "#3e3e4e",
+        "TEXT_HI": "#f0f0f8",
+        "TEXT_MID": "#a0a0b8",
+        "TEXT_LO": "#606078",
+        "ACCENT": "#7c6af7",
+        "ACCENT_LT": "#a898ff",
+    },
+    "light": {
+        "BG_BASE": "#f4f7fc",
+        "BG_SURFACE": "#ffffff",
+        "BG_ELEVATED": "#f8fbff",
+        "BORDER": "#d4deed",
+        "BORDER_LIGHT": "#bfcee4",
+        "TEXT_HI": "#132033",
+        "TEXT_MID": "#4f6382",
+        "TEXT_LO": "#7b8faa",
+        "ACCENT": "#2f7ef7",
+        "ACCENT_LT": "#5a9bff",
+    },
+}
+
+BG_BASE = THEMES["dark"]["BG_BASE"]
+BG_SURFACE = THEMES["dark"]["BG_SURFACE"]
+BG_ELEVATED = THEMES["dark"]["BG_ELEVATED"]
+BORDER = THEMES["dark"]["BORDER"]
+BORDER_LIGHT = THEMES["dark"]["BORDER_LIGHT"]
+TEXT_HI = THEMES["dark"]["TEXT_HI"]
+TEXT_MID = THEMES["dark"]["TEXT_MID"]
+TEXT_LO = THEMES["dark"]["TEXT_LO"]
+ACCENT = THEMES["dark"]["ACCENT"]
+ACCENT_LT = THEMES["dark"]["ACCENT_LT"]
+
+
+def apply_theme(theme_name: str) -> str:
+    """Aplica el tema indicado y devuelve el nombre efectivo."""
+    theme = THEMES.get(theme_name, THEMES["dark"])
+    effective_name = theme_name if theme_name in THEMES else "dark"
+
+    global BG_BASE, BG_SURFACE, BG_ELEVATED, BORDER, BORDER_LIGHT
+    global TEXT_HI, TEXT_MID, TEXT_LO, ACCENT, ACCENT_LT
+
+    BG_BASE = theme["BG_BASE"]
+    BG_SURFACE = theme["BG_SURFACE"]
+    BG_ELEVATED = theme["BG_ELEVATED"]
+    BORDER = theme["BORDER"]
+    BORDER_LIGHT = theme["BORDER_LIGHT"]
+    TEXT_HI = theme["TEXT_HI"]
+    TEXT_MID = theme["TEXT_MID"]
+    TEXT_LO = theme["TEXT_LO"]
+    ACCENT = theme["ACCENT"]
+    ACCENT_LT = theme["ACCENT_LT"]
+
+    return effective_name
+
 
 # ─────────────────────────────────────────────
 #  Prioridades
@@ -49,6 +99,7 @@ DATA_DIR = os.path.join(HOME_DIR, ".TaskFlow")
 DATA_FILE = os.path.join(DATA_DIR, "taskflow_data.json")
 HISTORY_FILE = os.path.join(DATA_DIR, "taskflow_history.json")
 GEOMETRY_FILE = os.path.join(DATA_DIR, "taskflow_geometry.json")
+PREFS_FILE = os.path.join(DATA_DIR, "taskflow_settings.json")
 
 LEGACY_FILES = {
     os.path.join(HOME_DIR, ".taskflow_data.json"): DATA_FILE,
@@ -139,7 +190,6 @@ def load_geometry() -> dict | None:
         try:
             with open(GEOMETRY_FILE, encoding="utf-8") as f:
                 data = json.load(f)
-            # Validar que tiene las claves necesarias
             if all(k in data for k in ("x", "y", "width", "height")):
                 return data
         except (json.JSONDecodeError, OSError):
@@ -154,5 +204,29 @@ def save_geometry(x: int, y: int, width: int, height: int) -> None:
         with open(GEOMETRY_FILE, "w", encoding="utf-8") as f:
             json.dump({"x": x, "y": y, "width": width, "height": height},
                       f, indent=2)
+    except OSError:
+        pass
+
+
+def load_preferences() -> dict:
+    """Carga preferencias de UI (tema, chincheta, etc.)."""
+    defaults = {"theme": "dark", "always_on_top": None}
+    if os.path.exists(PREFS_FILE):
+        try:
+            with open(PREFS_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                defaults.update(data)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return defaults
+
+
+def save_preferences(preferences: dict) -> None:
+    """Guarda preferencias de UI en disco."""
+    _ensure_data_dir()
+    try:
+        with open(PREFS_FILE, "w", encoding="utf-8") as f:
+            json.dump(preferences, f, indent=2, ensure_ascii=False)
     except OSError:
         pass

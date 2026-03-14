@@ -12,10 +12,7 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QSizePolicy, QApplication,
 )
 
-from config import (
-    BG_SURFACE, BORDER, TEXT_HI, TEXT_MID, TEXT_LO,
-    ACCENT_LT, PRIORITY, fmt,
-)
+import config
 from widgets import ProgressBar
 
 
@@ -27,6 +24,7 @@ class TaskCard(QFrame):
     sig_tick = pyqtSignal()
     sig_play_requested = pyqtSignal(int)  # index de la tarea
     sig_completed = pyqtSignal(int)      # index de la tarea
+    sig_completed_manual = pyqtSignal(int)  # index de la tarea
 
     def __init__(self, task: dict, index: int, parent=None):
         super().__init__(parent)
@@ -49,7 +47,7 @@ class TaskCard(QFrame):
 
     # -- construcción de la interfaz -----------------------------------------
     def _build(self) -> None:
-        pri = PRIORITY[self.task["priority"]]
+        pri = config.PRIORITY[self.task["priority"]]
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -78,7 +76,7 @@ class TaskCard(QFrame):
 
         self.lbl_name = QLabel(self.task["name"])
         self.lbl_name.setStyleSheet(
-            f"color: {TEXT_HI}; font-size: 13px; font-weight: 600;"
+            f"color: {config.TEXT_HI}; font-size: 13px; font-weight: 600;"
             "background: transparent;"
         )
         self.lbl_name.setWordWrap(True)
@@ -95,9 +93,9 @@ class TaskCard(QFrame):
         self.btn_edit.setFixedSize(20, 20)
         self.btn_edit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_edit.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 11px; border-radius: 10px; }}"
-            f"QPushButton:hover {{ color: {ACCENT_LT}; background: {ACCENT_LT}22; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT_LT}; background: {config.ACCENT_LT}22; }}"
         )
         self.btn_edit.clicked.connect(lambda: self.sig_edit.emit(self.index))
 
@@ -105,7 +103,7 @@ class TaskCard(QFrame):
         self.btn_del.setFixedSize(20, 20)
         self.btn_del.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_del.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 10px; border-radius: 10px; }}"
             "QPushButton:hover { color: #ff5e78; background: #ff5e7822; }"
         )
@@ -116,11 +114,11 @@ class TaskCard(QFrame):
         row1.addWidget(self.btn_edit)
         row1.addWidget(self.btn_del)
 
-        # Fila 2: tiempo + play/pause
+        # Fila 2: tiempo + play/pause + completar manualmente
         row2 = QHBoxLayout()
         row2.setSpacing(10)
 
-        self.lbl_time = QLabel(fmt(self.remaining))
+        self.lbl_time = QLabel(config.fmt(self.remaining))
         self.lbl_time.setStyleSheet(
             f"color: {pri['fg']}; font-size: 26px; font-weight: 700;"
             "font-family: 'Courier New', monospace; letter-spacing: 2px;"
@@ -133,7 +131,22 @@ class TaskCard(QFrame):
         self.btn_play.clicked.connect(self.toggle)
         self._style_play()
 
+        self.btn_done = QPushButton("✓")
+        self.btn_done.setFixedSize(24, 24)
+        self.btn_done.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_done.setToolTip("Marcar como completada")
+        self.btn_done.setObjectName("btnDone")
+        self.btn_done.setStyleSheet(
+            f"QPushButton#btnDone {{ background: {pri['pill']}; color: {pri['fg']};"
+            "  border: none; border-radius: 12px; font-size: 12px;"
+            "  font-weight: 800; }}"
+            f"QPushButton#btnDone:hover {{ background: {pri['pill']}ee; }}"
+            f"QPushButton#btnDone:pressed {{ background: {pri['pill']}cc; }}"
+        )
+        self.btn_done.clicked.connect(self._complete_manually)
+
         row2.addWidget(self.lbl_time, 1)
+        row2.addWidget(self.btn_done)
         row2.addWidget(self.btn_play)
 
         # Barra de progreso
@@ -146,9 +159,9 @@ class TaskCard(QFrame):
 
     # -- estilos dinámicos ---------------------------------------------------
     def _refresh_style(self) -> None:
-        pri = PRIORITY[self.task["priority"]]
-        bg = pri["bg"] if self._hovered else BG_SURFACE
-        border = pri["fg"] if self._hovered else BORDER
+        pri = config.PRIORITY[self.task["priority"]]
+        bg = pri["bg"] if self._hovered else config.BG_SURFACE
+        border = pri["fg"] if self._hovered else config.BORDER
         self.setStyleSheet(
             f"TaskCard {{ background: transparent; border: 1px solid {border};"
             "  border-left: none; border-radius: 0 10px 10px 0; }}"
@@ -156,10 +169,10 @@ class TaskCard(QFrame):
         )
 
     def _style_play(self) -> None:
-        pri = PRIORITY[self.task["priority"]]
+        pri = config.PRIORITY[self.task["priority"]]
         self.btn_play.setObjectName("btnPlay")
         if self.remaining <= 0:
-            icon, bg_col, fg_col = "✓", TEXT_LO, TEXT_LO
+            icon, bg_col, fg_col = "✓", config.TEXT_LO, config.TEXT_LO
             bg_alpha = "1a"
         else:
             icon = "❚❚" if self.running else "▶"
@@ -199,7 +212,7 @@ class TaskCard(QFrame):
     def _tick(self) -> None:
         self.remaining -= 1
         self.task["remaining"] = self.remaining
-        self.lbl_time.setText(fmt(self.remaining))
+        self.lbl_time.setText(config.fmt(self.remaining))
         self.bar.set_value(self.remaining)
         self.sig_tick.emit()
         if self.remaining <= 0:
@@ -208,14 +221,19 @@ class TaskCard(QFrame):
             QApplication.beep()
             self.sig_completed.emit(self.index)
             self._style_play()
-            pri = PRIORITY[self.task["priority"]]
+            pri = config.PRIORITY[self.task["priority"]]
             self.setStyleSheet(
                 f"TaskCard {{ background: transparent;"
                 f"  border: 1px solid {pri['fg']}88;"
                 "  border-left: none; border-radius: 0 10px 10px 0; }}"
-                f"#cardInner {{ background: {BG_SURFACE};"
+                f"#cardInner {{ background: {config.BG_SURFACE};"
                 "  border-radius: 0 10px 10px 0; }}"
             )
+
+    def _complete_manually(self) -> None:
+        """Marca la tarea como completada sin esperar al temporizador."""
+        self.stop()
+        self.sig_completed_manual.emit(self.index)
 
     def stop(self) -> None:
         """Detiene el temporizador de esta tarjeta."""

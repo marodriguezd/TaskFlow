@@ -8,7 +8,7 @@ y gestionar el ciclo de vida de las tareas.
 import sys
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QCursor
+from PyQt6.QtGui import QColor, QCursor, QPalette
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QFrame, QLabel, QPushButton, QScrollArea,
@@ -16,13 +16,7 @@ from PyQt6.QtWidgets import (
 )
 
 from datetime import datetime
-from config import (
-    PANEL_MIN_WIDTH, PANEL_MAX_WIDTH, PANEL_MIN_HEIGHT, PANEL_MAX_HEIGHT,
-    BG_BASE, BG_SURFACE, BG_ELEVATED, BORDER, BORDER_LIGHT,
-    TEXT_HI, TEXT_MID, TEXT_LO, ACCENT, ACCENT_LT,
-    P_ORDER, load_tasks, save_tasks, load_geometry, save_geometry,
-    load_history, save_history,
-)
+import config
 from widgets import DragHeader
 from task_card import TaskCard
 from dialogs import AddDialog, EditDialog, HistoryDialog
@@ -67,11 +61,15 @@ class TaskFlow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.tasks = load_tasks()
+        self.tasks = config.load_tasks()
         self._cards: list[TaskCard] = []
         self._initialized = False
         self._is_windows = sys.platform.startswith("win")
-        self._always_on_top = not self._is_windows
+        self._preferences = config.load_preferences()
+        self._theme_name = config.apply_theme(self._preferences.get("theme", "dark"))
+        pref_pin = self._preferences.get("always_on_top")
+        default_pin = not self._is_windows
+        self._always_on_top = default_pin if pref_pin is None else bool(pref_pin)
 
         self.setWindowTitle("TaskFlow")
 
@@ -83,7 +81,7 @@ class TaskFlow(QMainWindow):
         else:
             self.setWindowFlags(
                 Qt.WindowType.FramelessWindowHint
-                | Qt.WindowType.WindowStaysOnTopHint
+                | (Qt.WindowType.WindowStaysOnTopHint if self._always_on_top else Qt.WindowType(0))
                 | Qt.WindowType.Tool
             )
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -92,20 +90,36 @@ class TaskFlow(QMainWindow):
         self.setMouseTracking(True)
 
         # Dimensiones flexibles (no fixed)
-        self.setMinimumWidth(PANEL_MIN_WIDTH)
-        self.setMinimumHeight(PANEL_MIN_HEIGHT)
+        self.setMinimumWidth(config.PANEL_MIN_WIDTH)
+        self.setMinimumHeight(config.PANEL_MIN_HEIGHT)
         if self._is_windows:
             # Permite snap vertical completo y anchura libre en Windows.
             self.setMaximumWidth(16777215)
             self.setMaximumHeight(16777215)
         else:
-            self.setMaximumWidth(PANEL_MAX_WIDTH)
-            self.setMaximumHeight(PANEL_MAX_HEIGHT)
-        self.resize(PANEL_MIN_WIDTH, PANEL_MIN_HEIGHT)
+            self.setMaximumWidth(config.PANEL_MAX_WIDTH)
+            self.setMaximumHeight(config.PANEL_MAX_HEIGHT)
+        self.resize(config.PANEL_MIN_WIDTH, config.PANEL_MIN_HEIGHT)
 
+        self._apply_app_palette()
         self._build()
         self._render()
         self._restore_geometry()
+
+    def _apply_app_palette(self) -> None:
+        """Sincroniza la paleta global de Qt con el tema actual."""
+        app = QApplication.instance()
+        if app is None:
+            return
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Window, QColor(config.BG_BASE))
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(config.TEXT_HI))
+        palette.setColor(QPalette.ColorRole.Base, QColor(config.BG_SURFACE))
+        palette.setColor(QPalette.ColorRole.Text, QColor(config.TEXT_HI))
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(config.TEXT_HI))
+        palette.setColor(QPalette.ColorRole.Highlight, QColor(config.ACCENT))
+        palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+        app.setPalette(palette)
 
     # ─────────────────────────────────────────
     #  Construcción de la interfaz
@@ -117,7 +131,7 @@ class TaskFlow(QMainWindow):
 
         root = QWidget()
         self.setCentralWidget(root)
-        root_bg = "transparent" if not self._is_windows else BG_BASE
+        root_bg = "transparent" if not self._is_windows else config.BG_BASE
         root.setStyleSheet(f"background: {root_bg};")
 
         wrap = QVBoxLayout(root)
@@ -130,8 +144,8 @@ class TaskFlow(QMainWindow):
         self.panel.setObjectName("mainPanel")
         panel_radius = 0 if self._is_windows else 16
         self.panel.setStyleSheet(
-            f"#mainPanel {{ background: {BG_BASE};"
-            f"  border: 1px solid {BORDER}; border-radius: {panel_radius}px; }}"
+            f"#mainPanel {{ background: {config.BG_BASE};"
+            f"  border: 1px solid {config.BORDER}; border-radius: {panel_radius}px; }}"
         )
         if not self._is_windows:
             shadow = QGraphicsDropShadowEffect()
@@ -149,7 +163,7 @@ class TaskFlow(QMainWindow):
         self.header.setObjectName("headerWidget")
         header_radius = "0 0 0 0" if self._is_windows else "16px 16px 0 0"
         self.header.setStyleSheet(
-            f"#headerWidget {{ background: {BG_SURFACE};"
+            f"#headerWidget {{ background: {config.BG_SURFACE};"
             f"  border-radius: {header_radius}; }}"
         )
 
@@ -158,18 +172,18 @@ class TaskFlow(QMainWindow):
 
         icon = QLabel("⏱")
         icon.setStyleSheet(
-            "color: #a898ff; font-size: 16px; background: transparent;"
+            f"color: {config.ACCENT_LT}; font-size: 16px; background: transparent;"
         )
         title = QLabel("TaskFlow")
         title.setStyleSheet(
-            f"color: {TEXT_HI}; font-size: 14px; font-weight: 700;"
+            f"color: {config.TEXT_HI}; font-size: 14px; font-weight: 700;"
             "background: transparent;"
         )
 
         self.lbl_count = QLabel()
         self.lbl_count.setStyleSheet(
-            f"color: {TEXT_MID}; font-size: 11px; background: {BG_ELEVATED};"
-            f"border: 1px solid {BORDER}; border-radius: 9px; padding: 2px 8px;"
+            f"color: {config.TEXT_MID}; font-size: 11px; background: {config.BG_ELEVATED};"
+            f"border: 1px solid {config.BORDER}; border-radius: 9px; padding: 2px 8px;"
         )
 
         self.btn_pin = QPushButton("📌")
@@ -179,10 +193,10 @@ class TaskFlow(QMainWindow):
         self.btn_pin.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_pin.setToolTip("Alternar siempre en primer plano")
         self.btn_pin.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 14px; border-radius: 13px; }}"
-            f"QPushButton:hover {{ color: {ACCENT}; background: {ACCENT}20; }}"
-            f"QPushButton:checked {{ color: {ACCENT_LT}; background: {ACCENT}33; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.ACCENT}20; }}"
+            f"QPushButton:checked {{ color: {config.ACCENT_LT}; background: {config.ACCENT}33; }}"
         )
         self.btn_pin.toggled.connect(self._toggle_always_on_top)
 
@@ -190,11 +204,22 @@ class TaskFlow(QMainWindow):
         self.btn_history.setFixedSize(26, 26)
         self.btn_history.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_history.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 14px; border-radius: 13px; }}"
-            f"QPushButton:hover {{ color: {ACCENT}; background: {ACCENT}20; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.ACCENT}20; }}"
         )
         self.btn_history.clicked.connect(self._show_history)
+
+        self.btn_theme = QPushButton("☀" if self._theme_name == "dark" else "🌙")
+        self.btn_theme.setFixedSize(26, 26)
+        self.btn_theme.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_theme.setToolTip("Cambiar tema claro/oscuro")
+        self.btn_theme.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
+            "  border: none; font-size: 14px; border-radius: 13px; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT}; background: {config.ACCENT}20; }}"
+        )
+        self.btn_theme.clicked.connect(self._toggle_theme)
 
         btn_close = None
         if not self._is_windows:
@@ -202,7 +227,7 @@ class TaskFlow(QMainWindow):
             btn_close.setFixedSize(26, 26)
             btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
             btn_close.setStyleSheet(
-                f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+                f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
                 "  border: none; font-size: 11px; border-radius: 13px; }}"
                 "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
             )
@@ -217,6 +242,8 @@ class TaskFlow(QMainWindow):
         header_layout.addWidget(self.btn_pin)
         header_layout.addSpacing(4)
         header_layout.addWidget(self.btn_history)
+        header_layout.addSpacing(4)
+        header_layout.addWidget(self.btn_theme)
         if btn_close is not None:
             header_layout.addSpacing(6)
             header_layout.addWidget(btn_close)
@@ -225,7 +252,7 @@ class TaskFlow(QMainWindow):
         # --- Divisor ---
         divider = QFrame()
         divider.setFrameShape(QFrame.Shape.HLine)
-        divider.setStyleSheet(f"color: {BORDER};")
+        divider.setStyleSheet(f"color: {config.BORDER};")
         divider.setFixedHeight(1)
         panel_layout.addWidget(divider)
 
@@ -240,11 +267,11 @@ class TaskFlow(QMainWindow):
         )
         self.scroll.setStyleSheet(
             "QScrollArea { border: none; background: transparent; }"
-            f"QScrollBar:vertical {{ background: {BG_BASE}; width: 5px;"
+            f"QScrollBar:vertical {{ background: {config.BG_BASE}; width: 5px;"
             "  border-radius: 2px; }}"
-            f"QScrollBar::handle:vertical {{ background: {BORDER_LIGHT};"
+            f"QScrollBar::handle:vertical {{ background: {config.BORDER_LIGHT};"
             "  border-radius: 2px; min-height: 24px; }}"
-            f"QScrollBar::handle:vertical:hover {{ background: {TEXT_LO}; }}"
+            f"QScrollBar::handle:vertical:hover {{ background: {config.TEXT_LO}; }}"
             "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical"
             " { height: 0; }"
         )
@@ -271,13 +298,13 @@ class TaskFlow(QMainWindow):
         empty_text = QLabel("Sin tareas todavía")
         empty_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_text.setStyleSheet(
-            f"color: {TEXT_MID}; font-size: 13px; background: transparent;"
+            f"color: {config.TEXT_MID}; font-size: 13px; background: transparent;"
         )
 
         empty_hint = QLabel("Pulsa + Nueva tarea para empezar")
         empty_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_hint.setStyleSheet(
-            f"color: {TEXT_LO}; font-size: 11px; background: transparent;"
+            f"color: {config.TEXT_LO}; font-size: 11px; background: transparent;"
         )
 
         empty_lay.addStretch()
@@ -294,7 +321,7 @@ class TaskFlow(QMainWindow):
         footer.setFixedHeight(58)
         footer_radius = "0 0 0 0" if self._is_windows else "0 0 16px 16px"
         footer.setStyleSheet(
-            f"#footerWidget {{ background: {BG_SURFACE};"
+            f"#footerWidget {{ background: {config.BG_SURFACE};"
             f"  border-radius: {footer_radius}; }}"
         )
 
@@ -305,11 +332,11 @@ class TaskFlow(QMainWindow):
         self.btn_add.setFixedHeight(36)
         self.btn_add.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_add.setStyleSheet(
-            f"QPushButton {{ background: {ACCENT}; color: #ffffff;"
+            f"QPushButton {{ background: {config.ACCENT}; color: #ffffff;"
             "  border: none; border-radius: 10px;"
             "  font-size: 13px; font-weight: 700; }}"
-            f"QPushButton:hover {{ background: {ACCENT_LT}; }}"
-            f"QPushButton:pressed {{ background: {ACCENT}; }}"
+            f"QPushButton:hover {{ background: {config.ACCENT_LT}; }}"
+            f"QPushButton:pressed {{ background: {config.ACCENT}; }}"
         )
         self.btn_add.clicked.connect(self._add)
         footer_lay.addWidget(self.btn_add)
@@ -335,7 +362,7 @@ class TaskFlow(QMainWindow):
         if count > 0:
             ordered = sorted(
                 enumerate(self.tasks),
-                key=lambda x: P_ORDER[x[1]["priority"]],
+                key=lambda x: config.P_ORDER[x[1]["priority"]],
             )
             # Eliminar el stretch existente al final
             self.task_lay.takeAt(self.task_lay.count() - 1)
@@ -344,9 +371,10 @@ class TaskFlow(QMainWindow):
                 card = TaskCard(task, orig_idx)
                 card.sig_delete.connect(self._delete)
                 card.sig_edit.connect(self._edit)
-                card.sig_tick.connect(lambda: save_tasks(self.tasks))
+                card.sig_tick.connect(lambda: config.save_tasks(self.tasks))
                 card.sig_play_requested.connect(self._on_play_requested)
                 card.sig_completed.connect(self._on_task_completed)
+                card.sig_completed_manual.connect(self._on_task_completed_manual)
                 self._cards.append(card)
                 self.task_lay.addWidget(card)
 
@@ -364,7 +392,7 @@ class TaskFlow(QMainWindow):
         dlg.move(max(0, geo.left() - 305), geo.top() + 60)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.tasks.append(dlg.get())
-            save_tasks(self.tasks)
+            config.save_tasks(self.tasks)
             self._render()
 
     def _edit(self, idx: int) -> None:
@@ -381,17 +409,23 @@ class TaskFlow(QMainWindow):
         dlg.move(max(0, geo.left() - 305), geo.top() + 60)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self.tasks[idx] = dlg.get()
-            save_tasks(self.tasks)
+            config.save_tasks(self.tasks)
             self._render()
 
-    def _delete(self, idx: int) -> None:
+    def _delete(self, idx: int, track_history: bool = True) -> None:
         if 0 <= idx < len(self.tasks):
             for card in self._cards:
                 if card.index == idx:
                     card.stop()
                     break
+
+            # Si ya estaba agotada, asumimos que ya fue registrada como completada.
+            should_track_delete = track_history and int(self.tasks[idx].get("remaining", 1)) > 0
+            if should_track_delete:
+                self._store_task_in_history(idx, event_type="deleted")
+
             self.tasks.pop(idx)
-            save_tasks(self.tasks)
+            config.save_tasks(self.tasks)
             self._render()
 
     def _on_play_requested(self, index: int) -> None:
@@ -400,24 +434,77 @@ class TaskFlow(QMainWindow):
             if card.index != index and card.running:
                 card.toggle() # toggle() pausará si estaba running y actualizará UI
 
+    def _store_task_in_history(self, idx: int, event_type: str, manual: bool = False) -> None:
+        """Guarda una copia de la tarea en historial con metadata de evento."""
+        if not (0 <= idx < len(self.tasks)):
+            return
+
+        task = self.tasks[idx].copy()
+        task["history_event"] = event_type
+        task["event_at"] = datetime.now().strftime("%H:%M  —  %d/%m/%y")
+        task["completed_at"] = task["event_at"]  # Compatibilidad con historial previo
+        task["completed_manually"] = manual
+        task["remaining"] = max(0, int(task.get("remaining", task.get("total_seconds", 0))))
+
+        history = config.load_history()
+        history.append(task)
+        config.save_history(history)
+
     def _on_task_completed(self, idx: int) -> None:
-        """Registra la tarea en el historial cuando termina."""
-        if 0 <= idx < len(self.tasks):
-            task = self.tasks[idx].copy()
-            task["completed_at"] = datetime.now().strftime("%H:%M  —  %d/%m/%y")
-            
-            history = load_history()
-            history.append(task)
-            save_history(history)
+        """Registra la tarea en el historial cuando termina por temporizador."""
+        self._store_task_in_history(idx, event_type="completed", manual=False)
+
+    def _on_task_completed_manual(self, idx: int) -> None:
+        """Registra y elimina una tarea completada manualmente."""
+        self._store_task_in_history(idx, event_type="completed", manual=True)
+        self._delete(idx, track_history=False)
 
     def _show_history(self) -> None:
         """Muestra el diálogo de historial."""
-        history = load_history()
+        history = config.load_history()
         dlg = HistoryDialog(history, self)
+        dlg.sig_restore_task.connect(self._restore_task_from_history)
         # Posicionar cerca del botón de historial
         geo = self.frameGeometry()
         dlg.move(max(0, geo.left() - 325), geo.top() + 40)
         dlg.exec()
+
+    def _restore_task_from_history(self, history_idx: int) -> None:
+        """Restaura una tarea del historial al listado principal."""
+        history = config.load_history()
+        if not (0 <= history_idx < len(history)):
+            return
+
+        task = history.pop(history_idx)
+        task.pop("completed_at", None)
+        task.pop("completed_manually", None)
+        task.pop("history_event", None)
+        task.pop("event_at", None)
+
+        total_seconds = max(60, int(task.get("total_seconds", 1500)))
+        remaining = int(task.get("remaining", total_seconds))
+        task["total_seconds"] = total_seconds
+        task["remaining"] = min(total_seconds, max(0, remaining))
+
+        self.tasks.append(task)
+        config.save_tasks(self.tasks)
+        config.save_history(history)
+        self._render()
+
+    def _save_preferences(self) -> None:
+        """Guarda preferencias de usuario (tema y chincheta)."""
+        self._preferences["theme"] = self._theme_name
+        self._preferences["always_on_top"] = self._always_on_top
+        config.save_preferences(self._preferences)
+
+    def _toggle_theme(self) -> None:
+        """Alterna entre tema oscuro y claro y reconstruye estilos."""
+        self._theme_name = "light" if self._theme_name == "dark" else "dark"
+        config.apply_theme(self._theme_name)
+        self._apply_app_palette()
+        self._save_preferences()
+        self._build()
+        self._render()
 
     def _toggle_always_on_top(self, enabled: bool) -> None:
         """Activa o desactiva mantener la ventana en primer plano."""
@@ -426,9 +513,10 @@ class TaskFlow(QMainWindow):
         self.show()
         if enabled:
             self.raise_()
+        self._save_preferences()
 
     def _close(self) -> None:
-        save_tasks(self.tasks)
+        config.save_tasks(self.tasks)
         self._save_geometry()
         QApplication.quit()
 
@@ -475,7 +563,7 @@ class TaskFlow(QMainWindow):
     # ─────────────────────────────────────────
     def _restore_geometry(self) -> None:
         """Carga dimensiones guardadas y centra la ventana."""
-        geo = load_geometry()
+        geo = config.load_geometry()
         if geo is not None:
             self.move(geo["x"], geo["y"])
             self.resize(geo["width"], geo["height"])
@@ -493,12 +581,12 @@ class TaskFlow(QMainWindow):
             return
         pos = self.pos()
         size = self.size()
-        save_geometry(pos.x(), pos.y(), size.width(), size.height())
+        config.save_geometry(pos.x(), pos.y(), size.width(), size.height())
 
     # ─────────────────────────────────────────
     #  Evento de cierre
     # ─────────────────────────────────────────
     def closeEvent(self, event):
-        save_tasks(self.tasks)
+        config.save_tasks(self.tasks)
         self._save_geometry()
         super().closeEvent(event)
