@@ -12,10 +12,7 @@ from PyQt6.QtWidgets import (
     QLabel, QPushButton, QSizePolicy, QApplication,
 )
 
-from config import (
-    BG_SURFACE, BORDER, TEXT_HI, TEXT_MID, TEXT_LO,
-    ACCENT_LT, PRIORITY, fmt,
-)
+import config
 from widgets import ProgressBar
 
 
@@ -50,7 +47,7 @@ class TaskCard(QFrame):
 
     # -- construcción de la interfaz -----------------------------------------
     def _build(self) -> None:
-        pri = PRIORITY[self.task["priority"]]
+        pri = config.PRIORITY[self.task["priority"]]
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -79,7 +76,7 @@ class TaskCard(QFrame):
 
         self.lbl_name = QLabel(self.task["name"])
         self.lbl_name.setStyleSheet(
-            f"color: {TEXT_HI}; font-size: 13px; font-weight: 600;"
+            f"color: {config.TEXT_HI}; font-size: 13px; font-weight: 600;"
             "background: transparent;"
         )
         self.lbl_name.setWordWrap(True)
@@ -96,9 +93,9 @@ class TaskCard(QFrame):
         self.btn_edit.setFixedSize(20, 20)
         self.btn_edit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_edit.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 11px; border-radius: 10px; }}"
-            f"QPushButton:hover {{ color: {ACCENT_LT}; background: {ACCENT_LT}22; }}"
+            f"QPushButton:hover {{ color: {config.ACCENT_LT}; background: {config.ACCENT_LT}22; }}"
         )
         self.btn_edit.clicked.connect(lambda: self.sig_edit.emit(self.index))
 
@@ -106,7 +103,7 @@ class TaskCard(QFrame):
         self.btn_del.setFixedSize(20, 20)
         self.btn_del.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_del.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_LO};"
             "  border: none; font-size: 10px; border-radius: 10px; }}"
             "QPushButton:hover { color: #ff5e78; background: #ff5e7822; }"
         )
@@ -121,7 +118,7 @@ class TaskCard(QFrame):
         row2 = QHBoxLayout()
         row2.setSpacing(10)
 
-        self.lbl_time = QLabel(fmt(self.remaining))
+        self.lbl_time = QLabel(config.fmt(self.remaining))
         self.lbl_time.setStyleSheet(
             f"color: {pri['fg']}; font-size: 26px; font-weight: 700;"
             "font-family: 'Courier New', monospace; letter-spacing: 2px;"
@@ -162,9 +159,9 @@ class TaskCard(QFrame):
 
     # -- estilos dinámicos ---------------------------------------------------
     def _refresh_style(self) -> None:
-        pri = PRIORITY[self.task["priority"]]
-        bg = pri["bg"] if self._hovered else BG_SURFACE
-        border = pri["fg"] if self._hovered else BORDER
+        pri = config.PRIORITY[self.task["priority"]]
+        bg = pri["bg"] if self._hovered else config.BG_SURFACE
+        border = pri["fg"] if self._hovered else config.BORDER
         self.setStyleSheet(
             f"TaskCard {{ background: transparent; border: 1px solid {border};"
             "  border-left: none; border-radius: 0 10px 10px 0; }}"
@@ -172,10 +169,10 @@ class TaskCard(QFrame):
         )
 
     def _style_play(self) -> None:
-        pri = PRIORITY[self.task["priority"]]
+        pri = config.PRIORITY[self.task["priority"]]
         self.btn_play.setObjectName("btnPlay")
         if self.remaining <= 0:
-            icon, bg_col, fg_col = "✓", TEXT_LO, TEXT_LO
+            icon, bg_col, fg_col = "✓", config.TEXT_LO, config.TEXT_LO
             bg_alpha = "1a"
         else:
             icon = "❚❚" if self.running else "▶"
@@ -215,7 +212,7 @@ class TaskCard(QFrame):
     def _tick(self) -> None:
         self.remaining -= 1
         self.task["remaining"] = self.remaining
-        self.lbl_time.setText(fmt(self.remaining))
+        self.lbl_time.setText(config.fmt(self.remaining))
         self.bar.set_value(self.remaining)
         self.sig_tick.emit()
         if self.remaining <= 0:
@@ -224,12 +221,12 @@ class TaskCard(QFrame):
             QApplication.beep()
             self.sig_completed.emit(self.index)
             self._style_play()
-            pri = PRIORITY[self.task["priority"]]
+            pri = config.PRIORITY[self.task["priority"]]
             self.setStyleSheet(
                 f"TaskCard {{ background: transparent;"
                 f"  border: 1px solid {pri['fg']}88;"
                 "  border-left: none; border-radius: 0 10px 10px 0; }}"
-                f"#cardInner {{ background: {BG_SURFACE};"
+                f"#cardInner {{ background: {config.BG_SURFACE};"
                 "  border-radius: 0 10px 10px 0; }}"
             )
 
