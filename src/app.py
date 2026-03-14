@@ -107,24 +107,28 @@ class TaskFlow(QMainWindow):
     def _build(self) -> None:
         root = QWidget()
         self.setCentralWidget(root)
-        root.setStyleSheet("background: transparent;")
+        root_bg = "transparent" if not self._is_windows else BG_BASE
+        root.setStyleSheet(f"background: {root_bg};")
 
         wrap = QVBoxLayout(root)
-        wrap.setContentsMargins(6, 6, 6, 6)
+        wrap_margin = 0 if self._is_windows else 6
+        wrap.setContentsMargins(wrap_margin, wrap_margin, wrap_margin, wrap_margin)
         wrap.setSpacing(0)
 
         # Panel principal
         self.panel = QFrame()
         self.panel.setObjectName("mainPanel")
+        panel_radius = 0 if self._is_windows else 16
         self.panel.setStyleSheet(
             f"#mainPanel {{ background: {BG_BASE};"
-            f"  border: 1px solid {BORDER}; border-radius: 16px; }}"
+            f"  border: 1px solid {BORDER}; border-radius: {panel_radius}px; }}"
         )
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(32)
-        shadow.setOffset(0, 6)
-        shadow.setColor(QColor(0, 0, 0, 220))
-        self.panel.setGraphicsEffect(shadow)
+        if not self._is_windows:
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(32)
+            shadow.setOffset(0, 6)
+            shadow.setColor(QColor(0, 0, 0, 220))
+            self.panel.setGraphicsEffect(shadow)
 
         panel_layout = QVBoxLayout(self.panel)
         panel_layout.setContentsMargins(0, 0, 0, 0)
@@ -133,9 +137,10 @@ class TaskFlow(QMainWindow):
         # --- Cabecera arrastrable ---
         self.header = DragHeader()
         self.header.setObjectName("headerWidget")
+        header_radius = "0 0 0 0" if self._is_windows else "16px 16px 0 0"
         self.header.setStyleSheet(
             f"#headerWidget {{ background: {BG_SURFACE};"
-            "  border-radius: 16px 16px 0 0; }}"
+            f"  border-radius: {header_radius}; }}"
         )
 
         header_layout = QHBoxLayout(self.header)
@@ -167,15 +172,17 @@ class TaskFlow(QMainWindow):
         )
         self.btn_history.clicked.connect(self._show_history)
 
-        btn_close = QPushButton("✕")
-        btn_close.setFixedSize(26, 26)
-        btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_close.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
-            "  border: none; font-size: 11px; border-radius: 13px; }}"
-            "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
-        )
-        btn_close.clicked.connect(self._close)
+        btn_close = None
+        if not self._is_windows:
+            btn_close = QPushButton("✕")
+            btn_close.setFixedSize(26, 26)
+            btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            btn_close.setStyleSheet(
+                f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+                "  border: none; font-size: 11px; border-radius: 13px; }}"
+                "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
+            )
+            btn_close.clicked.connect(self._close)
 
         header_layout.addWidget(icon)
         header_layout.addSpacing(6)
@@ -184,8 +191,9 @@ class TaskFlow(QMainWindow):
         header_layout.addWidget(self.lbl_count)
         header_layout.addSpacing(6)
         header_layout.addWidget(self.btn_history)
-        header_layout.addSpacing(6)
-        header_layout.addWidget(btn_close)
+        if btn_close is not None:
+            header_layout.addSpacing(6)
+            header_layout.addWidget(btn_close)
         panel_layout.addWidget(self.header)
 
         # --- Divisor ---
@@ -258,9 +266,10 @@ class TaskFlow(QMainWindow):
         footer = QWidget()
         footer.setObjectName("footerWidget")
         footer.setFixedHeight(58)
+        footer_radius = "0 0 0 0" if self._is_windows else "0 0 16px 16px"
         footer.setStyleSheet(
             f"#footerWidget {{ background: {BG_SURFACE};"
-            "  border-radius: 0 0 16px 16px; }}"
+            f"  border-radius: {footer_radius}; }}"
         )
 
         footer_lay = QHBoxLayout(footer)
