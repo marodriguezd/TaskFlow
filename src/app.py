@@ -71,7 +71,6 @@ class TaskFlow(QMainWindow):
         self._cards: list[TaskCard] = []
         self._initialized = False
         self._is_windows = sys.platform.startswith("win")
-        self._always_on_top = not self._is_windows
 
         self.setWindowTitle("TaskFlow")
 
