@@ -5,7 +5,9 @@ Responsabilidad: orquestar la UI (cabecera, lista de tareas, footer)
 y gestionar el ciclo de vida de las tareas.
 """
 
-from PyQt6.QtCore import Qt, QTimer
+import sys
+
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -68,25 +70,37 @@ class TaskFlow(QMainWindow):
         self.tasks = load_tasks()
         self._cards: list[TaskCard] = []
         self._initialized = False
+        self._is_windows = sys.platform.startswith("win")
+        self._always_on_top = not self._is_windows
 
         self.setWindowTitle("TaskFlow")
 
-        # Flags: sin marco, siempre encima, tipo herramienta
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # Linux/Wayland: experiencia frameless actual.
+        # Windows: ventana normal para minimizar/maximizar/snap layout.
+        if self._is_windows:
+            self.setWindowFlags(Qt.WindowType.Window)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        else:
+            self.setWindowFlags(
+                Qt.WindowType.FramelessWindowHint
+                | Qt.WindowType.WindowStaysOnTopHint
+                | Qt.WindowType.Tool
+            )
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Habilitar tracking del ratón para detección de bordes
         self.setMouseTracking(True)
 
         # Dimensiones flexibles (no fixed)
         self.setMinimumWidth(PANEL_MIN_WIDTH)
-        self.setMaximumWidth(PANEL_MAX_WIDTH)
         self.setMinimumHeight(PANEL_MIN_HEIGHT)
-        self.setMaximumHeight(PANEL_MAX_HEIGHT)
+        if self._is_windows:
+            # Permite snap vertical completo y anchura libre en Windows.
+            self.setMaximumWidth(16777215)
+            self.setMaximumHeight(16777215)
+        else:
+            self.setMaximumWidth(PANEL_MAX_WIDTH)
+            self.setMaximumHeight(PANEL_MAX_HEIGHT)
         self.resize(PANEL_MIN_WIDTH, PANEL_MIN_HEIGHT)
 
         self._build()
@@ -97,26 +111,34 @@ class TaskFlow(QMainWindow):
     #  Construcción de la interfaz
     # ─────────────────────────────────────────
     def _build(self) -> None:
+        # Fallback defensivo por si un merge elimina la asignación en __init__.
+        if not hasattr(self, "_always_on_top"):
+            self._always_on_top = not getattr(self, "_is_windows", False)
+
         root = QWidget()
         self.setCentralWidget(root)
-        root.setStyleSheet("background: transparent;")
+        root_bg = "transparent" if not self._is_windows else BG_BASE
+        root.setStyleSheet(f"background: {root_bg};")
 
         wrap = QVBoxLayout(root)
-        wrap.setContentsMargins(6, 6, 6, 6)
+        wrap_margin = 0 if self._is_windows else 6
+        wrap.setContentsMargins(wrap_margin, wrap_margin, wrap_margin, wrap_margin)
         wrap.setSpacing(0)
 
         # Panel principal
         self.panel = QFrame()
         self.panel.setObjectName("mainPanel")
+        panel_radius = 0 if self._is_windows else 16
         self.panel.setStyleSheet(
             f"#mainPanel {{ background: {BG_BASE};"
-            f"  border: 1px solid {BORDER}; border-radius: 16px; }}"
+            f"  border: 1px solid {BORDER}; border-radius: {panel_radius}px; }}"
         )
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(32)
-        shadow.setOffset(0, 6)
-        shadow.setColor(QColor(0, 0, 0, 220))
-        self.panel.setGraphicsEffect(shadow)
+        if not self._is_windows:
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(32)
+            shadow.setOffset(0, 6)
+            shadow.setColor(QColor(0, 0, 0, 220))
+            self.panel.setGraphicsEffect(shadow)
 
         panel_layout = QVBoxLayout(self.panel)
         panel_layout.setContentsMargins(0, 0, 0, 0)
@@ -125,9 +147,10 @@ class TaskFlow(QMainWindow):
         # --- Cabecera arrastrable ---
         self.header = DragHeader()
         self.header.setObjectName("headerWidget")
+        header_radius = "0 0 0 0" if self._is_windows else "16px 16px 0 0"
         self.header.setStyleSheet(
             f"#headerWidget {{ background: {BG_SURFACE};"
-            "  border-radius: 16px 16px 0 0; }}"
+            f"  border-radius: {header_radius}; }}"
         )
 
         header_layout = QHBoxLayout(self.header)
@@ -149,6 +172,20 @@ class TaskFlow(QMainWindow):
             f"border: 1px solid {BORDER}; border-radius: 9px; padding: 2px 8px;"
         )
 
+        self.btn_pin = QPushButton("📌")
+        self.btn_pin.setCheckable(True)
+        self.btn_pin.setChecked(self._always_on_top)
+        self.btn_pin.setFixedSize(26, 26)
+        self.btn_pin.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_pin.setToolTip("Alternar siempre en primer plano")
+        self.btn_pin.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+            "  border: none; font-size: 14px; border-radius: 13px; }}"
+            f"QPushButton:hover {{ color: {ACCENT}; background: {ACCENT}20; }}"
+            f"QPushButton:checked {{ color: {ACCENT_LT}; background: {ACCENT}33; }}"
+        )
+        self.btn_pin.toggled.connect(self._toggle_always_on_top)
+
         self.btn_history = QPushButton("📜")
         self.btn_history.setFixedSize(26, 26)
         self.btn_history.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
@@ -159,15 +196,17 @@ class TaskFlow(QMainWindow):
         )
         self.btn_history.clicked.connect(self._show_history)
 
-        btn_close = QPushButton("✕")
-        btn_close.setFixedSize(26, 26)
-        btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_close.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
-            "  border: none; font-size: 11px; border-radius: 13px; }}"
-            "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
-        )
-        btn_close.clicked.connect(self._close)
+        btn_close = None
+        if not self._is_windows:
+            btn_close = QPushButton("✕")
+            btn_close.setFixedSize(26, 26)
+            btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            btn_close.setStyleSheet(
+                f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+                "  border: none; font-size: 11px; border-radius: 13px; }}"
+                "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
+            )
+            btn_close.clicked.connect(self._close)
 
         header_layout.addWidget(icon)
         header_layout.addSpacing(6)
@@ -175,9 +214,12 @@ class TaskFlow(QMainWindow):
         header_layout.addStretch()
         header_layout.addWidget(self.lbl_count)
         header_layout.addSpacing(6)
+        header_layout.addWidget(self.btn_pin)
+        header_layout.addSpacing(4)
         header_layout.addWidget(self.btn_history)
-        header_layout.addSpacing(6)
-        header_layout.addWidget(btn_close)
+        if btn_close is not None:
+            header_layout.addSpacing(6)
+            header_layout.addWidget(btn_close)
         panel_layout.addWidget(self.header)
 
         # --- Divisor ---
@@ -250,9 +292,10 @@ class TaskFlow(QMainWindow):
         footer = QWidget()
         footer.setObjectName("footerWidget")
         footer.setFixedHeight(58)
+        footer_radius = "0 0 0 0" if self._is_windows else "0 0 16px 16px"
         footer.setStyleSheet(
             f"#footerWidget {{ background: {BG_SURFACE};"
-            "  border-radius: 0 0 16px 16px; }}"
+            f"  border-radius: {footer_radius}; }}"
         )
 
         footer_lay = QHBoxLayout(footer)
@@ -358,6 +401,14 @@ class TaskFlow(QMainWindow):
         dlg.move(max(0, geo.left() - 325), geo.top() + 40)
         dlg.exec()
 
+    def _toggle_always_on_top(self, enabled: bool) -> None:
+        """Activa o desactiva mantener la ventana en primer plano."""
+        self._always_on_top = enabled
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, enabled)
+        self.show()
+        if enabled:
+            self.raise_()
+
     def _close(self) -> None:
         save_tasks(self.tasks)
         self._save_geometry()
@@ -368,6 +419,8 @@ class TaskFlow(QMainWindow):
     # ─────────────────────────────────────────
     def mouseMoveEvent(self, event):
         """Actualiza el cursor cuando el ratón está cerca de un borde."""
+        if self._is_windows:
+            return super().mouseMoveEvent(event)
         edges = _detect_edges(event.pos(), self.width(), self.height())
         cursor_shape = _cursor_for_edges(edges)
         if cursor_shape is not None:
@@ -388,6 +441,8 @@ class TaskFlow(QMainWindow):
 
     def mousePressEvent(self, event):
         """Inicia un redimensionamiento del sistema si se pulsa en un borde."""
+        if self._is_windows:
+            return super().mousePressEvent(event)
         if event.button() == Qt.MouseButton.LeftButton:
             edges = _detect_edges(event.pos(), self.width(), self.height())
             if edges:
@@ -400,20 +455,18 @@ class TaskFlow(QMainWindow):
     # ─────────────────────────────────────────
     #  Persistencia de geometría
     # ─────────────────────────────────────────
-    # ─────────────────────────────────────────
-    #  Persistencia de geometría
-    # ─────────────────────────────────────────
     def _restore_geometry(self) -> None:
         """Carga dimensiones guardadas y centra la ventana."""
         geo = load_geometry()
         if geo is not None:
+            self.move(geo["x"], geo["y"])
             self.resize(geo["width"], geo["height"])
-        
-        # Siempre centrar en la pantalla actual
-        screen = QApplication.primaryScreen().availableGeometry()
-        x = (screen.width() - self.width()) // 2
-        y = (screen.height() - self.height()) // 2
-        self.move(x, y)
+        else:
+            # Centrar solo la primera vez
+            screen = QApplication.primaryScreen().availableGeometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
         self._initialized = True
 
     def _save_geometry(self) -> None:
