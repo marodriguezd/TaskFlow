@@ -71,6 +71,10 @@ class TaskFlow(QMainWindow):
         self._cards: list[TaskCard] = []
         self._initialized = False
         self._is_windows = sys.platform.startswith("win")
+<<<<<<< codex/rebuild-application-for-windows-compatibility-2g2r2t
+        self._always_on_top = not self._is_windows
+=======
+>>>>>>> main
 
         self.setWindowTitle("TaskFlow")
 
@@ -110,6 +114,10 @@ class TaskFlow(QMainWindow):
     #  Construcción de la interfaz
     # ─────────────────────────────────────────
     def _build(self) -> None:
+        # Fallback defensivo por si un merge elimina la asignación en __init__.
+        if not hasattr(self, "_always_on_top"):
+            self._always_on_top = not getattr(self, "_is_windows", False)
+
         root = QWidget()
         self.setCentralWidget(root)
         root_bg = "transparent" if not self._is_windows else BG_BASE
