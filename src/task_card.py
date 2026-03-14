@@ -5,8 +5,9 @@ Contiene:
   - TaskCard: muestra nombre, prioridad, temporizador y barra de progreso.
 """
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, QUrl, pyqtSignal
 from PyQt6.QtGui import QCursor
+from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QVBoxLayout, QWidget,
     QLabel, QPushButton, QSizePolicy, QApplication,
@@ -44,6 +45,16 @@ class TaskCard(QFrame):
         self._timer = QTimer(self)
         self._timer.setInterval(1000)
         self._timer.timeout.connect(self._tick)
+
+        self._completion_sound_path = config.resolve_completion_sound_path()
+        self._completion_audio = QAudioOutput(self)
+        self._completion_audio.setVolume(1.0)
+        self._completion_player = QMediaPlayer(self)
+        self._completion_player.setAudioOutput(self._completion_audio)
+        if self._completion_sound_path is not None:
+            self._completion_player.setSource(
+                QUrl.fromLocalFile(str(self._completion_sound_path))
+            )
 
     # -- construcción de la interfaz -----------------------------------------
     def _build(self) -> None:
@@ -218,7 +229,7 @@ class TaskCard(QFrame):
         if self.remaining <= 0:
             self._timer.stop()
             self.running = False
-            QApplication.beep()
+            self._play_completion_sound()
             self.sig_completed.emit(self.index)
             self._style_play()
             pri = config.PRIORITY[self.task["priority"]]
@@ -229,6 +240,22 @@ class TaskCard(QFrame):
                 f"#cardInner {{ background: {config.BG_SURFACE};"
                 "  border-radius: 0 10px 10px 0; }}"
             )
+
+    def _play_completion_sound(self) -> None:
+        """Reproduce el sonido de campana al agotar el temporizador."""
+        current_sound_path = config.resolve_completion_sound_path()
+        if current_sound_path is None:
+            QApplication.beep()
+            return
+
+        if current_sound_path != self._completion_sound_path:
+            self._completion_sound_path = current_sound_path
+            self._completion_player.setSource(
+                QUrl.fromLocalFile(str(self._completion_sound_path))
+            )
+
+        self._completion_player.setPosition(0)
+        self._completion_player.play()
 
     def _complete_manually(self) -> None:
         """Marca la tarea como completada sin esperar al temporizador."""
