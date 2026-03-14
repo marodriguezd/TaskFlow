@@ -7,7 +7,7 @@ y gestionar el ciclo de vida de las tareas.
 
 import sys
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -452,9 +452,6 @@ class TaskFlow(QMainWindow):
                     return
         super().mousePressEvent(event)
 
-    # ─────────────────────────────────────────
-    #  Persistencia de geometría
-    # ─────────────────────────────────────────
     # ─────────────────────────────────────────
     #  Persistencia de geometría
     # ─────────────────────────────────────────
