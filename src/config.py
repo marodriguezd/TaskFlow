@@ -7,6 +7,7 @@ proporcionar funciones puras de lectura/escritura de datos.
 
 import json
 import os
+import shutil
 
 # ─────────────────────────────────────────────
 #  Dimensiones por defecto
@@ -43,9 +44,45 @@ P_ORDER = {"Alta": 0, "Media": 1, "Baja": 2}
 # ─────────────────────────────────────────────
 #  Persistencia
 # ─────────────────────────────────────────────
-DATA_FILE = os.path.join(os.path.expanduser("~"), ".taskflow_data.json")
-HISTORY_FILE = os.path.join(os.path.expanduser("~"), ".taskflow_history.json")
-GEOMETRY_FILE = os.path.join(os.path.expanduser("~"), ".taskflow_geometry.json")
+HOME_DIR = os.path.expanduser("~")
+DATA_DIR = os.path.join(HOME_DIR, ".TaskFlow")
+DATA_FILE = os.path.join(DATA_DIR, "taskflow_data.json")
+HISTORY_FILE = os.path.join(DATA_DIR, "taskflow_history.json")
+GEOMETRY_FILE = os.path.join(DATA_DIR, "taskflow_geometry.json")
+
+LEGACY_FILES = {
+    os.path.join(HOME_DIR, ".taskflow_data.json"): DATA_FILE,
+    os.path.join(HOME_DIR, ".taskflow_history.json"): HISTORY_FILE,
+    os.path.join(HOME_DIR, ".taskflow_geometry.json"): GEOMETRY_FILE,
+}
+
+
+def _ensure_data_dir() -> None:
+    """Garantiza que el directorio de datos exista."""
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+    except OSError:
+        pass
+
+
+def _migrate_legacy_files() -> None:
+    """Migra ficheros legacy del home a ~/.TaskFlow si existen."""
+    found_legacy = any(os.path.exists(src) for src in LEGACY_FILES)
+    if not found_legacy:
+        return
+
+    _ensure_data_dir()
+
+    for src, dst in LEGACY_FILES.items():
+        if not os.path.exists(src) or os.path.exists(dst):
+            continue
+        try:
+            shutil.move(src, dst)
+        except OSError:
+            pass
+
+
+_migrate_legacy_files()
 
 
 def fmt(seconds: int) -> str:
@@ -67,6 +104,7 @@ def load_tasks() -> list[dict]:
 
 def save_tasks(tasks: list[dict]) -> None:
     """Persiste la lista de tareas a disco."""
+    _ensure_data_dir()
     try:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(tasks, f, indent=2, ensure_ascii=False)
@@ -87,6 +125,7 @@ def load_history() -> list[dict]:
 
 def save_history(history: list[dict]) -> None:
     """Persiste el historial de tareas completadas."""
+    _ensure_data_dir()
     try:
         with open(HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, indent=2, ensure_ascii=False)
@@ -110,6 +149,7 @@ def load_geometry() -> dict | None:
 
 def save_geometry(x: int, y: int, width: int, height: int) -> None:
     """Persiste la geometría de la ventana a disco."""
+    _ensure_data_dir()
     try:
         with open(GEOMETRY_FILE, "w", encoding="utf-8") as f:
             json.dump({"x": x, "y": y, "width": width, "height": height},

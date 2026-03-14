@@ -12,8 +12,6 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QSpinBox, QComboBox,
     QPushButton, QGraphicsDropShadowEffect, QScrollArea, QWidget,
 )
-from datetime import datetime
-
 from config import (
     BG_SURFACE, BG_ELEVATED, BORDER, BORDER_LIGHT,
     TEXT_HI, TEXT_MID, ACCENT, ACCENT_LT,
@@ -54,12 +52,12 @@ class AddDialog(QDialog):
         lay.setSpacing(10)
 
         # Título
-        title = QLabel("Nueva tarea")
-        title.setStyleSheet(
+        self.title = QLabel("Nueva tarea")
+        self.title.setStyleSheet(
             f"color: {TEXT_HI}; font-size: 15px; font-weight: 700;"
             "background: transparent;"
         )
-        lay.addWidget(title)
+        lay.addWidget(self.title)
 
         # Campo de nombre
         self.inp = QLineEdit()
@@ -140,18 +138,18 @@ class AddDialog(QDialog):
         )
         btn_cancel.clicked.connect(self.reject)
 
-        btn_ok = QPushButton("Agregar")
-        btn_ok.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_ok.setStyleSheet(
+        self.btn_ok = QPushButton("Agregar")
+        self.btn_ok.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_ok.setStyleSheet(
             f"QPushButton {{ background: {ACCENT}; color: #ffffff;"
             f"  border: none; border-radius: 8px;"
             f"  padding: 7px 14px; font-size: 12px; font-weight: 700; }}"
             f"QPushButton:hover {{ background: {ACCENT_LT}; }}"
         )
-        btn_ok.clicked.connect(self._ok)
+        self.btn_ok.clicked.connect(self._ok)
 
         btn_row.addWidget(btn_cancel, 1)
-        btn_row.addWidget(btn_ok, 1)
+        btn_row.addWidget(self.btn_ok, 1)
         lay.addLayout(btn_row)
 
         outer.addWidget(card)
@@ -186,6 +184,40 @@ class AddDialog(QDialog):
 
     def mouseReleaseEvent(self, _event):
         self._drag_pos = None
+
+
+class EditDialog(AddDialog):
+    """Diálogo para editar una tarea existente."""
+
+    def __init__(self, task: dict, parent=None):
+        self._task = task
+        super().__init__(parent)
+        self._hydrate_task()
+
+    def _build(self) -> None:
+        super()._build()
+        self.title.setText("Editar tarea")
+        self.btn_ok.setText("Guardar")
+
+    def _hydrate_task(self) -> None:
+        self.inp.setText(self._task.get("name", ""))
+        total_seconds = max(60, int(self._task.get("total_seconds", 1500)))
+        minutes = max(1, total_seconds // 60)
+        self.spin.setValue(minutes)
+
+        priority = self._task.get("priority", "Media")
+        idx = self.combo.findText(priority)
+        self.combo.setCurrentIndex(idx if idx >= 0 else 1)
+
+    def get(self) -> dict:
+        data = super().get()
+        previous_remaining = max(0, int(self._task.get("remaining", data["total_seconds"])))
+        old_total = max(1, int(self._task.get("total_seconds", data["total_seconds"])))
+
+        # Escalar el progreso para no perder el avance relativo al cambiar tiempo
+        ratio = previous_remaining / old_total
+        data["remaining"] = max(0, int(round(data["total_seconds"] * ratio)))
+        return data
 
 
 class HistoryDialog(QDialog):
@@ -276,15 +308,15 @@ class HistoryDialog(QDialog):
 
                 name = QLabel(h["name"])
                 name.setStyleSheet(f"color: {TEXT_HI}; font-size: 13px; font-weight: 600; border: none;")
-                
+
                 date_str = h.get("completed_at", "Desconocido")
                 date = QLabel(date_str)
                 date.setStyleSheet(f"color: {TEXT_MID}; font-size: 10px; border: none;")
-                
+
                 flay.addWidget(name)
                 flay.addWidget(date)
                 item_lay.addWidget(f)
-        
+
         item_lay.addStretch()
         scroll.setWidget(content)
         lay.addWidget(scroll)
