@@ -5,17 +5,14 @@ Contiene:
   - AddDialog: formulario modal para crear una nueva tarea.
 """
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFrame,
     QLabel, QLineEdit, QSpinBox, QComboBox,
     QPushButton, QGraphicsDropShadowEffect, QScrollArea, QWidget,
 )
-from config import (
-    BG_SURFACE, BG_ELEVATED, BORDER, BORDER_LIGHT,
-    TEXT_HI, TEXT_MID, ACCENT, ACCENT_LT,
-)
+import config
 
 
 class AddDialog(QDialog):
@@ -37,8 +34,8 @@ class AddDialog(QDialog):
         card = QFrame()
         card.setObjectName("addDialogCard")
         card.setStyleSheet(
-            f"#addDialogCard {{ background: {BG_ELEVATED};"
-            f"  border: 1px solid {BORDER_LIGHT}; border-radius: 14px; }}"
+            f"#addDialogCard {{ background: {config.BG_ELEVATED};"
+            f"  border: 1px solid {config.BORDER_LIGHT}; border-radius: 14px; }}"
         )
 
         shadow = QGraphicsDropShadowEffect()
@@ -54,7 +51,7 @@ class AddDialog(QDialog):
         # Título
         self.title = QLabel("Nueva tarea")
         self.title.setStyleSheet(
-            f"color: {TEXT_HI}; font-size: 15px; font-weight: 700;"
+            f"color: {config.TEXT_HI}; font-size: 15px; font-weight: 700;"
             "background: transparent;"
         )
         lay.addWidget(self.title)
@@ -63,10 +60,10 @@ class AddDialog(QDialog):
         self.inp = QLineEdit()
         self.inp.setPlaceholderText("¿Qué vas a hacer?")
         self.inp.setStyleSheet(
-            f"QLineEdit {{ background: {BG_SURFACE}; color: {TEXT_HI};"
-            f"  border: 1px solid {BORDER}; border-radius: 8px;"
+            f"QLineEdit {{ background: {config.BG_SURFACE}; color: {config.TEXT_HI};"
+            f"  border: 1px solid {config.BORDER}; border-radius: 8px;"
             f"  padding: 7px 10px; font-size: 13px; }}"
-            f"QLineEdit:focus {{ border-color: {ACCENT}; }}"
+            f"QLineEdit:focus {{ border-color: {config.ACCENT}; }}"
         )
         lay.addWidget(self.inp)
 
@@ -79,20 +76,20 @@ class AddDialog(QDialog):
         col_time.setSpacing(3)
         lbl_time = QLabel("Minutos")
         lbl_time.setStyleSheet(
-            f"color: {TEXT_MID}; font-size: 11px; background: transparent;"
+            f"color: {config.TEXT_MID}; font-size: 11px; background: transparent;"
         )
         self.spin = QSpinBox()
         self.spin.setRange(1, 999)
         self.spin.setValue(25)
         self.spin.setStyleSheet(
-            f"QSpinBox {{ background: {BG_SURFACE}; color: {TEXT_HI};"
-            f"  border: 1px solid {BORDER}; border-radius: 8px;"
+            f"QSpinBox {{ background: {config.BG_SURFACE}; color: {config.TEXT_HI};"
+            f"  border: 1px solid {config.BORDER}; border-radius: 8px;"
             f"  padding: 6px 8px; font-size: 13px; }}"
             f"QSpinBox::up-button, QSpinBox::down-button {{"
-            f"  width: 18px; background: {BORDER}; border: none; }}"
-            f"QSpinBox::up-button:hover, QSpinBox::down-button:hover {{ background: {BORDER_LIGHT}; }}"
+            f"  width: 18px; background: {config.BORDER}; border: none; }}"
+            f"QSpinBox::up-button:hover, QSpinBox::down-button:hover {{ background: {config.BORDER_LIGHT}; }}"
             f"QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{ background: rgba(255, 255, 255, 0.4); }}"
-            f"QSpinBox::up-button {{ border-bottom: 0.5px solid {BORDER_LIGHT}; border-top-right-radius: 7px; }}"
+            f"QSpinBox::up-button {{ border-bottom: 0.5px solid {config.BORDER_LIGHT}; border-top-right-radius: 7px; }}"
             f"QSpinBox::down-button {{ border-bottom-right-radius: 7px; }}"
         )
         col_time.addWidget(lbl_time)
@@ -103,19 +100,19 @@ class AddDialog(QDialog):
         col_pri.setSpacing(3)
         lbl_pri = QLabel("Prioridad")
         lbl_pri.setStyleSheet(
-            f"color: {TEXT_MID}; font-size: 11px; background: transparent;"
+            f"color: {config.TEXT_MID}; font-size: 11px; background: transparent;"
         )
         self.combo = QComboBox()
         self.combo.addItems(["Alta", "Media", "Baja"])
         self.combo.setStyleSheet(
-            f"QComboBox {{ background: {BG_SURFACE}; color: {TEXT_HI};"
-            f"  border: 1px solid {BORDER}; border-radius: 8px;"
+            f"QComboBox {{ background: {config.BG_SURFACE}; color: {config.TEXT_HI};"
+            f"  border: 1px solid {config.BORDER}; border-radius: 8px;"
             f"  padding: 6px 10px; font-size: 13px; }}"
             f"QComboBox::drop-down {{ border: none; width: 22px; }}"
             f"QComboBox QAbstractItemView {{"
-            f"  background: {BG_ELEVATED}; color: {TEXT_HI};"
-            f"  border: 1px solid {BORDER_LIGHT};"
-            f"  selection-background-color: {ACCENT}44; }}"
+            f"  background: {config.BG_ELEVATED}; color: {config.TEXT_HI};"
+            f"  border: 1px solid {config.BORDER_LIGHT};"
+            f"  selection-background-color: {config.with_alpha(config.ACCENT, 0x44)}; }}"
         )
         col_pri.addWidget(lbl_pri)
         col_pri.addWidget(self.combo)
@@ -131,20 +128,20 @@ class AddDialog(QDialog):
         btn_cancel = QPushButton("Cancelar")
         btn_cancel.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         btn_cancel.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_MID};"
-            f"  border: 1px solid {BORDER}; border-radius: 8px;"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_MID};"
+            f"  border: 1px solid {config.BORDER}; border-radius: 8px;"
             f"  padding: 7px 14px; font-size: 12px; }}"
-            f"QPushButton:hover {{ color: {TEXT_HI}; border-color: {BORDER_LIGHT}; }}"
+            f"QPushButton:hover {{ color: {config.TEXT_HI}; border-color: {config.BORDER_LIGHT}; }}"
         )
         btn_cancel.clicked.connect(self.reject)
 
         self.btn_ok = QPushButton("Agregar")
         self.btn_ok.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_ok.setStyleSheet(
-            f"QPushButton {{ background: {ACCENT}; color: #ffffff;"
+            f"QPushButton {{ background: {config.ACCENT}; color: #ffffff;"
             f"  border: none; border-radius: 8px;"
             f"  padding: 7px 14px; font-size: 12px; font-weight: 700; }}"
-            f"QPushButton:hover {{ background: {ACCENT_LT}; }}"
+            f"QPushButton:hover {{ background: {config.ACCENT_LT}; }}"
         )
         self.btn_ok.clicked.connect(self._ok)
 
@@ -221,7 +218,9 @@ class EditDialog(AddDialog):
 
 
 class HistoryDialog(QDialog):
-    """Diálogo para ver el historial de tareas completadas."""
+    """Diálogo para ver el historial de tareas completadas y eliminadas."""
+
+    sig_restore_task = pyqtSignal(int)
 
     def __init__(self, history: list[dict], parent=None):
         super().__init__(parent)
@@ -239,8 +238,8 @@ class HistoryDialog(QDialog):
         card = QFrame()
         card.setObjectName("historyCard")
         card.setStyleSheet(
-            f"#historyCard {{ background: {BG_ELEVATED};"
-            f"  border: 1px solid {BORDER_LIGHT}; border-radius: 14px; }}"
+            f"#historyCard {{ background: {config.BG_ELEVATED};"
+            f"  border: 1px solid {config.BORDER_LIGHT}; border-radius: 14px; }}"
         )
 
         shadow = QGraphicsDropShadowEffect()
@@ -257,14 +256,14 @@ class HistoryDialog(QDialog):
         header = QHBoxLayout()
         title = QLabel("Historial")
         title.setStyleSheet(
-            f"color: {TEXT_HI}; font-size: 16px; font-weight: 700;"
+            f"color: {config.TEXT_HI}; font-size: 16px; font-weight: 700;"
             "background: transparent;"
         )
         btn_close = QPushButton("✕")
         btn_close.setFixedSize(24, 24)
         btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         btn_close.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_MID};"
+            f"QPushButton {{ background: transparent; color: {config.TEXT_MID};"
             "  border: none; font-size: 11px; border-radius: 12px; }}"
             "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
         )
@@ -281,7 +280,7 @@ class HistoryDialog(QDialog):
         scroll.setStyleSheet(
             "QScrollArea { border: none; background: transparent; }"
             f"QScrollBar:vertical {{ background: transparent; width: 4px; }}"
-            f"QScrollBar::handle:vertical {{ background: {BORDER}; border-radius: 2px; }}"
+            f"QScrollBar::handle:vertical {{ background: {config.BORDER}; border-radius: 2px; }}"
         )
 
         content = QWidget()
@@ -290,31 +289,56 @@ class HistoryDialog(QDialog):
         item_lay.setSpacing(8)
 
         if not self.history:
-            empty = QLabel("No hay tareas completadas")
-            empty.setStyleSheet(f"color: {TEXT_MID}; font-size: 12px;")
+            empty = QLabel("No hay tareas en el historial")
+            empty.setStyleSheet(f"color: {config.TEXT_MID}; font-size: 12px;")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             item_lay.addWidget(empty)
         else:
             # Mostrar de más reciente a más antigua
-            for h in reversed(self.history):
+            for history_idx in range(len(self.history) - 1, -1, -1):
+                h = self.history[history_idx]
                 f = QFrame()
                 f.setStyleSheet(
-                    f"background: {BG_SURFACE}; border: 1px solid {BORDER};"
+                    f"background: {config.BG_SURFACE}; border: 1px solid {config.BORDER};"
                     "border-radius: 8px; padding: 6px;"
                 )
                 flay = QVBoxLayout(f)
                 flay.setContentsMargins(10, 8, 10, 8)
-                flay.setSpacing(2)
+                flay.setSpacing(6)
 
                 name = QLabel(h["name"])
-                name.setStyleSheet(f"color: {TEXT_HI}; font-size: 13px; font-weight: 600; border: none;")
+                name.setStyleSheet(f"color: {config.TEXT_HI}; font-size: 13px; font-weight: 600; border: none;")
 
-                date_str = h.get("completed_at", "Desconocido")
-                date = QLabel(date_str)
-                date.setStyleSheet(f"color: {TEXT_MID}; font-size: 10px; border: none;")
+                date_str = h.get("event_at", h.get("completed_at", "Desconocido"))
+                event_type = h.get("history_event", "completed")
+                if event_type == "deleted":
+                    mode = "Eliminada"
+                elif h.get("completed_manually"):
+                    mode = "Completada manual"
+                else:
+                    mode = "Completada por temporizador"
+                date = QLabel(f"{date_str} · {mode}")
+                date.setStyleSheet(f"color: {config.TEXT_MID}; font-size: 10px; border: none;")
+
+                btn_restore = QPushButton("Restaurar")
+                btn_restore.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+                btn_restore.setStyleSheet(
+                    f"QPushButton {{ background: transparent; color: {config.ACCENT_LT};"
+                    f" border: 1px solid {config.BORDER}; border-radius: 7px;"
+                    " padding: 4px 8px; font-size: 11px; font-weight: 600; }}"
+                    f"QPushButton:hover {{ background: {config.with_alpha(config.ACCENT, 0x22)}; border-color: {config.ACCENT}; }}"
+                )
+                btn_restore.clicked.connect(
+                    lambda _checked=False, idx=history_idx: self._restore(idx)
+                )
+
+                footer = QHBoxLayout()
+                footer.addWidget(date)
+                footer.addStretch()
+                footer.addWidget(btn_restore)
 
                 flay.addWidget(name)
-                flay.addWidget(date)
+                flay.addLayout(footer)
                 item_lay.addWidget(f)
 
         item_lay.addStretch()
@@ -322,6 +346,11 @@ class HistoryDialog(QDialog):
         lay.addWidget(scroll)
 
         outer.addWidget(card)
+
+    def _restore(self, history_idx: int) -> None:
+        """Notifica que se quiere restaurar una tarea del historial."""
+        self.sig_restore_task.emit(history_idx)
+        self.accept()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
