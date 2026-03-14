@@ -150,19 +150,20 @@ class TaskCard(QFrame):
             icon, bg_col, fg_col = "✓", TEXT_LO, TEXT_LO
             bg_alpha = "1a"
         else:
-            icon = "⏸" if self.running else "▶"
+            icon = "❚❚" if self.running else "▶"
             fg_col = pri["fg"]    # Color vibrante de la prioridad
             bg_col = pri["pill"]  # Mismo color de fondo que la "cajita"
             bg_alpha = ""         # Usar el color del pill tal cual (ya tiene alpha si es necesario)
 
         self.btn_play.setText(icon)
+        icon_size = 14 if icon == "❚❚" else 16
         self.btn_play.setStyleSheet(
             f"QPushButton#btnPlay {{ "
             f"  background: {bg_col}{bg_alpha}; "
             f"  color: {fg_col}; "
             f"  border: none; "
             f"  border-radius: 18px; "
-            f"  font-size: 16px; "
+            f"  font-size: {icon_size}px; "
             f"  font-weight: 900; "
             f"  padding-left: {2 if icon == '▶' else 0}px; "
             f"}} "
