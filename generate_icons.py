@@ -46,11 +46,11 @@ def _find_source(assets_dir: Path) -> Path:
     )
 
 
-def _resize_and_save_pngs(img, output_dir: Path, sizes: Iterable[int]) -> None:
+def _resize_and_save_pngs(img, output_dir: Path, sizes: Iterable[int], resample_filter) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     for size in sizes:
         out = output_dir / f"taskflow-{size}.png"
-        resized = img.resize((size, size), resample=img.Resampling.LANCZOS)
+        resized = img.resize((size, size), resample=resample_filter)
         resized.save(out, format="PNG")
 
 
@@ -86,6 +86,12 @@ def main() -> None:
             "Falta Pillow. Instala con: pip install pillow"
         ) from exc
 
+    # Compatibilidad Pillow nueva/vieja: Image.Resampling o Image.LANCZOS
+    if hasattr(Image, "Resampling"):
+        resample_filter = Image.Resampling.LANCZOS
+    else:
+        resample_filter = Image.LANCZOS
+
     assets_dir = Path(args.assets_dir).resolve()
     source = _find_source(assets_dir)
 
@@ -93,7 +99,7 @@ def main() -> None:
         img = raw.convert("RGBA")
 
     generated_dir = assets_dir / "generated"
-    _resize_and_save_pngs(img, generated_dir, PNG_SIZES)
+    _resize_and_save_pngs(img, generated_dir, PNG_SIZES, resample_filter)
 
     ico_file = assets_dir / "taskflow.ico"
     _save_ico(img, ico_file, ICO_SIZES)
