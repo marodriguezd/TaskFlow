@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPainter, QLinearGradient, QCursor
 from PyQt6.QtWidgets import QWidget
 
-from config import BORDER
+import config
 
 
 # ─────────────────────────────────────────────
@@ -40,7 +40,7 @@ class ProgressBar(QWidget):
 
         # Fondo
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(BORDER))
+        painter.setBrush(QColor(config.BORDER))
         painter.drawRoundedRect(0, 0, w, h, r, r)
 
         # Relleno
