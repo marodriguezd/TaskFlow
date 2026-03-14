@@ -1,8 +1,18 @@
-Coloca aquí el icono de la app para build/runtime.
+Coloca aquí el icono maestro y genera los iconos de build/runtime.
 
-Nombre recomendado:
-- `taskflow.ico` (prioridad para Windows)
+## Flujo recomendado
+1. Coloca tu PNG base en:
+   - `assets/TaskFlow.png`
+2. Genera variantes:
+   - `python generate_icons.py`
+3. Compila:
+   - `python compiler.py`
 
-También se aceptan como fallback:
-- `taskflow.png`
-- `taskflow.icns`
+## Archivos generados
+- `assets/taskflow.ico` (prioridad para Windows/PyInstaller)
+- `assets/taskflow.icns` (si Pillow soporta ICNS)
+- `assets/generated/taskflow-*.png`
+
+## Nota
+Si no tienes Pillow:
+- `pip install pillow`
