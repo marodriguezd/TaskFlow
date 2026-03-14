@@ -211,6 +211,12 @@ class EditDialog(AddDialog):
         previous_remaining = max(0, int(self._task.get("remaining", data["total_seconds"])))
         old_total = max(1, int(self._task.get("total_seconds", data["total_seconds"])))
 
+        # Si la tarea estaba agotada (00:00), al editar debe recuperar tiempo
+        # para evitar quedarse bloqueada permanentemente en 00:00.
+        if previous_remaining == 0:
+            data["remaining"] = data["total_seconds"]
+            return data
+
         # Escalar el progreso para no perder el avance relativo al cambiar tiempo
         ratio = previous_remaining / old_total
         data["remaining"] = max(0, int(round(data["total_seconds"] * ratio)))
