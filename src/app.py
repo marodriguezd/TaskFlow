@@ -5,6 +5,8 @@ Responsabilidad: orquestar la UI (cabecera, lista de tareas, footer)
 y gestionar el ciclo de vida de las tareas.
 """
 
+import sys
+
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtWidgets import (
@@ -68,16 +70,22 @@ class TaskFlow(QMainWindow):
         self.tasks = load_tasks()
         self._cards: list[TaskCard] = []
         self._initialized = False
+        self._is_windows = sys.platform.startswith("win")
 
         self.setWindowTitle("TaskFlow")
 
-        # Flags: sin marco, siempre encima, tipo herramienta
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # Linux/Wayland: experiencia frameless actual.
+        # Windows: ventana normal para minimizar/maximizar/snap layout.
+        if self._is_windows:
+            self.setWindowFlags(Qt.WindowType.Window)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        else:
+            self.setWindowFlags(
+                Qt.WindowType.FramelessWindowHint
+                | Qt.WindowType.WindowStaysOnTopHint
+                | Qt.WindowType.Tool
+            )
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Habilitar tracking del ratón para detección de bordes
         self.setMouseTracking(True)
@@ -99,24 +107,28 @@ class TaskFlow(QMainWindow):
     def _build(self) -> None:
         root = QWidget()
         self.setCentralWidget(root)
-        root.setStyleSheet("background: transparent;")
+        root_bg = "transparent" if not self._is_windows else BG_BASE
+        root.setStyleSheet(f"background: {root_bg};")
 
         wrap = QVBoxLayout(root)
-        wrap.setContentsMargins(6, 6, 6, 6)
+        wrap_margin = 0 if self._is_windows else 6
+        wrap.setContentsMargins(wrap_margin, wrap_margin, wrap_margin, wrap_margin)
         wrap.setSpacing(0)
 
         # Panel principal
         self.panel = QFrame()
         self.panel.setObjectName("mainPanel")
+        panel_radius = 0 if self._is_windows else 16
         self.panel.setStyleSheet(
             f"#mainPanel {{ background: {BG_BASE};"
-            f"  border: 1px solid {BORDER}; border-radius: 16px; }}"
+            f"  border: 1px solid {BORDER}; border-radius: {panel_radius}px; }}"
         )
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(32)
-        shadow.setOffset(0, 6)
-        shadow.setColor(QColor(0, 0, 0, 220))
-        self.panel.setGraphicsEffect(shadow)
+        if not self._is_windows:
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(32)
+            shadow.setOffset(0, 6)
+            shadow.setColor(QColor(0, 0, 0, 220))
+            self.panel.setGraphicsEffect(shadow)
 
         panel_layout = QVBoxLayout(self.panel)
         panel_layout.setContentsMargins(0, 0, 0, 0)
@@ -125,9 +137,10 @@ class TaskFlow(QMainWindow):
         # --- Cabecera arrastrable ---
         self.header = DragHeader()
         self.header.setObjectName("headerWidget")
+        header_radius = "0 0 0 0" if self._is_windows else "16px 16px 0 0"
         self.header.setStyleSheet(
             f"#headerWidget {{ background: {BG_SURFACE};"
-            "  border-radius: 16px 16px 0 0; }}"
+            f"  border-radius: {header_radius}; }}"
         )
 
         header_layout = QHBoxLayout(self.header)
@@ -159,15 +172,17 @@ class TaskFlow(QMainWindow):
         )
         self.btn_history.clicked.connect(self._show_history)
 
-        btn_close = QPushButton("✕")
-        btn_close.setFixedSize(26, 26)
-        btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        btn_close.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {TEXT_LO};"
-            "  border: none; font-size: 11px; border-radius: 13px; }}"
-            "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
-        )
-        btn_close.clicked.connect(self._close)
+        btn_close = None
+        if not self._is_windows:
+            btn_close = QPushButton("✕")
+            btn_close.setFixedSize(26, 26)
+            btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            btn_close.setStyleSheet(
+                f"QPushButton {{ background: transparent; color: {TEXT_LO};"
+                "  border: none; font-size: 11px; border-radius: 13px; }}"
+                "QPushButton:hover { color: #ff5e78; background: #ff5e7820; }"
+            )
+            btn_close.clicked.connect(self._close)
 
         header_layout.addWidget(icon)
         header_layout.addSpacing(6)
@@ -176,8 +191,9 @@ class TaskFlow(QMainWindow):
         header_layout.addWidget(self.lbl_count)
         header_layout.addSpacing(6)
         header_layout.addWidget(self.btn_history)
-        header_layout.addSpacing(6)
-        header_layout.addWidget(btn_close)
+        if btn_close is not None:
+            header_layout.addSpacing(6)
+            header_layout.addWidget(btn_close)
         panel_layout.addWidget(self.header)
 
         # --- Divisor ---
@@ -250,9 +266,10 @@ class TaskFlow(QMainWindow):
         footer = QWidget()
         footer.setObjectName("footerWidget")
         footer.setFixedHeight(58)
+        footer_radius = "0 0 0 0" if self._is_windows else "0 0 16px 16px"
         footer.setStyleSheet(
             f"#footerWidget {{ background: {BG_SURFACE};"
-            "  border-radius: 0 0 16px 16px; }}"
+            f"  border-radius: {footer_radius}; }}"
         )
 
         footer_lay = QHBoxLayout(footer)
@@ -368,6 +385,8 @@ class TaskFlow(QMainWindow):
     # ─────────────────────────────────────────
     def mouseMoveEvent(self, event):
         """Actualiza el cursor cuando el ratón está cerca de un borde."""
+        if self._is_windows:
+            return super().mouseMoveEvent(event)
         edges = _detect_edges(event.pos(), self.width(), self.height())
         cursor_shape = _cursor_for_edges(edges)
         if cursor_shape is not None:
@@ -388,6 +407,8 @@ class TaskFlow(QMainWindow):
 
     def mousePressEvent(self, event):
         """Inicia un redimensionamiento del sistema si se pulsa en un borde."""
+        if self._is_windows:
+            return super().mousePressEvent(event)
         if event.button() == Qt.MouseButton.LeftButton:
             edges = _detect_edges(event.pos(), self.width(), self.height())
             if edges:
@@ -407,13 +428,14 @@ class TaskFlow(QMainWindow):
         """Carga dimensiones guardadas y centra la ventana."""
         geo = load_geometry()
         if geo is not None:
+            self.move(geo["x"], geo["y"])
             self.resize(geo["width"], geo["height"])
-        
-        # Siempre centrar en la pantalla actual
-        screen = QApplication.primaryScreen().availableGeometry()
-        x = (screen.width() - self.width()) // 2
-        y = (screen.height() - self.height()) // 2
-        self.move(x, y)
+        else:
+            # Centrar solo la primera vez
+            screen = QApplication.primaryScreen().availableGeometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
         self._initialized = True
 
     def _save_geometry(self) -> None:
