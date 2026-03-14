@@ -5,6 +5,8 @@ Responsabilidad: orquestar la UI (cabecera, lista de tareas, footer)
 y gestionar el ciclo de vida de las tareas.
 """
 
+import sys
+
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QCursor
 from PyQt6.QtWidgets import (
@@ -68,16 +70,22 @@ class TaskFlow(QMainWindow):
         self.tasks = load_tasks()
         self._cards: list[TaskCard] = []
         self._initialized = False
+        self._is_windows = sys.platform.startswith("win")
 
         self.setWindowTitle("TaskFlow")
 
-        # Flags: sin marco, siempre encima, tipo herramienta
-        self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.WindowStaysOnTopHint
-            | Qt.WindowType.Tool
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # Linux/Wayland: experiencia frameless actual.
+        # Windows: ventana normal para minimizar/maximizar/snap layout.
+        if self._is_windows:
+            self.setWindowFlags(Qt.WindowType.Window)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        else:
+            self.setWindowFlags(
+                Qt.WindowType.FramelessWindowHint
+                | Qt.WindowType.WindowStaysOnTopHint
+                | Qt.WindowType.Tool
+            )
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Habilitar tracking del ratón para detección de bordes
         self.setMouseTracking(True)
@@ -368,6 +376,8 @@ class TaskFlow(QMainWindow):
     # ─────────────────────────────────────────
     def mouseMoveEvent(self, event):
         """Actualiza el cursor cuando el ratón está cerca de un borde."""
+        if self._is_windows:
+            return super().mouseMoveEvent(event)
         edges = _detect_edges(event.pos(), self.width(), self.height())
         cursor_shape = _cursor_for_edges(edges)
         if cursor_shape is not None:
@@ -388,6 +398,8 @@ class TaskFlow(QMainWindow):
 
     def mousePressEvent(self, event):
         """Inicia un redimensionamiento del sistema si se pulsa en un borde."""
+        if self._is_windows:
+            return super().mousePressEvent(event)
         if event.button() == Qt.MouseButton.LeftButton:
             edges = _detect_edges(event.pos(), self.width(), self.height())
             if edges:
@@ -407,13 +419,14 @@ class TaskFlow(QMainWindow):
         """Carga dimensiones guardadas y centra la ventana."""
         geo = load_geometry()
         if geo is not None:
+            self.move(geo["x"], geo["y"])
             self.resize(geo["width"], geo["height"])
-        
-        # Siempre centrar en la pantalla actual
-        screen = QApplication.primaryScreen().availableGeometry()
-        x = (screen.width() - self.width()) // 2
-        y = (screen.height() - self.height()) // 2
-        self.move(x, y)
+        else:
+            # Centrar solo la primera vez
+            screen = QApplication.primaryScreen().availableGeometry()
+            x = (screen.width() - self.width()) // 2
+            y = (screen.height() - self.height()) // 2
+            self.move(x, y)
         self._initialized = True
 
     def _save_geometry(self) -> None:
