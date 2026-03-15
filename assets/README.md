@@ -2,7 +2,8 @@ Coloca aquí el icono maestro y genera los iconos de build/runtime.
 
 ## Flujo recomendado
 1. Coloca tu PNG base en:
-   - `assets/TaskFlow.png`
+   - `assets/TaskFlow.png` (fuente maestra)
+   - `assets/taskflow.png` (compatibilidad)
 2. Genera variantes:
    - `python generate_icons.py`
 3. Compila:
@@ -16,5 +17,3 @@ Coloca aquí el icono maestro y genera los iconos de build/runtime.
 ## Nota
 Si no tienes Pillow:
 - `pip install pillow`
-
-También se aceptan variantes de nombre en mayúsculas/minúsculas (por ejemplo `TaskFlow.png` o `taskflow.png`).

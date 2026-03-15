@@ -95,7 +95,8 @@ python src/main.py
 ## Pipeline de iconos (recomendado para producción)
 
 1. Coloca el icono maestro en:
-   - `assets/TaskFlow.png` (o `assets/taskflow.png`)
+   - `assets/TaskFlow.png` (fuente maestra)
+   - `assets/taskflow.png` (compatibilidad)
 2. Genera variantes:
 
 ```bash
@@ -123,7 +124,7 @@ Salida esperada:
 
 ### Qué hace `compiler.py`
 
-- Detecta icono automáticamente desde `assets/` (`taskflow.*` y `TaskFlow.*`).
+- Detecta icono automáticamente desde `assets/` priorizando `TaskFlow.*` y luego `taskflow.*`.
 - Ejecuta `PyInstaller` en modo:
   - `--onefile`
   - `--windowed`

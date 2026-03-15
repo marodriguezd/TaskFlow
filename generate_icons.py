@@ -24,18 +24,16 @@ ICO_SIZES: tuple[int, ...] = (16, 20, 24, 32, 40, 48, 64, 128, 256)
 
 
 def _find_source(assets_dir: Path) -> Path:
-    preferred = assets_dir / "TaskFlow.png"
-    if preferred.exists():
-        return preferred
-
-    fallback_candidates = [
+    preferred_candidates = [
+        assets_dir / "TaskFlow.png",
         assets_dir / "taskflow.png",
         assets_dir / "icon.png",
         assets_dir / "app.png",
     ]
-    for candidate in fallback_candidates:
+    for candidate in preferred_candidates:
         if candidate.exists():
             return candidate
+
 
     matches = sorted(assets_dir.glob("*.png"))
     if matches:
