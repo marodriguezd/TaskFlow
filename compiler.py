@@ -19,12 +19,12 @@ ASSETS_DIR = ROOT / "assets"
 
 def _resolve_icon() -> Path:
     preferred_candidates = (
-        ASSETS_DIR / "taskflow.ico",
         ASSETS_DIR / "TaskFlow.ico",
-        ASSETS_DIR / "taskflow.png",
+        ASSETS_DIR / "taskflow.ico",
         ASSETS_DIR / "TaskFlow.png",
-        ASSETS_DIR / "taskflow.icns",
+        ASSETS_DIR / "taskflow.png",
         ASSETS_DIR / "TaskFlow.icns",
+        ASSETS_DIR / "taskflow.icns",
     )
     for candidate in preferred_candidates:
         if candidate.exists():

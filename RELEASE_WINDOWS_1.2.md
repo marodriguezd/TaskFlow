@@ -1,23 +1,20 @@
-# TaskFlow - Windows - 1.3
+# TaskFlow - Windows - 1.4
 
-TaskFlow Windows 1.3  
-Esta versión consolida mejoras de productividad y añade personalización del sonido de fin de temporizador.
+TaskFlow Windows 1.4  
+Esta release está enfocada exclusivamente en el cambio de icono de la aplicación.
 
 ## ✅ Qué incluye
 
-- Ventana nativa de Windows (minimizar, maximizar y snap layout).
-- Gestión de tareas con prioridad (`Alta`, `Media`, `Baja`), temporizador y barra de progreso.
-- Edición rápida (✎), eliminación (✕) y completado manual (✓) por tarjeta.
-- Historial unificado (completadas por tiempo, completadas manualmente y eliminadas) con opción de **Restaurar**.
-- Persistencia de tareas, historial, geometría de ventana, tema y estado de chincheta.
+- Nuevo logo oficial aplicado como imagen maestra del proyecto (`assets/TaskFlow.png`).
+- Reemplazo del recurso base utilizado por el pipeline de iconos.
+- Scripts de build y runtime actualizados para priorizar el nuevo logo.
+- Plantilla/documentación de release ajustada para reflejar que la 1.4 es un cambio visual de icono.
 
-## 🆕 Novedades de la 1.3
+## 🆕 Novedades de la 1.4
 
-- Sonido de finalización configurable mediante `bell.mp3`.
-- Ruta de personalización para usuario:
-  - `C:\Users\<usuario>\.TaskFlow\bell.mp3`
-- En primera ejecución, si el archivo no existe, TaskFlow intenta copiar el sonido por defecto incluido con la app.
-- Para cambiar la campana, basta con reemplazar ese archivo por otro MP3 con el mismo nombre.
+- El pipeline de generación de iconos usa por defecto `assets/TaskFlow.png`.
+- El ejecutable compilado (`PyInstaller`) prioriza el nuevo logo al resolver el icono.
+- La app en runtime prioriza el nuevo logo al cargar el icono de ventana.
 
 ## 📦 Formato de distribución
 
@@ -30,11 +27,9 @@ Esta versión consolida mejoras de productividad y añade personalización del s
 ## 🚀 Uso rápido
 
 1. Ejecuta `TaskFlow.exe`.
-2. Crea tareas y usa Play/Pausa para el temporizador.
-3. (Opcional) Personaliza la campana reemplazando `C:\Users\<usuario>\.TaskFlow\bell.mp3`.
+2. Verifica que el icono de la app corresponda al nuevo logo.
 
 ## ℹ️ Notas
 
-- Los datos de la app se guardan en `C:\Users\<usuario>\.TaskFlow`.
-- Si existen archivos legacy (`.taskflow_*.json`), se migran automáticamente.
+- Esta versión no introduce cambios funcionales: solo actualización de identidad visual (icono).
 - Si Windows muestra un icono antiguo, puede ser caché del Explorador.

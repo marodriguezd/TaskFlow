@@ -24,12 +24,12 @@ def _icon_path() -> Path | None:
         base = Path(__file__).resolve().parent.parent
 
     candidates = [
-        base / "assets" / "taskflow.ico",
         base / "assets" / "TaskFlow.ico",
-        base / "assets" / "taskflow.png",
+        base / "assets" / "taskflow.ico",
         base / "assets" / "TaskFlow.png",
-        base / "assets" / "taskflow.icns",
+        base / "assets" / "taskflow.png",
         base / "assets" / "TaskFlow.icns",
+        base / "assets" / "taskflow.icns",
     ]
     for icon in candidates:
         if icon.exists():
