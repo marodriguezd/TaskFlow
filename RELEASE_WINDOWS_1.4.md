@@ -5,16 +5,7 @@ Esta release está enfocada exclusivamente en el cambio de icono de la aplicaci�
 
 ## ✅ Qué incluye
 
-- Nuevo logo oficial aplicado como imagen maestra del proyecto (`assets/TaskFlow.png`).
-- Reemplazo del recurso base utilizado por el pipeline de iconos.
-- Scripts de build y runtime actualizados para priorizar el nuevo logo.
-- Plantilla/documentación de release ajustada para reflejar que la 1.4 es un cambio visual de icono.
-
-## 🆕 Novedades de la 1.4
-
-- El pipeline de generación de iconos usa por defecto `assets/TaskFlow.png`.
-- El ejecutable compilado (`PyInstaller`) prioriza el nuevo logo al resolver el icono.
-- La app en runtime prioriza el nuevo logo al cargar el icono de ventana.
+- Nuevo logo oficial aplicado.
 
 ## 📦 Formato de distribución
 
