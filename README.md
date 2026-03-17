@@ -158,8 +158,8 @@ Se añadió una implementación móvil en `android/` con **Kivy + Buildozer** pa
 Pasos rápidos:
 
 ```bash
-cd android
-buildozer android debug
+source .venv/bin/activate
+./android/build_android.sh debug
 ```
 
 Detalles completos en `android/README.md` y configuración en `android/buildozer.spec`.

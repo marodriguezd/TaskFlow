@@ -1,36 +1,42 @@
 # Compilar TaskFlow Android (APK 14+)
 
-> Si solo quieres compilar APK: **no ejecutes `python android/main.py` en Linux de escritorio**. Ese comando intenta abrir ventana Kivy local y requiere librerías gráficas del host (`libGL`, `mtdev`, etc.).
+## TL;DR (comando recomendado)
 
-## Comandos exactos (desde la raíz del repo)
+Desde la raíz del repo:
 
 ```bash
-# 1) activar tu entorno
 source .venv/bin/activate
+./android/build_android.sh debug
+```
 
-# 2) instalar build tools python
-pip install --upgrade pip
-pip install buildozer cython==0.29.36
+Para release:
 
-# 3) entrar al proyecto android
+```bash
+source .venv/bin/activate
+./android/build_android.sh release
+```
+
+## ¿Por qué te salió `ModuleNotFoundError: No module named 'distutils'`?
+
+Con Python 3.12, `distutils` ya no viene en la stdlib. Algunas versiones de Buildozer/python-for-android aún lo importan internamente.
+
+El script `android/build_android.sh` prepara el entorno (pip/setuptools/buildozer/cython) y valida `import distutils` antes del build.
+
+Si aun así falla en tu máquina, usa Python **3.11** para compilar el APK (recomendado para máxima compatibilidad hoy en día).
+
+## Flujo manual (sin script)
+
+```bash
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install --upgrade buildozer "cython==0.29.36"
 cd android
-
-# 4) generar APK debug (primera vez tarda bastante)
 buildozer android debug
 ```
 
-APK generado:
+APK generado (debug):
 
 - `android/bin/taskflow-1.0.0-arm64-v8a_armeabi-v7a-debug.apk`
-
-## Release
-
-```bash
-cd android
-buildozer android release
-```
-
-Luego hay que firmar el APK con tu keystore para poder distribuirlo.
 
 ## Dependencias del sistema (Debian/Ubuntu/WSL)
 
@@ -41,14 +47,12 @@ sudo apt install -y \
   zlib1g-dev libncurses6 libtinfo6 cmake libffi-dev libssl-dev
 ```
 
-## Sobre tu error actual (`libGL.so.1`, `libmtdev.so.1`)
+## Nota importante sobre `python android/main.py`
 
-Ese error aparece al ejecutar `python android/main.py` en desktop. Para compilar APK **no es necesario** correr ese comando.
+Ese comando intenta abrir la UI Kivy en Linux desktop y **no es necesario** para compilar APK.
 
-Si aun así quieres probar UI Kivy en Linux local (opcional), instala:
+Si quieres ejecutar la UI localmente (opcional), instala además:
 
 ```bash
 sudo apt install -y libgl1 libmtdev1
 ```
-
-Pero para tu objetivo (crear APK), céntrate en `buildozer android debug`.
