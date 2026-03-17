@@ -43,7 +43,7 @@ APK generado (debug):
 ```bash
 sudo apt update
 sudo apt install -y \
-  git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config \
+  git zip unzip openjdk-17-jdk python3-pip autoconf automake libtool pkg-config \
   zlib1g-dev libncurses6 libtinfo6 cmake libffi-dev libssl-dev
 ```
 
@@ -55,4 +55,17 @@ Si quieres ejecutar la UI localmente (opcional), instala además:
 
 ```bash
 sudo apt install -y libgl1 libmtdev1
+```
+
+
+## Error: `autoreconf: not found`
+
+Si te aparece durante `libffi/autogen.sh`, te falta `autoconf` (que provee `autoreconf`) y normalmente `automake`.
+
+Instala y relanza:
+
+```bash
+sudo apt update
+sudo apt install -y autoconf automake
+./android/build_android.sh debug
 ```

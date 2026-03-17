@@ -17,6 +17,22 @@ if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   echo "Aviso: no detecto entorno virtual activo. Recomendado: source .venv/bin/activate"
 fi
 
+# Preflight de herramientas nativas que Buildozer/python-for-android usa durante recetas como libffi.
+missing=()
+for tool in git zip unzip javac autoconf automake libtool pkg-config cmake; do
+  command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
+command -v autoreconf >/dev/null 2>&1 || missing+=("autoreconf (paquete autoconf)")
+
+if (( ${#missing[@]} > 0 )); then
+  echo "ERROR: faltan dependencias del sistema para compilar APK:"
+  printf '  - %s\n' "${missing[@]}"
+  echo
+  echo "Instala en Debian/Ubuntu/WSL:"
+  echo "  sudo apt update && sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf automake libtool pkg-config zlib1g-dev libncurses6 libtinfo6 cmake libffi-dev libssl-dev"
+  exit 1
+fi
+
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install --upgrade buildozer "cython==0.29.36"
 
