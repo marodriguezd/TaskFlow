@@ -131,6 +131,39 @@ Salida esperada:
   - `--icon ...`
 - Incluye el icono también como recurso para que la app pueda cargarlo en runtime.
 
+### ¿Se puede generar APK para Android con este mismo código?
+
+Sí, **es posible reutilizar gran parte de la lógica en Python**, pero **no existe un camino de “casi cero cambios”** con el stack actual (`PyQt6 + PyInstaller`).
+
+- `PyInstaller` no genera APK; el flujo actual está orientado a escritorio (Windows/Linux).
+- Para Android, el camino más realista en ecosistema Qt/Python es migrar de `PyQt6` a `PySide6` y usar herramientas de despliegue Android de Qt for Python.
+- Si se mantiene `PyQt6`, habría que evaluar alternativas más complejas (y normalmente con más fricción de build/toolchain).
+
+Recomendación práctica para una rama `android`:
+
+1. Separar al máximo la lógica de negocio (timers, persistencia, modelo de tareas) de la capa UI.
+2. Probar un POC mínimo en Android (pantalla principal + crear tarea + temporizador).
+3. Adaptar almacenamiento y permisos Android (rutas de app sandbox, ciclo de vida móvil).
+4. Ajustar UX táctil (sin depender de hover, resize de ventana, etc.).
+
+Con eso, la app puede llegar a APK sin cambiar el lenguaje, pero sí con una fase de porting controlada.
+
+---
+
+
+## Build de Android (APK 14+)
+
+Se añadió una implementación móvil en `android/` con **Kivy + Buildozer** para generar APK sin cambiar de lenguaje (Python).
+
+Pasos rápidos:
+
+```bash
+source .venv/bin/activate
+./android/build_android.sh debug
+```
+
+Detalles completos en `android/README.md` y configuración en `android/buildozer.spec`.
+
 ---
 
 ## Persistencia de datos
