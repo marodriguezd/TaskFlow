@@ -1,14 +1,45 @@
-name: Release Packaging
+name: Release
 
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      validate_only:
+        description: 'Validate tag/version only (no build, no release)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  package:
-    name: Package Distributable (${{ matrix.os }})
+  validate:
+    name: Validate tag & version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag format, project version, and provenance
+        run: |
+          python3 tools/release_check.py \
+            --tag "${GITHUB_REF_NAME}" \
+            --gradle build.gradle.kts \
+            --commit "${GITHUB_SHA}" \
+            --strict
+
+  build:
+    name: Package (${{ matrix.os }})
+    needs: validate
+    if: github.event_name == 'push' || inputs.validate_only != true
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -28,11 +59,113 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build Native Distribution Package (jpackage)
-        run: ./gradlew jpackagePackage
+      - name: Run test suite
+        run: ./gradlew --no-daemon test
 
-      - name: Upload Installer Artifacts
+      - name: Build native package (jpackage)
+        run: ./gradlew --no-daemon jpackagePackage
+
+      - name: Collect release assets
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          # The stamped version written by the releaseStamp task must match the tag
+          STAMP="$(tr -d '[:space:]' < build/dist/RELEASE_VERSION)"
+          echo "Build produced version stamp: ${STAMP}"
+          case "${RUNNER_OS}" in
+            Windows)
+              find build/dist -maxdepth 1 -name '*.msi' -exec cp {} release-assets/ \;
+              EXT="msi"
+              ;;
+            macOS)
+              find build/dist -maxdepth 1 -name '*.dmg' -exec cp {} release-assets/ \;
+              EXT="dmg"
+              ;;
+            Linux)
+              find build/dist -maxdepth 1 -name '*.deb' -exec cp {} release-assets/ \;
+              EXT="deb"
+              ;;
+          esac
+          COUNT=$(find release-assets -type f -name "*.${EXT}" | wc -l)
+          if [ "${COUNT}" -lt 1 ]; then
+            echo "::error::No .${EXT} package found in build/dist"
+            exit 1
+          fi
+          cp build/dist/RELEASE_VERSION release-assets/RELEASE_VERSION
+          ls -la release-assets
+
+      - name: Upload platform package artifact
         uses: actions/upload-artifact@v4
         with:
           name: taskflow-${{ matrix.os }}-package
-          path: build/dist/*.*
+          path: release-assets
+          retention-days: 7
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all platform packages
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: taskflow-*-package
+
+      - name: Validate provenance and artifact consistency
+        run: |
+          python3 tools/release_check.py \
+            --tag "${GITHUB_REF_NAME}" \
+            --gradle build.gradle.kts \
+            --commit "${GITHUB_SHA}" \
+            --artifacts-dir artifacts \
+            --require-platform-artifacts \
+            --strict
+
+      - name: Prepare final release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( -name '*.msi' -o -name '*.deb' -o -name '*.dmg' \) \
+            -exec cp {} release-assets/ \;
+          ls -la release-assets
+
+      - name: Generate SHA-256 checksums
+        run: |
+          cd release-assets
+          sha256sum *.msi *.deb *.dmg > checksums.txt
+          cat checksums.txt
+
+      - name: Prepare release notes
+        run: |
+          {
+            head -n -1 RELEASE_NOTES.md
+            echo ""
+            echo "## Checksums"
+            echo ""
+            echo '```'
+            cat release-assets/checksums.txt
+            echo '```'
+          } > release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "TaskFlow ${{ github.ref_name }} — Java 21 Desktop Task Manager"
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          files: |
+            release-assets/*.msi
+            release-assets/*.deb
+            release-assets/*.dmg
+            release-assets/checksums.txt

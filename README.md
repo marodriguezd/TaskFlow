@@ -103,6 +103,7 @@ Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/
 ./gradlew spotlessApply    # Apply code formatting
 ./gradlew build            # Compile, test, and assemble
 ./gradlew jpackageImage    # Build a standalone application image with jpackage
+./gradlew jpackagePackage  # Build a native installer (msi/dmg/deb) for the current OS
 ```
 
 The packaged application image is written to `build/dist/TaskFlow` and can be launched directly:
@@ -124,6 +125,18 @@ The packaged application image is written to `build/dist/TaskFlow` and can be la
 | Linux | `.deb` |
 
 TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/workflows/ci.yml`, `.github/workflows/release.yml`) build and package the application on all three platforms.
+
+### Releases
+
+Official releases are published automatically on the [GitHub Releases page](https://github.com/marodriguezd/TaskFlow/releases) when a `vMAJOR.MINOR.PATCH` tag is pushed (e.g. `v1.0.0`). The pipeline:
+
+1. validates the tag format, that it matches the Gradle project version, and that it points at the built commit;
+2. builds and tests the application on Windows, Linux, and macOS runners;
+3. produces the native installer for each platform with `jpackage`;
+4. verifies a `RELEASE_VERSION` provenance stamp bundled with every artifact;
+5. publishes a stable GitHub Release with the `.msi`, `.deb`, and `.dmg` installers plus SHA-256 `checksums.txt`.
+
+Each installer bundles a Java 21 runtime, so end users do not need Java installed.
 
 ## Data
 

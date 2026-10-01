@@ -2,10 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: ["main", "master"]
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -29,20 +36,22 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Verify Code Formatting (Spotless)
-        run: ./gradlew spotlessCheck
+      - name: Verify code formatting (Spotless)
+        run: ./gradlew --no-daemon spotlessCheck
 
-      - name: Run Test Suite
-        run: ./gradlew test
+      - name: Run test suite
+        run: ./gradlew --no-daemon test
 
-      - name: Build Application
-        run: ./gradlew build
+      - name: Build application
+        run: ./gradlew --no-daemon build
 
-      - name: Build Native Application Image (jpackage)
-        run: ./gradlew jpackageImage
+      - name: Build native application image (jpackage)
+        run: ./gradlew --no-daemon jpackageImage
 
-      - name: Upload Native Image Artifact
+      - name: Upload native application image
         uses: actions/upload-artifact@v4
         with:
           name: taskflow-${{ matrix.os }}-app-image
           path: build/dist/TaskFlow
+          retention-days: 7
+          if-no-files-found: error

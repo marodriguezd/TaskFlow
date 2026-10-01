@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.marodriguezd.taskflow"
-version = "2.0.0"
+version = "1.0.0"
 
 java {
     toolchain {
@@ -122,10 +122,23 @@ tasks.register<Exec>("jpackageImage") {
     )
 }
 
+tasks.register("releaseStamp") {
+    group = "distribution"
+    description =
+            "Writes a RELEASE_VERSION stamp into build/dist so packaged artifacts carry verifiable provenance."
+    doLast {
+        val distDir = layout.buildDirectory.dir("dist").get().asFile
+        distDir.mkdirs()
+        distDir.resolve("RELEASE_VERSION").writeText(project.version.toString() + "\n")
+        println("RELEASE_VERSION stamp written: ${project.version}")
+    }
+}
+
 tasks.register<Exec>("jpackagePackage") {
     group = "distribution"
     description = "Builds native package (deb/rpm on Linux, exe/msi on Windows, dmg on macOS)."
     dependsOn(tasks.installDist)
+    finalizedBy("releaseStamp")
 
     val inputDir = layout.buildDirectory.dir("install/${project.name}/lib")
     val outputDir = layout.buildDirectory.dir("dist")
