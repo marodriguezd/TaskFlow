@@ -52,6 +52,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: taskflow-${{ matrix.os }}-app-image
-          path: build/dist/TaskFlow
+          # jpackage emits build/dist/TaskFlow on Linux/Windows but
+          # build/dist/TaskFlow.app on macOS — match both.
+          path: build/dist/TaskFlow*
           retention-days: 7
           if-no-files-found: error
