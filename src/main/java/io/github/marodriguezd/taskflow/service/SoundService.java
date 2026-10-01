@@ -76,6 +76,13 @@ public class SoundService {
                 return;
             }
         } catch (Throwable t) {
+            // Covers everything throwable on this call stack. On systems without an audio
+            // device, JavaFX media fails asynchronously on its own internal clip-scheduler
+            // thread (NativeMediaAudioClipPlayer) instead: that MediaException reaches stderr
+            // with no SoundService frame in it, so it cannot be caught here. Intercepting it
+            // would require a process-wide uncaught-exception handler or a different audio
+            // backend — disproportionate for cosmetic stderr noise that does not affect the
+            // beep fallback or application behavior.
             log.warn("JavaFX media playback failed: {}", t.getMessage());
         }
 

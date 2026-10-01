@@ -1,5 +1,7 @@
 package io.github.marodriguezd.taskflow;
 
+import java.util.Locale;
+
 /**
  * Standard JVM entrypoint separating the launcher from JavaFX Application class. This guarantees
  * reliable invocation via java -jar and native jpackage bundles.
@@ -11,7 +13,7 @@ public final class TaskFlowLauncher {
     }
 
     public static void main(String[] args) {
-        String os = System.getProperty("os.name", "").toLowerCase();
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         if (os.contains("nix") || os.contains("nux") || os.contains("aix")) {
             // Ensure optimal GTK3 glass backend support for Linux window managers (Wayland / X11)
             if (System.getProperty("jdk.gtk.version") == null) {

@@ -473,8 +473,9 @@ public class MainWindow {
     private void closeApplication() {
         saveGeometry();
         timerService.pause();
+        // Normal JavaFX shutdown: the toolkit invokes TaskFlowApp.stop(), which releases the
+        // database. A racing System.exit(0) would kill the JVM before stop() gets to run.
         Platform.exit();
-        System.exit(0);
     }
 
     public void show() {

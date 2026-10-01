@@ -208,19 +208,24 @@ public class SqliteTaskRepository implements TaskRepository {
         Priority priority = Priority.fromDisplayName(priorityStr);
         int totalSeconds = rs.getInt("total_seconds");
         int remainingSeconds = rs.getInt("remaining_seconds");
-        Instant createdAt = parseInstantSafe(rs.getString("created_at"));
-        Instant updatedAt = parseInstantSafe(rs.getString("updated_at"));
+        Instant createdAt = parseInstantSafe(rs.getString("created_at"), "created_at");
+        Instant updatedAt = parseInstantSafe(rs.getString("updated_at"), "updated_at");
 
         return new Task(id, name, priority, totalSeconds, remainingSeconds, createdAt, updatedAt);
     }
 
-    private Instant parseInstantSafe(String text) {
+    private Instant parseInstantSafe(String text, String column) {
         if (text == null || text.isBlank()) {
             return Instant.now();
         }
         try {
             return Instant.parse(text);
         } catch (Exception e) {
+            log.warn(
+                    "Malformed {} value in tasks table: '{}'; defaulting to current time: {}",
+                    column,
+                    text,
+                    e.getMessage());
             return Instant.now();
         }
     }

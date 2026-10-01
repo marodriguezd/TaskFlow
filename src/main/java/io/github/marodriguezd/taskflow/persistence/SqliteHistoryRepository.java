@@ -152,7 +152,7 @@ public class SqliteHistoryRepository implements HistoryRepository {
         int remainingSeconds = rs.getInt("remaining_seconds");
         HistoryEventType eventType = HistoryEventType.fromCode(rs.getString("event_type"));
         boolean completedManually = rs.getInt("completed_manually") == 1;
-        Instant eventAt = parseInstantSafe(rs.getString("event_at"));
+        Instant eventAt = parseInstantSafe(rs.getString("event_at"), "event_at");
 
         return new HistoryItem(
                 id,
@@ -165,13 +165,18 @@ public class SqliteHistoryRepository implements HistoryRepository {
                 eventAt);
     }
 
-    private Instant parseInstantSafe(String text) {
+    private Instant parseInstantSafe(String text, String column) {
         if (text == null || text.isBlank()) {
             return Instant.now();
         }
         try {
             return Instant.parse(text);
         } catch (Exception e) {
+            log.warn(
+                    "Malformed {} value in history table: '{}'; defaulting to current time: {}",
+                    column,
+                    text,
+                    e.getMessage());
             return Instant.now();
         }
     }

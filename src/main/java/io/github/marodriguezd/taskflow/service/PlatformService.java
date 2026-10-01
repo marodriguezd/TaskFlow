@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,7 +82,7 @@ public class PlatformService {
     }
 
     private OS detectOs() {
-        String osName = System.getProperty("os.name", "").toLowerCase();
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         if (osName.contains("win")) {
             return OS.WINDOWS;
         } else if (osName.contains("mac") || osName.contains("darwin")) {
