@@ -1,8 +1,10 @@
 package io.github.marodriguezd.taskflow.ui.dialog;
 
+import io.github.marodriguezd.taskflow.domain.HistoryEventType;
 import io.github.marodriguezd.taskflow.domain.HistoryItem;
 import io.github.marodriguezd.taskflow.service.TaskService;
 import io.github.marodriguezd.taskflow.ui.component.Icons;
+import io.github.marodriguezd.taskflow.ui.i18n.Messages;
 import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
 import java.util.List;
 import java.util.function.Consumer;
@@ -51,7 +53,7 @@ public class HistoryDialog {
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
 
-        Label title = new Label("History");
+        Label title = new Label(Messages.get("history.title"));
         title.setStyle("-fx-text-fill: -fx-text-hi; -fx-font-size: 16px; -fx-font-weight: bold;");
 
         Region spacer = new Region();
@@ -75,7 +77,7 @@ public class HistoryDialog {
 
         List<HistoryItem> history = taskService.getHistory();
         if (history.isEmpty()) {
-            Label emptyLabel = new Label("No tasks in history");
+            Label emptyLabel = new Label(Messages.get("history.empty"));
             emptyLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 12px;");
             emptyLabel.setAlignment(Pos.CENTER);
             emptyLabel.setMaxWidth(Double.MAX_VALUE);
@@ -126,13 +128,14 @@ public class HistoryDialog {
         footer.setAlignment(Pos.CENTER_LEFT);
 
         String infoText =
-                String.format("%s · %s", item.getFormattedDate(), item.getModeDescription());
+                String.format("%s · %s", item.getFormattedDate(), Messages.get(modeKey(item)));
         Label infoLabel = new Label(infoText);
         infoLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 10px;");
+        infoLabel.setWrapText(true);
         infoLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(infoLabel, javafx.scene.layout.Priority.ALWAYS);
 
-        Button restoreBtn = new Button("Restore");
+        Button restoreBtn = new Button(Messages.get("history.restore"));
         restoreBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: -fx-accent-lt; "
                         + "-fx-border-color: -fx-border; -fx-border-radius: 7px; -fx-background-radius: 7px; "
@@ -148,6 +151,17 @@ public class HistoryDialog {
         footer.getChildren().addAll(infoLabel, restoreBtn);
         box.getChildren().addAll(nameLabel, footer);
         return box;
+    }
+
+    /**
+     * Returns the i18n key describing how a history item ended up archived. Presentation lives in
+     * the UI layer (i18n requirement): the domain stays free of user-facing English copy.
+     */
+    static String modeKey(HistoryItem item) {
+        if (item.eventType() == HistoryEventType.DELETED) {
+            return "history.mode.deleted";
+        }
+        return item.completedManually() ? "history.mode.manual" : "history.mode.timer";
     }
 
     public void showAndWait() {

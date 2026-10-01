@@ -20,47 +20,7 @@ class HistoryItemTest {
         assertThat(item.remainingSeconds()).isEqualTo(0);
         assertThat(item.eventType()).isEqualTo(HistoryEventType.COMPLETED);
         assertThat(item.completedManually()).isFalse();
-        assertThat(item.getModeDescription()).isEqualTo("Completed by timer");
-    }
-
-    @Test
-    @DisplayName("Mode descriptions reflect completion and deletion states")
-    void testModeDescriptions() {
-        HistoryItem manual =
-                new HistoryItem(
-                        1L,
-                        "T1",
-                        Priority.MEDIUM,
-                        600,
-                        300,
-                        HistoryEventType.COMPLETED,
-                        true,
-                        Instant.now());
-        assertThat(manual.getModeDescription()).isEqualTo("Completed manually");
-
-        HistoryItem timer =
-                new HistoryItem(
-                        2L,
-                        "T2",
-                        Priority.LOW,
-                        600,
-                        0,
-                        HistoryEventType.COMPLETED,
-                        false,
-                        Instant.now());
-        assertThat(timer.getModeDescription()).isEqualTo("Completed by timer");
-
-        HistoryItem deleted =
-                new HistoryItem(
-                        3L,
-                        "T3",
-                        Priority.HIGH,
-                        600,
-                        200,
-                        HistoryEventType.DELETED,
-                        false,
-                        Instant.now());
-        assertThat(deleted.getModeDescription()).isEqualTo("Deleted");
+        // Mode presentation moved to the UI layer for i18n — see HistoryDialogTest
     }
 
     @Test

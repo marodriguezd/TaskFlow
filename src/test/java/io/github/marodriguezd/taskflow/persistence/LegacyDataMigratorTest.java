@@ -137,6 +137,32 @@ class LegacyDataMigratorTest {
     }
 
     @Test
+    @DisplayName("Settings migration preserves existing language and sound preferences")
+    void testSettingsMigrationPreservesExistingPreferences() throws IOException {
+        // Preferences already stored (e.g. language chosen, sound disabled) before a legacy
+        // settings file is imported — migration must only overwrite theme/always_on_top.
+        preferenceRepository.savePreferences(
+                new UserPreferences(ThemeMode.DARK, false, false, "de"));
+
+        String settingsJson =
+                """
+                {
+                  "theme": "light",
+                  "always_on_top": true
+                }
+                """;
+        Files.writeString(tempDir.resolve("taskflow_settings.json"), settingsJson);
+
+        migrator.migrateIfNecessary();
+
+        UserPreferences prefs = preferenceRepository.loadPreferences(false);
+        assertThat(prefs.theme()).isEqualTo(ThemeMode.LIGHT);
+        assertThat(prefs.alwaysOnTop()).isTrue();
+        assertThat(prefs.language()).isEqualTo("de");
+        assertThat(prefs.soundEnabled()).isFalse();
+    }
+
+    @Test
     @DisplayName("Handles corrupted JSON files gracefully without throwing")
     void testCorruptedJsonHandling() throws IOException {
         Files.writeString(tempDir.resolve("taskflow_data.json"), "{ NOT VALID JSON :::");

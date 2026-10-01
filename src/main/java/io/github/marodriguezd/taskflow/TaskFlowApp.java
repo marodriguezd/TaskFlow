@@ -12,6 +12,8 @@ import io.github.marodriguezd.taskflow.service.SoundService;
 import io.github.marodriguezd.taskflow.service.TaskService;
 import io.github.marodriguezd.taskflow.service.TimerService;
 import io.github.marodriguezd.taskflow.ui.MainWindow;
+import io.github.marodriguezd.taskflow.ui.i18n.Languages;
+import io.github.marodriguezd.taskflow.ui.i18n.LocaleManager;
 import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
 import java.io.InputStream;
 import javafx.application.Application;
@@ -60,6 +62,16 @@ public class TaskFlowApp extends Application {
 
             UserPreferences preferences =
                     preferenceRepository.loadPreferences(platformService.getDefaultAlwaysOnTop());
+
+            // First run (blank) or corrupt value: resolve the UI language from the OS locale
+            // and persist the resolution so later OS changes never silently flip the language.
+            String resolvedLanguage = Languages.resolveStored(preferences.language());
+            if (!resolvedLanguage.equals(preferences.language())) {
+                preferences = preferences.withLanguage(resolvedLanguage);
+                preferenceRepository.savePreferences(preferences);
+                log.info("Resolved UI language to '{}'", resolvedLanguage);
+            }
+            LocaleManager localeManager = new LocaleManager(resolvedLanguage);
             ThemeManager themeManager = new ThemeManager(preferences.theme());
 
             // 5. Load application icon
@@ -73,7 +85,8 @@ public class TaskFlowApp extends Application {
                             timerService,
                             preferenceRepository,
                             platformService,
-                            themeManager);
+                            themeManager,
+                            localeManager);
             mainWindow.show();
             log.info("TaskFlow application window rendered successfully.");
 

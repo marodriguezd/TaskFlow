@@ -1,6 +1,7 @@
 package io.github.marodriguezd.taskflow.ui.component;
 
 import io.github.marodriguezd.taskflow.domain.ThemeMode;
+import io.github.marodriguezd.taskflow.ui.i18n.Messages;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -19,7 +20,11 @@ public class HeaderView extends HBox {
     private final ToggleButton pinButton;
     private final Button historyButton;
     private final Button themeButton;
+    private final Button languageButton;
     private final Button closeButton;
+
+    /** Latest applied task count, re-rendered on language switch. */
+    private int lastTaskCount;
 
     private double dragOffsetX;
     private double dragOffsetY;
@@ -44,8 +49,11 @@ public class HeaderView extends HBox {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        countBadge = new Label("0 tasks");
+        countBadge = new Label(Messages.count("header.tasks", 0));
         countBadge.getStyleClass().add("badge-count");
+        // Allow the badge to shrink (ellipsis) before header buttons do — German badge text
+        // ("15 Aufgaben") plus the extra language button must not push controls out of view.
+        countBadge.setMinWidth(0);
         countBadge.setVisible(false);
         countBadge.managedProperty().bind(countBadge.visibleProperty());
 
@@ -53,17 +61,22 @@ public class HeaderView extends HBox {
         pinButton.getStyleClass().add("icon-button");
         pinButton.setGraphic(Icons.pin(13));
         pinButton.setSelected(initialAlwaysOnTop);
-        pinButton.setTooltip(new Tooltip("Toggle always on top"));
+        pinButton.setTooltip(new Tooltip(Messages.get("tooltip.pin")));
 
         historyButton = new Button();
         historyButton.getStyleClass().add("icon-button");
         historyButton.setGraphic(Icons.history(13));
-        historyButton.setTooltip(new Tooltip("View task history"));
+        historyButton.setTooltip(new Tooltip(Messages.get("tooltip.history")));
 
         themeButton = new Button();
         themeButton.getStyleClass().add("icon-button");
         themeButton.setGraphic(initialTheme == ThemeMode.DARK ? Icons.sun(13) : Icons.moon(13));
-        themeButton.setTooltip(new Tooltip("Switch light/dark theme"));
+        themeButton.setTooltip(new Tooltip(Messages.get("tooltip.theme")));
+
+        languageButton = new Button();
+        languageButton.getStyleClass().add("icon-button");
+        languageButton.setGraphic(Icons.globe(13));
+        languageButton.setTooltip(new Tooltip(Messages.get("tooltip.language")));
 
         getChildren()
                 .addAll(
@@ -73,7 +86,8 @@ public class HeaderView extends HBox {
                         countBadge,
                         pinButton,
                         historyButton,
-                        themeButton);
+                        themeButton,
+                        languageButton);
 
         if (isFrameless) {
             closeButton = new Button();
@@ -88,11 +102,23 @@ public class HeaderView extends HBox {
     }
 
     public void updateTaskCount(int count) {
+        lastTaskCount = count;
         if (count <= 0) {
             countBadge.setVisible(false);
         } else {
-            countBadge.setText(count + (count == 1 ? " task" : " tasks"));
+            countBadge.setText(Messages.count("header.tasks", count));
             countBadge.setVisible(true);
+        }
+    }
+
+    /** Re-applies every localized text after a runtime language switch. */
+    public void refreshTexts() {
+        pinButton.setTooltip(new Tooltip(Messages.get("tooltip.pin")));
+        historyButton.setTooltip(new Tooltip(Messages.get("tooltip.history")));
+        themeButton.setTooltip(new Tooltip(Messages.get("tooltip.theme")));
+        languageButton.setTooltip(new Tooltip(Messages.get("tooltip.language")));
+        if (lastTaskCount > 0) {
+            countBadge.setText(Messages.count("header.tasks", lastTaskCount));
         }
     }
 
@@ -110,6 +136,10 @@ public class HeaderView extends HBox {
 
     public Button getThemeButton() {
         return themeButton;
+    }
+
+    public Button getLanguageButton() {
+        return languageButton;
     }
 
     public Button getCloseButton() {

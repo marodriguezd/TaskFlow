@@ -21,7 +21,7 @@ public final class DateTimeUtil {
      */
     public static String format(Instant instant) {
         if (instant == null) {
-            return "Desconocido";
+            return "—";
         }
         LocalDateTime localDateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
         return DISPLAY_FORMATTER.format(localDateTime);

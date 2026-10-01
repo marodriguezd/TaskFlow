@@ -20,6 +20,7 @@ A lightweight, cross-platform desktop task manager with Pomodoro-style timers, b
 - **Single active timer invariant** — starting a timer automatically pauses any other running timer (autopause)
 - **Progress tracking** — visual progress bar for the active session
 - **History & restoration** — completed and deleted tasks are logged to a history with the ability to restore them
+- **Internationalization** — interface in 5 languages (English, Español, Deutsch, Italiano, 中文简体) with live switching, first-run OS language detection, and deterministic English fallback
 - **SQLite persistence** — all tasks, history, and preferences are stored locally in a SQLite database
 - **Theme switching** — light and dark themes
 - **Always-on-top mode** — toggleable window pinning
@@ -40,6 +41,7 @@ A lightweight, cross-platform desktop task manager with Pomodoro-style timers, b
 | Packaging | `jpackage` with a bundled Java 21 runtime |
 | Logging | SLF4J + Logback |
 | Legacy migration | Jackson (JSON) |
+| Internationalization | Java `ResourceBundle` (UTF-8, 5 locales) |
 
 The CI pipeline builds, tests, formats-checks, and packages the application on Ubuntu, Windows, and macOS.
 
@@ -73,6 +75,7 @@ io.github.marodriguezd.taskflow
 │   ├── component/        # HeaderView, TaskCardView, ProgressBarView,
 │   │                     # EmptyStateView, Icons
 │   ├── dialog/           # AddTaskDialog, EditTaskDialog, HistoryDialog
+│   ├── i18n/             # Messages, LocaleManager, Languages, PriorityLabels
 │   └── theme/            # ThemeManager, UIConstants
 └── util/                 # DateTimeUtil, TimeFormatter
 ```
@@ -82,7 +85,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** is the only layer that touches SQLite, exposed through repository interfaces.
 - **`service.PlatformService`** isolates all operating-system-specific behavior (data directories, windowing conventions, default always-on-top state).
 
-Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/light.css`, `css/dark.css`), application icons (`assets/`), the default notification sound (`assets/bell.mp3`), and the Logback configuration.
+Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/light.css`, `css/dark.css`), the translation bundles (`i18n/messages*.properties`), application icons (`assets/`), the default notification sound (`assets/bell.mp3`), and the Logback configuration.
 
 ## Getting Started
 
@@ -129,7 +132,7 @@ TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/w
 
 ### Releases
 
-> **Latest: [TaskFlow v1.0.0](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.0.0)** — the first official release, published October 1, 2026. It ships native packages with a bundled Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`, portable), and macOS (`.dmg`, Apple Silicon), plus SHA-256 checksums for verifying each download.
+> **Latest: [TaskFlow v1.1.0](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.1.0)** — the internationalization release, published in October 2026. It adds the five-language interface (English, Spanish, German, Italian, Simplified Chinese) with live switching and first-run language detection, and it ships native packages with a bundled Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`, portable), and macOS (`.dmg`, Apple Silicon), plus SHA-256 checksums for verifying each download.
 
 Official releases are published automatically on the [GitHub Releases page](https://github.com/marodriguezd/TaskFlow/releases) when a `vMAJOR.MINOR.PATCH` tag is pushed (e.g. `v1.0.0`). The pipeline:
 
@@ -153,6 +156,24 @@ TaskFlow stores all user data in a per-user directory containing the SQLite data
 
 If a legacy `~/.TaskFlow` directory already exists, it is kept as the data directory for continuity.
 
+## Language
+
+TaskFlow's interface ships in exactly five languages:
+
+| Language | Tag |
+| --- | --- |
+| English | `en` |
+| Spanish | `es` |
+| German | `de` |
+| Italian | `it` |
+| Simplified Chinese | `zh-Hans` |
+
+- **Live switching** — pick a language from the globe button in the header; the whole UI (including open state such as the task badge and tooltips) re-renders immediately, without restarting.
+- **Persistent per user** — the choice is stored in the `preferences` table (`language` key) as a locale-independent BCP 47 tag. Existing databases from 1.0.0 need no migration: the key is simply added on first save.
+- **First-run detection** — on first launch the interface language is detected from the OS locale. Unsupported OS languages (including French and Portuguese) fall back to English; Traditional Chinese locales also fall back to English, since only Simplified Chinese is shipped.
+- **Deterministic English fallback** — translations live in `src/main/resources/i18n/messages*.properties`; any missing key resolves to the English base bundle, and a key missing everywhere is returned as-is (logged once) rather than crashing. The test suite enforces that exactly these five bundles exist and are complete (key and placeholder parity).
+- **Not translated** — log output, database values, priority/history codes, and internal identifiers remain locale-independent English for data compatibility.
+
 ## Migration
 
 If you used a previous version of TaskFlow that stored data as JSON, the application detects the legacy files on first launch and imports them into SQLite automatically:
@@ -167,7 +188,7 @@ Legacy files are looked up in the data directory and in the home directory root 
 ## Development
 
 - **Formatting** is enforced with Spotless (Google Java Format, AOSP style). Run `./gradlew spotlessApply` before committing; CI fails on `spotlessCheck` violations.
-- **Tests** use JUnit 5 with AssertJ and cover the domain model, services, repositories, legacy migration, and an end-to-end application flow.
+- **Tests** use JUnit 5 with AssertJ and cover the domain model, services, repositories, legacy migration, internationalization (bundle completeness, fallback, language detection), and an end-to-end application flow. All tests run headless — no display or JavaFX toolkit required.
 
 ## License
 

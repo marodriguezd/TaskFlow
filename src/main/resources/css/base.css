@@ -1,7 +1,11 @@
 /* Base styles for TaskFlow application */
 
 .root {
-    -fx-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    /* Latin faces first for each platform; CJK fallbacks listed after them so Simplified
+       Chinese glyphs resolve to a proper face (per-glyph fallback) on every OS instead of
+       an arbitrary system default. */
+    -fx-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+        "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
     -fx-font-size: 13px;
 }
 

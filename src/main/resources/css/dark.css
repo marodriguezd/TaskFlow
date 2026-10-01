@@ -65,3 +65,34 @@
     -fx-background-radius: 8px;
     -fx-padding: 8px 10px;
 }
+
+/* Language picker popup (ContextMenu inherits the scene stylesheets at show time) */
+.context-menu {
+    -fx-background-color: -fx-bg-elevated;
+    -fx-border-color: -fx-border-light;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 4px;
+}
+
+.menu-item {
+    -fx-background-color: transparent;
+    -fx-background-radius: 5px;
+}
+
+.menu-item .label {
+    -fx-text-fill: -fx-text-hi;
+}
+
+.menu-item:focused {
+    -fx-background-color: -fx-accent-muted;
+}
+
+.menu-item:focused .label {
+    -fx-text-fill: -fx-text-hi;
+}
+
+.context-menu .menu-item .check {
+    -fx-mark-color: -fx-accent-lt;
+}

@@ -1,6 +1,8 @@
 package io.github.marodriguezd.taskflow.ui.dialog;
 
 import io.github.marodriguezd.taskflow.domain.Priority;
+import io.github.marodriguezd.taskflow.ui.i18n.Messages;
+import io.github.marodriguezd.taskflow.ui.i18n.PriorityLabels;
 import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
 import java.util.Optional;
 import javafx.geometry.Insets;
@@ -46,20 +48,22 @@ public class AddTaskDialog {
         VBox card = new VBox(12);
         card.getStyleClass().add("dialog-card");
         card.setPadding(new Insets(18, 18, 18, 18));
-        card.setPrefWidth(300.0);
+        // 300px floor kept from 1.0.0; content-driven beyond that so longer translations
+        // (German/Italian labels) can never clip inside the dialog.
+        card.setMinWidth(300.0);
 
-        titleLabel = new Label("New task");
+        titleLabel = new Label(Messages.get("dialog.add.title"));
         titleLabel.setStyle(
                 "-fx-text-fill: -fx-text-hi; -fx-font-size: 15px; -fx-font-weight: bold;");
 
         nameField = new TextField();
-        nameField.setPromptText("What are you going to work on?");
+        nameField.setPromptText(Messages.get("dialog.name.prompt"));
 
         HBox optionsRow = new HBox(10);
         optionsRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox timeCol = new VBox(4);
-        Label timeLabel = new Label("Minutes");
+        Label timeLabel = new Label(Messages.get("dialog.minutes"));
         timeLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
         minutesSpinner = new Spinner<>();
         minutesSpinner.setValueFactory(
@@ -70,7 +74,7 @@ public class AddTaskDialog {
         HBox.setHgrow(timeCol, javafx.scene.layout.Priority.ALWAYS);
 
         VBox priCol = new VBox(4);
-        Label priLabel = new Label("Priority");
+        Label priLabel = new Label(Messages.get("dialog.priority"));
         priLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
         priorityCombo = new ComboBox<>();
         priorityCombo.getItems().addAll(Priority.HIGH, Priority.MEDIUM, Priority.LOW);
@@ -79,12 +83,12 @@ public class AddTaskDialog {
                 new StringConverter<>() {
                     @Override
                     public String toString(Priority p) {
-                        return p != null ? p.getDisplayName() : "";
+                        return PriorityLabels.label(p);
                     }
 
                     @Override
                     public Priority fromString(String string) {
-                        return Priority.fromDisplayName(string);
+                        return PriorityLabels.parse(string);
                     }
                 });
         priorityCombo.setPrefWidth(130.0);
@@ -96,13 +100,13 @@ public class AddTaskDialog {
         HBox buttonRow = new HBox(8);
         buttonRow.setAlignment(Pos.CENTER_RIGHT);
 
-        cancelButton = new Button("Cancel");
+        cancelButton = new Button(Messages.get("dialog.cancel"));
         cancelButton.getStyleClass().add("btn-secondary");
         cancelButton.setOnAction(e -> stage.close());
         HBox.setHgrow(cancelButton, javafx.scene.layout.Priority.ALWAYS);
         cancelButton.setMaxWidth(Double.MAX_VALUE);
 
-        confirmButton = new Button("Add");
+        confirmButton = new Button(Messages.get("dialog.add"));
         confirmButton.getStyleClass().add("btn-primary");
         confirmButton.setStyle(
                 "-fx-font-size: 12px; -fx-padding: 7px 14px; -fx-pref-height: 32px;");

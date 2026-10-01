@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.marodriguezd.taskflow"
-version = "1.0.0"
+version = "1.1.0"
 
 java {
     toolchain {
@@ -44,7 +44,10 @@ dependencies {
 }
 
 application {
-    mainModule.set("")
+    // Non-modular project (no module-info.java): intentionally no mainModule — setting an
+    // empty/invalid module name makes the :run task fail with "Module  not found".
+    // TaskFlowLauncher (a plain class, not an Application subclass) starts JavaFX reliably
+    // from the classpath; jpackage passes --main-class explicitly.
     mainClass.set("io.github.marodriguezd.taskflow.TaskFlowLauncher")
 }
 

@@ -60,16 +60,6 @@ public record HistoryItem(
         return DateTimeUtil.format(eventAt);
     }
 
-    public String getModeDescription() {
-        if (eventType == HistoryEventType.DELETED) {
-            return "Deleted";
-        }
-        if (completedManually) {
-            return "Completed manually";
-        }
-        return "Completed by timer";
-    }
-
     /** Converts this history item back into an active Task for restoration. */
     public Task toRestoredTask() {
         int restoredRemaining = remainingSeconds <= 0 ? totalSeconds : remainingSeconds;

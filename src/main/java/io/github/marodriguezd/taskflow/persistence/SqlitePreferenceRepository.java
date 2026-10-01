@@ -39,7 +39,11 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
             soundEnabled = Boolean.parseBoolean(map.get("sound_enabled"));
         }
 
-        return new UserPreferences(theme, alwaysOnTop, soundEnabled);
+        // UI language tag as stored ("" = never chosen; first-run detection happens upstream).
+        // The repository never interprets the value — it stays bundle-free.
+        String language = map.getOrDefault("language", "");
+
+        return new UserPreferences(theme, alwaysOnTop, soundEnabled, language);
     }
 
     @Override
@@ -47,6 +51,7 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
         setPreference("theme", preferences.theme().getCode());
         setPreference("always_on_top", String.valueOf(preferences.alwaysOnTop()));
         setPreference("sound_enabled", String.valueOf(preferences.soundEnabled()));
+        setPreference("language", preferences.language());
     }
 
     @Override

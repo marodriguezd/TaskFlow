@@ -199,7 +199,11 @@ public class LegacyDataMigrator {
             if (node.has("always_on_top") && !node.get("always_on_top").isNull()) {
                 alwaysOnTop = node.get("always_on_top").asBoolean(false);
             }
-            preferenceRepository.savePreferences(new UserPreferences(theme, alwaysOnTop, true));
+            // Preserve already-stored preferences (language, sound); only legacy-controlled
+            // keys are overwritten. Fresh databases load defaults, matching prior behavior.
+            UserPreferences existing = preferenceRepository.loadPreferences(false);
+            preferenceRepository.savePreferences(
+                    existing.withTheme(theme).withAlwaysOnTop(alwaysOnTop));
             log.info("Migrated legacy user settings: theme={}, alwaysOnTop={}", theme, alwaysOnTop);
             renameToMigrated(file);
         } catch (IOException e) {

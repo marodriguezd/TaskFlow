@@ -38,6 +38,10 @@ public final class Icons {
     private static final String CLIPBOARD_PATH =
             "M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z";
 
+    // Material Public / Globe (24x24)
+    private static final String GLOBE_PATH =
+            "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z";
+
     public static SVGPath pin(double size) {
         return createSvg(PIN_PATH, size, null);
     }
@@ -64,6 +68,10 @@ public final class Icons {
 
     public static SVGPath clipboard(double size) {
         return createSvg(CLIPBOARD_PATH, size, null);
+    }
+
+    public static SVGPath globe(double size) {
+        return createSvg(GLOBE_PATH, size, null);
     }
 
     private static SVGPath createSvg(String content, double targetSize, String fillHex) {

@@ -141,7 +141,8 @@ class EndToEndFlowTest {
         ThemeManager themeManager = new ThemeManager(initialPrefs.theme());
         themeManager.toggleTheme();
         assertThat(themeManager.getCurrentTheme()).isEqualTo(ThemeMode.LIGHT);
-        prefRepo1.savePreferences(new UserPreferences(themeManager.getCurrentTheme(), true, true));
+        prefRepo1.savePreferences(
+                new UserPreferences(themeManager.getCurrentTheme(), true, true, ""));
 
         WindowGeometry savedGeometry = new WindowGeometry(180, 220, 360, 580);
         prefRepo1.saveGeometry(savedGeometry);

@@ -2,6 +2,8 @@ package io.github.marodriguezd.taskflow.ui.component;
 
 import io.github.marodriguezd.taskflow.domain.Priority;
 import io.github.marodriguezd.taskflow.domain.Task;
+import io.github.marodriguezd.taskflow.ui.i18n.Messages;
+import io.github.marodriguezd.taskflow.ui.i18n.PriorityLabels;
 import io.github.marodriguezd.taskflow.util.TimeFormatter;
 import java.util.function.Consumer;
 import javafx.geometry.Insets;
@@ -68,10 +70,10 @@ public class TaskCardView extends HBox {
                 "-fx-text-fill: -fx-text-hi; -fx-font-size: 13px; -fx-font-weight: bold;");
         HBox.setHgrow(nameLabel, javafx.scene.layout.Priority.ALWAYS);
 
-        pillLabel = new Label(pri.getDisplayName());
+        pillLabel = new Label(PriorityLabels.label(pri));
         pillLabel.setStyle(
                 String.format(
-                        "-fx-text-fill: %s; -fx-background-color: %s; -fx-font-size: 10px; -fx-font-weight: bold; "
+                        "-fx-text-fill: %s; -fx-background-color: %s; -fx-font-size: 11px; -fx-font-weight: bold; "
                                 + "-fx-background-radius: 5px; -fx-padding: 1px 6px; -fx-min-height: 18px;",
                         pri.getHexColor(), pri.getPillColor()));
 
@@ -79,7 +81,7 @@ public class TaskCardView extends HBox {
         editButton.setMinSize(22, 22);
         editButton.setMaxSize(22, 22);
         editButton.setGraphic(Icons.edit(11));
-        editButton.setTooltip(new Tooltip("Edit task"));
+        editButton.setTooltip(new Tooltip(Messages.get("tooltip.edit")));
         editButton.getStyleClass().addAll("icon-button", "card-action-button", "card-edit-button");
         editButton.setOnAction(
                 e -> {
@@ -92,7 +94,7 @@ public class TaskCardView extends HBox {
         deleteButton.setMinSize(22, 22);
         deleteButton.setMaxSize(22, 22);
         deleteButton.setGraphic(Icons.close(10));
-        deleteButton.setTooltip(new Tooltip("Delete task"));
+        deleteButton.setTooltip(new Tooltip(Messages.get("tooltip.delete")));
         deleteButton
                 .getStyleClass()
                 .addAll("icon-button", "card-action-button", "card-delete-button");
@@ -121,7 +123,7 @@ public class TaskCardView extends HBox {
         doneButton = new Button("✓");
         doneButton.setMinSize(24, 24);
         doneButton.setMaxSize(24, 24);
-        doneButton.setTooltip(new Tooltip("Mark as done"));
+        doneButton.setTooltip(new Tooltip(Messages.get("tooltip.done")));
         doneButton.setStyle(
                 String.format(
                         "-fx-background-color: %s; -fx-text-fill: %s; -fx-font-size: 12px; -fx-font-weight: bold; "

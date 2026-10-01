@@ -14,6 +14,9 @@ import io.github.marodriguezd.taskflow.ui.component.TaskCardView;
 import io.github.marodriguezd.taskflow.ui.dialog.AddTaskDialog;
 import io.github.marodriguezd.taskflow.ui.dialog.EditTaskDialog;
 import io.github.marodriguezd.taskflow.ui.dialog.HistoryDialog;
+import io.github.marodriguezd.taskflow.ui.i18n.Languages;
+import io.github.marodriguezd.taskflow.ui.i18n.LocaleManager;
+import io.github.marodriguezd.taskflow.ui.i18n.Messages;
 import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
 import io.github.marodriguezd.taskflow.ui.theme.UIConstants;
 import java.util.HashMap;
@@ -23,9 +26,12 @@ import java.util.Optional;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Side;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckMenuItem;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
@@ -47,12 +53,14 @@ public class MainWindow {
     private final PreferenceRepository preferenceRepository;
     private final PlatformService platformService;
     private final ThemeManager themeManager;
+    private final LocaleManager localeManager;
 
     private UserPreferences preferences;
     private final HeaderView headerView;
     private final EmptyStateView emptyStateView;
     private final ScrollPane scrollPane;
     private final VBox taskList;
+    private final Button addButton;
     private final Map<Long, TaskCardView> cardMap = new HashMap<>();
 
     // Frameless resize state
@@ -71,13 +79,15 @@ public class MainWindow {
             TimerService timerService,
             PreferenceRepository preferenceRepository,
             PlatformService platformService,
-            ThemeManager themeManager) {
+            ThemeManager themeManager,
+            LocaleManager localeManager) {
         this.stage = stage;
         this.taskService = taskService;
         this.timerService = timerService;
         this.preferenceRepository = preferenceRepository;
         this.platformService = platformService;
         this.themeManager = themeManager;
+        this.localeManager = localeManager;
 
         this.preferences =
                 preferenceRepository.loadPreferences(platformService.getDefaultAlwaysOnTop());
@@ -111,6 +121,7 @@ public class MainWindow {
         headerView.getPinButton().setOnAction(e -> toggleAlwaysOnTop());
         headerView.getHistoryButton().setOnAction(e -> openHistoryDialog());
         headerView.getThemeButton().setOnAction(e -> toggleTheme());
+        headerView.getLanguageButton().setOnAction(e -> openLanguageMenu());
         if (headerView.getCloseButton() != null) {
             headerView.getCloseButton().setOnAction(e -> closeApplication());
         }
@@ -141,7 +152,7 @@ public class MainWindow {
             footer.setStyle("-fx-background-radius: 0 0 16px 16px;");
         }
 
-        Button addButton = new Button("＋  New task");
+        addButton = new Button(Messages.get("footer.newTask"));
         addButton.getStyleClass().add("btn-primary");
         addButton.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(addButton, javafx.scene.layout.Priority.ALWAYS);
@@ -162,6 +173,9 @@ public class MainWindow {
         // Geometry & close handling
         restoreWindowGeometry();
         setupGeometryPersistence();
+
+        // Runtime language switching: re-render every localized text in place
+        localeManager.addLocaleChangeListener(tag -> refreshLanguageUi());
 
         if (frameless) {
             setupFramelessEdgeResize(scene, root);
@@ -280,6 +294,43 @@ public class MainWindow {
         preferences = preferences.withTheme(themeManager.getCurrentTheme());
         preferenceRepository.savePreferences(preferences);
         headerView.updateThemeIcon(themeManager.getCurrentTheme());
+    }
+
+    /** Shows the language picker anchored to the globe button. */
+    private void openLanguageMenu() {
+        ContextMenu menu = new ContextMenu();
+        for (String tag : Languages.SUPPORTED) {
+            CheckMenuItem item = new CheckMenuItem(Languages.nativeName(tag));
+            item.setSelected(tag.equals(localeManager.getCurrentTag()));
+            item.setOnAction(e -> switchLanguage(tag));
+            menu.getItems().add(item);
+        }
+        // Popups use their own scene — inherit the active theme stylesheets for consistent look
+        menu.setOnShowing(
+                e -> {
+                    if (stage.getScene() != null) {
+                        menu.getScene().getStylesheets().setAll(stage.getScene().getStylesheets());
+                    }
+                });
+        menu.show(headerView.getLanguageButton(), Side.BOTTOM, 0, 0);
+    }
+
+    /** Switches the UI language at runtime and persists the choice. */
+    private void switchLanguage(String tag) {
+        if (!localeManager.setLocale(tag)) {
+            return;
+        }
+        preferences = preferences.withLanguage(tag);
+        preferenceRepository.savePreferences(preferences);
+        // refreshLanguageUi() runs via the locale change listener
+    }
+
+    /** Re-renders every localized element of the main window without restarting. */
+    private void refreshLanguageUi() {
+        headerView.refreshTexts();
+        emptyStateView.refreshTexts();
+        addButton.setText(Messages.get("footer.newTask"));
+        renderTasks();
     }
 
     private void restoreWindowGeometry() {

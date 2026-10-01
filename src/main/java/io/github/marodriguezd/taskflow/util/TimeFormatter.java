@@ -1,5 +1,7 @@
 package io.github.marodriguezd.taskflow.util;
 
+import java.util.Locale;
+
 /** Utility class for formatting duration in seconds to standard clock displays. */
 public final class TimeFormatter {
 
@@ -14,7 +16,7 @@ public final class TimeFormatter {
         int safeSeconds = Math.max(0, seconds);
         int minutes = safeSeconds / 60;
         int remainingSecs = safeSeconds % 60;
-        return String.format("%02d:%02d", minutes, remainingSecs);
+        return String.format(Locale.ROOT, "%02d:%02d", minutes, remainingSecs);
     }
 
     /** Parses MM:SS or integer minute strings into seconds. */

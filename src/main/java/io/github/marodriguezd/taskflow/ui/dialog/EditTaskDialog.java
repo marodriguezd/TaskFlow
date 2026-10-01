@@ -1,6 +1,7 @@
 package io.github.marodriguezd.taskflow.ui.dialog;
 
 import io.github.marodriguezd.taskflow.domain.Task;
+import io.github.marodriguezd.taskflow.ui.i18n.Messages;
 import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
 import javafx.stage.Stage;
 
@@ -13,8 +14,8 @@ public class EditTaskDialog extends AddTaskDialog {
         super(owner, themeManager);
         this.originalTask = task;
 
-        titleLabel.setText("Edit task");
-        confirmButton.setText("Save");
+        titleLabel.setText(Messages.get("dialog.edit.title"));
+        confirmButton.setText(Messages.get("dialog.save"));
 
         nameField.setText(task.name());
         int totalMinutes = Math.max(1, task.totalSeconds() / 60);
