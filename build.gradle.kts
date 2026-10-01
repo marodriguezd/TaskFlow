@@ -134,59 +134,104 @@ tasks.register("releaseStamp") {
     }
 }
 
-tasks.register<Exec>("jpackagePackage") {
-    group = "distribution"
-    description = "Builds native package (deb/rpm on Linux, exe/msi on Windows, dmg on macOS)."
-    dependsOn(tasks.installDist)
-    finalizedBy("releaseStamp")
+// Linux: jpackage builds a plain app image, then tools/build-appimage.sh turns
+// it into a portable .AppImage that runs on any x86_64 distribution (no dpkg).
+if (currentOs.isLinux) {
+    val appImageStagingDir = layout.buildDirectory.dir("dist/appimage-staging")
+    val linuxJavaHome =
+            javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath
 
-    val inputDir = layout.buildDirectory.dir("install/${project.name}/lib")
-    val outputDir = layout.buildDirectory.dir("dist")
-    val javaHome = javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath
-    val jpackageBin = if (currentOs.isWindows) "$javaHome/bin/jpackage.exe" else "$javaHome/bin/jpackage"
+    tasks.register<Exec>("jpackageLinuxAppImage") {
+        group = "distribution"
+        description = "Builds the jpackage app image used as the source for the Linux AppImage package."
+        dependsOn(tasks.installDist)
 
-    doFirst {
-        outputDir.get().asFile.mkdirs()
+        doFirst {
+            appImageStagingDir.get().asFile.deleteRecursively()
+            appImageStagingDir.get().asFile.mkdirs()
+        }
+
+        commandLine(
+            "$linuxJavaHome/bin/jpackage",
+            "--type", "app-image",
+            "--name", "TaskFlow",
+            "--app-version", project.version.toString(),
+            "--vendor", "TaskFlow",
+            "--input", layout.buildDirectory.dir("install/${project.name}/lib").get().asFile.absolutePath,
+            "--main-jar", tasks.jar.get().archiveFileName.get(),
+            "--main-class", "io.github.marodriguezd.taskflow.TaskFlowLauncher",
+            "--dest", appImageStagingDir.get().asFile.absolutePath,
+            "--icon", file("assets/TaskFlow.png").absolutePath,
+            "--java-options", "-Dfile.encoding=UTF-8"
+        )
     }
 
-    val iconPath = when {
-        currentOs.isWindows -> file("assets/taskflow.ico").absolutePath
-        currentOs.isMacOsX -> file("assets/taskflow.icns").absolutePath
-        else -> file("assets/TaskFlow.png").absolutePath
+    tasks.register<Exec>("jpackagePackage") {
+        group = "distribution"
+        description = "Builds the native Linux package: a portable .AppImage with a bundled Java runtime."
+        dependsOn(tasks.installDist)
+        dependsOn("jpackageLinuxAppImage")
+        finalizedBy("releaseStamp")
+
+        doFirst {
+            layout.buildDirectory.dir("dist").get().asFile.mkdirs()
+        }
+
+        commandLine(
+            "bash",
+            file("tools/build-appimage.sh").absolutePath,
+            appImageStagingDir.get().dir("TaskFlow").asFile.absolutePath,
+            layout.buildDirectory
+                .dir("dist")
+                .get()
+                .asFile
+                .resolve("TaskFlow-${project.version}-x86_64.AppImage")
+                .absolutePath
+        )
     }
+} else {
+    tasks.register<Exec>("jpackagePackage") {
+        group = "distribution"
+        description = "Builds native package (exe/msi on Windows, dmg on macOS)."
+        dependsOn(tasks.installDist)
+        finalizedBy("releaseStamp")
 
-    val pkgType = when {
-        currentOs.isWindows -> "msi"
-        currentOs.isMacOsX -> "dmg"
-        else -> "deb"
+        val inputDir = layout.buildDirectory.dir("install/${project.name}/lib")
+        val outputDir = layout.buildDirectory.dir("dist")
+        val javaHome = javaToolchains.launcherFor(java.toolchain).get().metadata.installationPath.asFile.absolutePath
+        val jpackageBin = if (currentOs.isWindows) "$javaHome/bin/jpackage.exe" else "$javaHome/bin/jpackage"
+
+        doFirst {
+            outputDir.get().asFile.mkdirs()
+        }
+
+        val iconPath = when {
+            currentOs.isWindows -> file("assets/taskflow.ico").absolutePath
+            else -> file("assets/taskflow.icns").absolutePath
+        }
+
+        val argsList = mutableListOf(
+            jpackageBin,
+            "--type", if (currentOs.isWindows) "msi" else "dmg",
+            "--name", "TaskFlow",
+            "--app-version", project.version.toString(),
+            "--vendor", "TaskFlow",
+            "--input", inputDir.get().asFile.absolutePath,
+            "--main-jar", tasks.jar.get().archiveFileName.get(),
+            "--main-class", "io.github.marodriguezd.taskflow.TaskFlowLauncher",
+            "--dest", outputDir.get().asFile.absolutePath,
+            "--icon", iconPath,
+            "--license-file", file("LICENSE").absolutePath,
+            "--java-options", "-Dfile.encoding=UTF-8"
+        )
+
+        if (currentOs.isWindows) {
+            argsList.addAll(listOf(
+                "--win-shortcut",
+                "--win-menu"
+            ))
+        }
+
+        commandLine(argsList)
     }
-
-    val argsList = mutableListOf(
-        jpackageBin,
-        "--type", pkgType,
-        "--name", "TaskFlow",
-        "--app-version", project.version.toString(),
-        "--vendor", "TaskFlow",
-        "--input", inputDir.get().asFile.absolutePath,
-        "--main-jar", tasks.jar.get().archiveFileName.get(),
-        "--main-class", "io.github.marodriguezd.taskflow.TaskFlowLauncher",
-        "--dest", outputDir.get().asFile.absolutePath,
-        "--icon", iconPath,
-        "--license-file", file("LICENSE").absolutePath,
-        "--java-options", "-Dfile.encoding=UTF-8"
-    )
-
-    if (currentOs.isLinux) {
-        argsList.addAll(listOf(
-            "--linux-shortcut",
-            "--linux-menu-group", "Utility"
-        ))
-    } else if (currentOs.isWindows) {
-        argsList.addAll(listOf(
-            "--win-shortcut",
-            "--win-menu"
-        ))
-    }
-
-    commandLine(argsList)
 }

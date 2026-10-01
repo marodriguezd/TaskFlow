@@ -21,7 +21,7 @@ Installers are produced with `jpackage` and **bundle a full Java 21 runtime**, s
 | Platform | Package | Notes |
 | --- | --- | --- |
 | Windows (x64) | `TaskFlow-1.0.0.msi` | MSI installer with Start Menu shortcut |
-| Linux (x64, Debian-based) | `taskflow_1.0.0_amd64.deb` | DEB package with application menu entry (`Utility` group) |
+| Linux (x64, any distribution) | `TaskFlow-1.0.0-x86_64.AppImage` | Portable AppImage — download, `chmod +x`, and run; no installation, no FUSE required (falls back to `--appimage-extract-and-run`) |
 | macOS (Apple Silicon) | `TaskFlow-1.0.0.dmg` | DMG image built on an ARM64 runner (not a universal binary) |
 
 Verify your download before installing:
@@ -33,7 +33,7 @@ sha256sum -c checksums.txt
 ## Supported platforms
 
 - **Windows 10/11** (x64) — `.msi`
-- **Linux** (x64, Debian-based distributions) — `.deb`
+- **Linux** (x64, any distribution) — `.AppImage`
 - **macOS** (Apple Silicon) — `.dmg`
 
 Continuous integration builds, tests, and packages the application on all three platforms on every change.
@@ -61,7 +61,7 @@ The directory contains the SQLite database (`taskflow.db`) and the notification 
 
 ## Known limitations
 
-- The Linux package is distributed as `.deb` only at this release; RPM-based distributions are not covered yet.
+- The Linux package ships as a portable `.AppImage`; there is no native `.deb`/`.rpm` repository integration (menu/shortcut registration depends on the desktop environment).
 - The macOS package targets Apple Silicon; no Intel or universal build is provided.
 - The Windows package is x64 only.
 

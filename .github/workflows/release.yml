@@ -64,6 +64,10 @@ jobs:
 
       - name: Build native package (jpackage)
         run: ./gradlew --no-daemon jpackagePackage
+        env:
+          # Pinned appimagetool (AppImage/appimagetool continuous build) used
+          # by tools/build-appimage.sh on Linux; SHA-256 verified before use.
+          APPIMAGETOOL_SHA256: a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0
 
       - name: Collect release assets
         shell: bash
@@ -82,8 +86,8 @@ jobs:
               EXT="dmg"
               ;;
             Linux)
-              find build/dist -maxdepth 1 -name '*.deb' -exec cp {} release-assets/ \;
-              EXT="deb"
+              find build/dist -maxdepth 1 -name '*.AppImage' -exec cp {} release-assets/ \;
+              EXT="AppImage"
               ;;
           esac
           COUNT=$(find release-assets -type f -name "*.${EXT}" | wc -l)
@@ -135,14 +139,14 @@ jobs:
       - name: Prepare final release assets
         run: |
           mkdir -p release-assets
-          find artifacts -type f \( -name '*.msi' -o -name '*.deb' -o -name '*.dmg' \) \
+          find artifacts -type f \( -name '*.msi' -o -name '*.AppImage' -o -name '*.dmg' \) \
             -exec cp {} release-assets/ \;
           ls -la release-assets
 
       - name: Generate SHA-256 checksums
         run: |
           cd release-assets
-          sha256sum *.msi *.deb *.dmg > checksums.txt
+          sha256sum *.msi *.AppImage *.dmg > checksums.txt
           cat checksums.txt
 
       - name: Prepare release notes
@@ -166,6 +170,6 @@ jobs:
           prerelease: false
           files: |
             release-assets/*.msi
-            release-assets/*.deb
+            release-assets/*.AppImage
             release-assets/*.dmg
             release-assets/checksums.txt

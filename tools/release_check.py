@@ -14,7 +14,7 @@ Checks
 4. All expected platform artifacts exist and every artifact carries a
    RELEASE_VERSION stamp equal to the release version (requires
    --artifacts-dir; --require-platform-artifacts additionally demands at least
-   one .msi, .deb and .dmg).
+   one .msi, .AppImage and .dmg).
 
 With --strict, every applicable check gates the exit code. Without it, only
 checks 1 and 2 do (3 and 4 are reported as warnings).
@@ -29,8 +29,8 @@ from pathlib import Path
 
 TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 GRADLE_VERSION_RE = re.compile(r"""^version\s*=\s*["'](\d+\.\d+\.\d+)["']\s*$""", re.MULTILINE)
-PACKAGE_EXTENSIONS = (".msi", ".deb", ".dmg")
-PLATFORM_EXTENSIONS = {".msi": "Windows", ".deb": "Linux", ".dmg": "macOS"}
+PACKAGE_EXTENSIONS = (".msi", ".AppImage", ".dmg")
+PLATFORM_EXTENSIONS = {".msi": "Windows", ".AppImage": "Linux", ".dmg": "macOS"}
 
 
 def error(msg: str) -> None:
@@ -130,7 +130,7 @@ def main() -> int:
     parser.add_argument(
         "--require-platform-artifacts",
         action="store_true",
-        help="fail unless at least one .msi, .deb and .dmg artifact is present",
+        help="fail unless at least one .msi, .AppImage and .dmg artifact is present",
     )
     parser.add_argument(
         "--strict",
