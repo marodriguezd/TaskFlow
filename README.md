@@ -1,167 +1,152 @@
 # TaskFlow
 
+A lightweight, cross-platform desktop task manager with Pomodoro-style timers, built with Java 21 and JavaFX. Tasks are persisted locally in SQLite, and the application ships as a native package with a bundled Java runtime — no Java installation required for end users.
+
+[![CI](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 
-TaskFlow is a production-quality native desktop task manager built with **Java 21** and **JavaFX**. It combines Pomodoro-style countdown timers, visual priorities, completion history, local SQLite persistence, customizable sound notifications, and platform-specific window behaviors into a sleek, responsive desktop tool.
+## Features
 
----
+- **Task management** — create, edit, complete, and delete tasks
+- **Priorities** — assign a priority level to each task
+- **Pomodoro timers** — per-task countdown timers
+- **Single active timer invariant** — starting a timer automatically pauses any other running timer (autopause)
+- **Progress tracking** — visual progress bar for the active session
+- **History & restoration** — completed and deleted tasks are logged to a history with the ability to restore them
+- **SQLite persistence** — all tasks, history, and preferences are stored locally in a SQLite database
+- **Theme switching** — light and dark themes
+- **Always-on-top mode** — toggleable window pinning
+- **Window geometry persistence** — window position and size are remembered between sessions
+- **Legacy data migration** — automatic one-time import of JSON data from previous versions
+- **Audio notification** — a bell chime plays when a timer completes (user-replaceable)
 
-## Highlights & Features
+## Technology
 
-- **Task Cards**:
-  - Name with wrapping and high-contrast typography
-  - Priority badge (`Alta` / High, `Media` / Medium, `Baja` / Low) with distinct visual accents
-  - Monospace countdown timer display (MM:SS)
-  - Custom gradient progress bar indicating remaining duration
-  - Quick action controls: Edit (✎), Delete (✕), Mark Completed (✓), and Play/Pause (▶ / ❚❚)
-- **Single-Timer Coordination**: Only one task timer runs at any moment; starting another timer automatically pauses the previous one.
-- **Completion & Deletion History**:
-  - Detailed audit log of completed and deleted tasks
-  - Tracks event mode: timer expiration, manual completion, or deletion
-  - One-click task restoration from history back to the active list
-- **Theme Engine**:
-  - High-contrast Dark theme (`#111114` base, `#7c6af7` accent)
-  - Clean Light theme (`#f4f7fc` base, `#2f7ef7` accent)
-  - Dynamic stylesheet switching without restarting the application
-- **Platform-Aware Window Experience**:
-  - **Linux / Wayland / X11**: Sleek frameless floating panel with smooth edge resizing, draggable header, and default always-on-top behavior.
-  - **Windows**: Native window decorations supporting Snap Layouts, minimizing, maximizing, and pin toggle.
-  - **macOS**: Native application styling with retina display support.
-- **Audio Feedback**:
-  - Automatic chime playback when a timer expires
-  - Customizable completion audio via `bell.mp3` in the user's data directory with built-in fallbacks.
+| Area | Technology |
+| --- | --- |
+| Language | Java 21 |
+| UI toolkit | JavaFX 21 |
+| Build | Gradle (Kotlin DSL, wrapper included) |
+| Persistence | SQLite via JDBC (`sqlite-jdbc`) |
+| Testing | JUnit 5, AssertJ |
+| Code style | Spotless with Google Java Format |
+| Packaging | `jpackage` with a bundled Java 21 runtime |
+| Logging | SLF4J + Logback |
+| Legacy migration | Jackson (JSON) |
 
----
+The CI pipeline builds, tests, formats-checks, and packages the application on Ubuntu, Windows, and macOS.
 
-## Architecture Overview
+## Architecture
 
-TaskFlow follows clean architectural boundaries with strict separation of concerns:
+The codebase follows a layered structure with a clear separation between presentation, application services, domain model, persistence, and platform integration. Package root: `io.github.marodriguezd.taskflow`.
 
 ```
-src/main/java/io/github/marodriguezd/taskflow/
-├── domain/              # Immutable domain entities & records (Task, Priority, HistoryItem, etc.)
-├── persistence/         # SQLite JDBC repositories, schema management, and legacy data migration
-├── service/             # Business logic (TaskService, TimerService, SoundService, PlatformService)
-├── ui/                  # JavaFX controllers, views, custom components, and dialogs
-│   ├── component/       # Custom controls (TaskCardView, ProgressBarView, HeaderView, EmptyStateView)
-│   ├── dialog/          # Modal dialogs (AddTaskDialog, EditTaskDialog, HistoryDialog)
-│   └── theme/           # ThemeManager, layout constants, and dynamic stylesheets
-└── util/                # Formatters (TimeFormatter, DateTimeUtil)
+io.github.marodriguezd.taskflow
+├── TaskFlowApp           # JavaFX Application entry point
+├── TaskFlowLauncher      # Static main() launcher
+├── domain/               # Pure model classes, no framework dependencies
+│   ├── Task, Priority
+│   ├── HistoryItem, HistoryEventType
+│   ├── ThemeMode, UserPreferences, WindowGeometry
+├── persistence/          # SQLite data access
+│   ├── DatabaseManager               # Connection & schema management
+│   ├── TaskRepository / SqliteTaskRepository
+│   ├── HistoryRepository / SqliteHistoryRepository
+│   ├── PreferenceRepository / SqlitePreferenceRepository
+│   ├── LegacyDataMigrator            # Legacy JSON → SQLite import
+│   └── PersistenceException
+├── service/              # Application/business services
+│   ├── TaskService       # Task use cases & validation
+│   ├── TimerService      # Countdown timers, single-active-timer enforcement
+│   ├── PlatformService   # OS detection, data directories, platform defaults
+│   ├── SoundService      # Timer completion audio
+│   └── ValidationException
+├── ui/                   # JavaFX presentation layer
+│   ├── MainWindow
+│   ├── component/        # HeaderView, TaskCardView, ProgressBarView,
+│   │                     # EmptyStateView, Icons
+│   ├── dialog/           # AddTaskDialog, EditTaskDialog, HistoryDialog
+│   └── theme/            # ThemeManager, UIConstants
+└── util/                 # DateTimeUtil, TimeFormatter
 ```
 
-### Modern Java 21 Features
-- **Records**: Concise, immutable domain models (`Task`, `HistoryItem`, `WindowGeometry`, `UserPreferences`).
-- **Pattern Matching & Switch Expressions**: Clean, exhaustively checked branching for platform detection and priority handling.
-- **Standard Math APIs**: `Math.clamp` for bounds enforcement.
-- **Decoupled Concurrency**: `ScheduledExecutorService` with `Platform.runLater` for timer scheduling, ensuring 100% testability in both GUI and headless environments.
-- **Standard JDBC SQLite**: Fast local persistence using write-ahead logging (WAL) and foreign keys without heavy ORM overhead.
+- **`ui`** knows nothing about JDBC; it talks to **`service`**, which orchestrates **`domain`** and **`persistence`**.
+- **`domain`** is dependency-free and fully unit-testable.
+- **`persistence`** is the only layer that touches SQLite, exposed through repository interfaces.
+- **`service.PlatformService`** isolates all operating-system-specific behavior (data directories, windowing conventions, default always-on-top state).
 
----
+Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/light.css`, `css/dark.css`), application icons (`assets/`), the default notification sound (`assets/bell.mp3`), and the Logback configuration.
 
-## Technology Stack
-
-- **Runtime**: Java 21 LTS (Eclipse Temurin / OpenJDK)
-- **GUI Toolkit**: JavaFX 21 (Controls, Media, Graphics, FXML)
-- **Build System**: Gradle 8.10+ (Kotlin DSL)
-- **Database**: SQLite 3 via JDBC (`org.xerial:sqlite-jdbc`)
-- **Logging**: SLF4J 2.0 + Logback Classic
-- **Serialization / Migration**: Jackson Databind 2.18
-- **Testing**: JUnit 5 (Jupiter), AssertJ Core
-- **Code Quality**: Spotless (Google Java Format AOSP)
-- **Native Packaging**: JDK `jpackage`
-
----
-
-## Development Setup
+## Getting Started
 
 ### Prerequisites
-- **JDK 21+** installed (or let the Gradle toolchain provision it).
-- Verify your environment:
-  ```bash
-  java --version
-  ```
 
-### Build, Test, and Format
+- A JDK 21 (the Gradle toolchain will locate or provision one)
 
-1. **Compile and run all unit & integration tests:**
-   ```bash
-   ./gradlew test
-   ```
-2. **Assemble the application JAR and distributions:**
-   ```bash
-   ./gradlew build
-   ```
-3. **Verify and apply code formatting:**
-   ```bash
-   ./gradlew spotlessCheck
-   ./gradlew spotlessApply
-   ```
-4. **Run TaskFlow locally:**
-   ```bash
-   ./gradlew run
-   ```
+### Running in development
 
----
-
-## Native Packaging (`jpackage`)
-
-TaskFlow leverages Java's native packaging tool (`jpackage`) to build standalone application bundles that include an optimized Java runtime environment. End users do not need to install Java.
-
-### Standalone Application Image
-Builds a standalone image under `build/dist/TaskFlow/` containing the native executable and bundled runtime:
 ```bash
-./gradlew jpackageImage
+./gradlew run
 ```
-To run the generated binary:
-- **Linux**: `./build/dist/TaskFlow/bin/TaskFlow`
-- **Windows**: `.\build\dist\TaskFlow\TaskFlow.exe`
-- **macOS**: `open build/dist/TaskFlow.app`
 
-### Distributable Installers
-Builds native installers appropriate for the host operating system under `build/dist/`:
+### Common commands
+
 ```bash
-./gradlew jpackagePackage
+./gradlew test             # Run the test suite
+./gradlew spotlessCheck    # Verify code formatting
+./gradlew spotlessApply    # Apply code formatting
+./gradlew build            # Compile, test, and assemble
+./gradlew jpackageImage    # Build a standalone application image with jpackage
 ```
-- **Linux**: Generates `.deb` (or `.rpm`) package with desktop entry and menu category.
-- **Windows**: Generates `.msi` (or `.exe`) installer with desktop shortcut and start menu integration.
-- **macOS**: Generates `.dmg` disk image with application bundle.
 
----
+The packaged application image is written to `build/dist/TaskFlow` and can be launched directly:
 
-## Data Storage & Migration
+```bash
+./build/dist/TaskFlow/bin/TaskFlow
+```
 
-TaskFlow stores its SQLite database and user preferences in dedicated per-user application directories:
+## Distribution
 
-| Platform | Primary Data Directory | Database File |
-| :--- | :--- | :--- |
-| **Linux** | `~/.TaskFlow` (or `$XDG_DATA_HOME/TaskFlow`) | `taskflow.db` |
-| **Windows** | `%APPDATA%\TaskFlow` (or `%USERPROFILE%\.TaskFlow`) | `taskflow.db` |
-| **macOS** | `~/Library/Application Support/TaskFlow` | `taskflow.db` |
+`./gradlew jpackageImage` produces a self-contained application image via [`jpackage`](https://docs.oracle.com/en/java/javase/21/docs/specs/man/jpackage.html). The image bundles a Java 21 runtime, so **end users do not need Java installed** to run the packaged application.
 
-### Legacy Migration
-If upgrading from the legacy Python/PyQt6 implementation of TaskFlow, the application detects existing JSON files on first launch:
-- `taskflow_data.json` (Active tasks)
-- `taskflow_history.json` (Task history)
-- `taskflow_geometry.json` (Window position and size)
-- `taskflow_settings.json` (Theme and pin preferences)
+`./gradlew jpackagePackage` builds a native installer package for the current operating system:
 
-The built-in `LegacyDataMigrator` automatically imports these records into SQLite and safely renames the original files with a `.migrated` extension.
+| OS | Package type |
+| --- | --- |
+| Windows | `.msi` |
+| macOS | `.dmg` |
+| Linux | `.deb` |
 
-### Customizing Completion Audio
-To use a custom chime sound:
-1. Replace `bell.mp3` located in your data directory (e.g. `~/.TaskFlow/bell.mp3`).
-2. TaskFlow will automatically use your custom sound file. If removed, the default bundled chime is restored.
+TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/workflows/ci.yml`, `.github/workflows/release.yml`) build and package the application on all three platforms.
 
----
+## Data
 
-## Continuous Integration
+TaskFlow stores all user data in a per-user directory containing the SQLite database (`taskflow.db`) and the notification sound (`bell.mp3`). The location depends on the platform:
 
-Multi-platform GitHub Actions workflows are configured in `.github/workflows/`:
-- **`ci.yml`**: Compiles, runs tests, checks formatting, and produces native images on Linux (`ubuntu-latest`), Windows (`windows-latest`), and macOS (`macos-latest`).
-- **`release.yml`**: Automatically builds native packages (`.deb`, `.msi`, `.dmg`) upon tagging a release (`v*`).
+| Platform | Data directory |
+| --- | --- |
+| Windows | `%APPDATA%\TaskFlow` |
+| macOS | `~/Library/Application Support/TaskFlow` |
+| Linux | `$XDG_DATA_HOME/TaskFlow`, falling back to `~/.TaskFlow` |
 
----
+If a legacy `~/.TaskFlow` directory already exists, it is kept as the data directory for continuity.
+
+## Migration
+
+If you used a previous version of TaskFlow that stored data as JSON, the application detects the legacy files on first launch and imports them into SQLite automatically:
+
+- `taskflow_data.json` (tasks)
+- `taskflow_history.json` (history)
+- `taskflow_geometry.json` (window geometry)
+- `taskflow_settings.json` (theme and window preferences)
+
+Legacy files are looked up in the data directory and in the home directory root (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`). Each processed file is renamed with a `.migrated` suffix (e.g. `taskflow_data.json.migrated`) so it is imported only once; the original contents are preserved as a backup. Migration failures are logged and never prevent the application from starting.
+
+## Development
+
+- **Formatting** is enforced with Spotless (Google Java Format, AOSP style). Run `./gradlew spotlessApply` before committing; CI fails on `spotlessCheck` violations.
+- **Tests** use JUnit 5 with AssertJ and cover the domain model, services, repositories, legacy migration, and an end-to-end application flow.
 
 ## License
 
-This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](LICENSE).
+This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](LICENSE) (CC BY-NC-SA 4.0).
