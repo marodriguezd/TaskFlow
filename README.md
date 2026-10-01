@@ -3,6 +3,7 @@
 A lightweight, cross-platform desktop task manager with Pomodoro-style timers, built with Java 21 and JavaFX. Tasks are persisted locally in SQLite, and the application ships as a native package with a bundled Java runtime — no Java installation required for end users.
 
 [![CI](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/marodriguezd/TaskFlow)](https://github.com/marodriguezd/TaskFlow/releases/latest)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 
 ## Screenshots
