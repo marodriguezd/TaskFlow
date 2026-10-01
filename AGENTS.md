@@ -124,7 +124,7 @@ Workflows (`.github/workflows/`):
 ## 10. Versioning
 
 - `build.gradle.kts` `version = "..."` is the single source of the project version; the release tag must equal `v` + that value.
-- Current released version is `1.1.0` — treat it as the value *today*, not a constant: future releases bump `build.gradle.kts` and tag consistently (validator enforces the match). The tag for this version is `v1.1.0`.
+- Current released version is `1.1.1` — treat it as the value *today*, not a constant: future releases bump `build.gradle.kts` and tag consistently (validator enforces the match). The tag for this version is `v1.1.1`.
 - Do not touch existing tags or the published release as part of unrelated work.
 
 ## 11. Packaging

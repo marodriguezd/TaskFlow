@@ -1,22 +1,13 @@
-# TaskFlow v1.1.0 — Internationalized Java 21 Desktop Task Manager
+# TaskFlow v1.1.1 — Stability Patch Release
 
-TaskFlow 1.1.0 adds full internationalization to the Java 21 + JavaFX desktop task manager. The entire interface now ships in five languages, switchable at runtime.
+TaskFlow 1.1.1 is a patch release that fixes issues found during post-release testing of 1.1.0. It contains no new features: every change is a low-severity fix or documentation improvement, and existing data, preferences, and the database schema are untouched.
 
-## Highlights
+## Fixes
 
-- **Five UI languages** — English, Spanish, German, Italian, and Simplified Chinese. Every button, label, tooltip, prompt, and history description is translated through resource bundles.
-- **Live language switching** — change the language anytime from the globe button in the header; the UI re-renders immediately, no restart required.
-- **Automatic first-run detection** — on first launch the interface language is detected from the OS locale, then persisted. Unsupported OS languages fall back to English; Traditional Chinese locales fall back to English (only Simplified Chinese is shipped).
-- **Persistent language preference** — stored locally per user in the SQLite `preferences` table as a locale-independent BCP 47 tag. Existing 1.0.0 databases upgrade in place with no migration step.
-- **Deterministic English fallback** — any missing translation resolves to the English base bundle; the build enforces that exactly five bundles exist and are complete.
-- **Task management** — create, edit, complete, and delete tasks with High / Medium / Low priorities
-- **Pomodoro timers** — per-task countdown timers with a single-active-timer invariant (starting a timer automatically pauses any other running timer)
-- **Progress tracking** — per-task visual progress bar
-- **History & restoration** — completed and deleted tasks are archived and can be restored at any time
-- **SQLite persistence** — tasks, history, and preferences are stored locally in a SQLite database; no account or cloud required
-- **Themes & preferences** — light/dark theme switching, always-on-top mode, and window geometry persistence across sessions
-- **Audio notification** — a bell chime plays when a timer completes (user-replaceable `bell.mp3`)
-- **Legacy data migration** — existing JSON data from the legacy Python version is imported automatically on first launch
+- **Clean application shutdown** — closing the window now goes through the standard JavaFX shutdown path, so `Application.stop()` always runs and the SQLite database is explicitly closed (with a WAL checkpoint) on every normal exit. Previously an immediate hard process exit could race past that cleanup.
+- **Corrupt timestamps are logged** — malformed or unparseable `created_at`/`updated_at`/`event_at` values in the local database now produce a warning with the column, the raw value, and the parser error before falling back to the current time. Valid data is unaffected; previously the fallback was silent.
+- **Locale-safe OS detection** — operating-system name checks now lowercase with `Locale.ROOT`, matching the rest of the codebase, so results cannot vary with the user's locale.
+- **Documented audio limitation** — the code now documents a known JavaFX media behavior: on machines without an audio device, JavaFX may print a `MediaException` to stderr when the completion chime is played. It is cosmetic only; the application keeps running and timer completion, archiving, and persistence are unaffected.
 
 ## Native packages with bundled Java
 
@@ -24,9 +15,9 @@ Installers are produced with `jpackage` and **bundle a full Java 21 runtime**, s
 
 | Platform | Package | Notes |
 | --- | --- | --- |
-| Windows (x64) | `TaskFlow-1.1.0.msi` | MSI installer with Start Menu shortcut |
-| Linux (x64, any distribution) | `TaskFlow-1.1.0-x86_64.AppImage` | Portable AppImage — download, `chmod +x`, and run; no installation, no FUSE required (falls back to `--appimage-extract-and-run`) |
-| macOS (Apple Silicon) | `TaskFlow-1.1.0.dmg` | DMG image built on an ARM64 runner (not a universal binary) |
+| Windows (x64) | `TaskFlow-1.1.1.msi` | MSI installer with Start Menu shortcut |
+| Linux (x64, any distribution) | `TaskFlow-1.1.1-x86_64.AppImage` | Portable AppImage — download, `chmod +x`, and run; no installation, no FUSE required (falls back to `--appimage-extract-and-run`) |
+| macOS (Apple Silicon) | `TaskFlow-1.1.1.dmg` | DMG image built on an ARM64 runner (not a universal binary) |
 
 Verify your download before installing:
 
@@ -42,9 +33,9 @@ sha256sum -c checksums.txt
 
 Continuous integration builds, tests, and packages the application on all three platforms on every change.
 
-## Upgrading from 1.0.0
+## Upgrading from 1.1.0
 
-Just install the new package over the previous one — your data is untouched. The database schema is unchanged; the only addition is the `language` preference key, written the first time a language is resolved (from the OS locale on first run, or when you pick one from the header).
+Just install the new package over the previous one — your data is untouched. This is a drop-in patch: the database schema is unchanged, all tasks, history, preferences, theme, language, and window geometry carry over, and no migration step is required.
 
 ## Upgrading from the legacy (Python) version
 
@@ -69,11 +60,12 @@ The directory contains the SQLite database (`taskflow.db`) and the notification 
 
 ## Known limitations
 
-- The interface ships in five languages only; French and Portuguese are not supported in this release.
+- The interface ships in five languages only (English, Spanish, German, Italian, Simplified Chinese); French and Portuguese are not supported.
+- On systems without an audio device the completion chime cannot play and JavaFX may print a media error to stderr; this does not affect application behavior.
 - The Linux package ships as a portable `.AppImage`; there is no native `.deb`/`.rpm` repository integration (menu/shortcut registration depends on the desktop environment).
 - The macOS package targets Apple Silicon; no Intel or universal build is provided.
 - The Windows package is x64 only.
 
 ## License
 
-TaskFlow v1.1.0 is released under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](LICENSE).
+TaskFlow v1.1.1 is released under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](LICENSE).
