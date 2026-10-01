@@ -1,0 +1,67 @@
+/* Light theme for TaskFlow */
+
+.root {
+    -fx-bg-base: #f4f7fc;
+    -fx-bg-surface: #ffffff;
+    -fx-bg-elevated: #f8fbff;
+    -fx-border: #d4deed;
+    -fx-border-light: #bfcee4;
+    -fx-text-hi: #132033;
+    -fx-text-mid: #4f6382;
+    -fx-text-lo: #7b8faa;
+    -fx-accent: #2f7ef7;
+    -fx-accent-lt: #5a9bff;
+    -fx-accent-muted: rgba(47, 126, 247, 0.16);
+    -fx-card-hover: #eef2f8;
+
+    -fx-background-color: -fx-bg-base;
+}
+
+.main-panel {
+    -fx-background-color: -fx-bg-base;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+}
+
+.header-bar {
+    -fx-background-color: -fx-bg-surface;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.footer-bar {
+    -fx-background-color: -fx-bg-surface;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.badge-count {
+    -fx-background-color: -fx-bg-elevated;
+    -fx-border-color: -fx-border;
+    -fx-border-radius: 9px;
+    -fx-background-radius: 9px;
+    -fx-text-fill: -fx-text-mid;
+    -fx-font-size: 11px;
+    -fx-padding: 2px 8px;
+}
+
+.task-card {
+    -fx-background-color: -fx-bg-surface;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px 1px 1px 0;
+    -fx-border-radius: 0 10px 10px 0;
+    -fx-background-radius: 0 10px 10px 0;
+}
+
+.task-card:hover {
+    -fx-background-color: -fx-card-hover;
+}
+
+.history-card {
+    -fx-background-color: -fx-bg-surface;
+    -fx-border-color: -fx-border;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 8px 10px;
+}

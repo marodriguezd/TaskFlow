@@ -1,0 +1,234 @@
+/* Base styles for TaskFlow application */
+
+.root {
+    -fx-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -fx-font-size: 13px;
+}
+
+/* ScrollPane custom minimal scrollbar */
+.scroll-pane {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-color: transparent;
+    -fx-padding: 0;
+}
+
+.scroll-pane > .viewport {
+    -fx-background-color: transparent;
+}
+
+.scroll-pane > .corner {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+    -fx-pref-width: 6px;
+    -fx-max-width: 6px;
+}
+
+.scroll-bar:vertical .track {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-bar:vertical .thumb {
+    -fx-background-color: -fx-border-light;
+    -fx-background-radius: 3px;
+}
+
+.scroll-bar:vertical .thumb:hover {
+    -fx-background-color: -fx-text-lo;
+}
+
+.scroll-bar .increment-button,
+.scroll-bar .decrement-button {
+    -fx-pref-height: 0;
+    -fx-padding: 0;
+    -fx-shape: "";
+}
+
+/* Icon Buttons (Header actions) */
+.icon-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 13px;
+    -fx-min-width: 26px;
+    -fx-min-height: 26px;
+    -fx-max-width: 26px;
+    -fx-max-height: 26px;
+    -fx-alignment: center;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+}
+
+.icon-button:hover {
+    -fx-background-color: -fx-accent-muted;
+}
+
+.icon-button:selected {
+    -fx-background-color: -fx-accent-muted;
+}
+
+.close-button:hover {
+    -fx-background-color: rgba(255, 94, 120, 0.18);
+}
+
+/* Card Action Buttons (Edit / Delete) */
+.card-action-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 11px;
+    -fx-min-width: 22px;
+    -fx-min-height: 22px;
+    -fx-max-width: 22px;
+    -fx-max-height: 22px;
+    -fx-alignment: center;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+}
+
+.card-edit-button:hover {
+    -fx-background-color: -fx-accent-muted;
+}
+
+.card-delete-button:hover {
+    -fx-background-color: rgba(255, 94, 120, 0.18);
+}
+
+/* Vector SVG Icons */
+.icon-svg {
+    -fx-fill: -fx-text-lo;
+}
+
+.icon-button:hover .icon-svg {
+    -fx-fill: -fx-accent;
+}
+
+.icon-button:selected .icon-svg {
+    -fx-fill: -fx-accent-lt;
+}
+
+.close-button:hover .icon-svg,
+.card-delete-button:hover .icon-svg {
+    -fx-fill: #ff5e78;
+}
+
+.card-edit-button:hover .icon-svg {
+    -fx-fill: -fx-accent-lt;
+}
+
+/* Action Button: Primary Add Task Button */
+.btn-primary {
+    -fx-background-color: -fx-accent;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 10px;
+    -fx-pref-height: 38px;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+}
+
+.btn-primary:hover {
+    -fx-background-color: -fx-accent-lt;
+}
+
+.btn-primary:pressed {
+    -fx-background-color: -fx-accent;
+}
+
+/* Text Inputs */
+.text-field {
+    -fx-background-color: -fx-bg-surface;
+    -fx-text-fill: -fx-text-hi;
+    -fx-prompt-text-fill: -fx-text-lo;
+    -fx-border-color: -fx-border;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 7px 10px;
+}
+
+.text-field:focused {
+    -fx-border-color: -fx-accent;
+}
+
+/* Spinner */
+.spinner {
+    -fx-background-color: -fx-bg-surface;
+    -fx-border-color: -fx-border;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+.spinner .text-field {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-text-fill: -fx-text-hi;
+}
+
+.spinner .increment-arrow-button,
+.spinner .decrement-arrow-button {
+    -fx-background-color: -fx-border;
+    -fx-cursor: hand;
+}
+
+.spinner .increment-arrow-button:hover,
+.spinner .decrement-arrow-button:hover {
+    -fx-background-color: -fx-border-light;
+}
+
+/* ComboBox */
+.combo-box {
+    -fx-background-color: -fx-bg-surface;
+    -fx-border-color: -fx-border;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-cursor: hand;
+}
+
+.combo-box .list-cell {
+    -fx-text-fill: -fx-text-hi;
+    -fx-background-color: transparent;
+    -fx-padding: 6px 10px;
+}
+
+.combo-box-popup .list-view {
+    -fx-background-color: -fx-bg-elevated;
+    -fx-border-color: -fx-border-light;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+}
+
+.combo-box-popup .list-cell:filled:hover {
+    -fx-background-color: derive(-fx-accent, 60%);
+    -fx-text-fill: -fx-text-hi;
+}
+
+.combo-box-popup .list-cell:filled:selected {
+    -fx-background-color: -fx-accent;
+    -fx-text-fill: #ffffff;
+}
+
+/* Dialog Backdrop & Cards */
+.dialog-card {
+    -fx-background-color: -fx-bg-elevated;
+    -fx-border-color: -fx-border-light;
+    -fx-border-width: 1px;
+    -fx-border-radius: 14px;
+    -fx-background-radius: 14px;
+    -fx-padding: 18px;
+}
+
+.btn-secondary {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-text-mid;
+    -fx-border-color: -fx-border;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 7px 14px;
+    -fx-cursor: hand;
+}
+
+.btn-secondary:hover {
+    -fx-text-fill: -fx-text-hi;
+    -fx-border-color: -fx-border-light;
+}

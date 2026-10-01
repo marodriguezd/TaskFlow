@@ -1,0 +1,168 @@
+package io.github.marodriguezd.taskflow.ui.dialog;
+
+import io.github.marodriguezd.taskflow.domain.Priority;
+import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
+import java.util.Optional;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
+import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import javafx.util.StringConverter;
+
+/** Modal dialog for creating a new Task. */
+public class AddTaskDialog {
+
+    public record TaskFormData(String name, Priority priority, int minutes) {}
+
+    protected final Stage stage;
+    protected final TextField nameField;
+    protected final Spinner<Integer> minutesSpinner;
+    protected final ComboBox<Priority> priorityCombo;
+    protected final Button confirmButton;
+    protected final Button cancelButton;
+    protected final Label titleLabel;
+
+    protected TaskFormData result;
+    private double dragOffsetX;
+    private double dragOffsetY;
+
+    public AddTaskDialog(Stage owner, ThemeManager themeManager) {
+        stage = new Stage();
+        stage.initOwner(owner);
+        stage.initModality(Modality.APPLICATION_MODAL);
+        stage.initStyle(StageStyle.UNDECORATED);
+
+        VBox card = new VBox(12);
+        card.getStyleClass().add("dialog-card");
+        card.setPadding(new Insets(18, 18, 18, 18));
+        card.setPrefWidth(300.0);
+
+        titleLabel = new Label("Nueva tarea");
+        titleLabel.setStyle(
+                "-fx-text-fill: -fx-text-hi; -fx-font-size: 15px; -fx-font-weight: bold;");
+
+        nameField = new TextField();
+        nameField.setPromptText("¿Qué vas a hacer?");
+
+        HBox optionsRow = new HBox(10);
+        optionsRow.setAlignment(Pos.CENTER_LEFT);
+
+        VBox timeCol = new VBox(4);
+        Label timeLabel = new Label("Minutos");
+        timeLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
+        minutesSpinner = new Spinner<>();
+        minutesSpinner.setValueFactory(
+                new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 999, 25));
+        minutesSpinner.setEditable(true);
+        minutesSpinner.setPrefWidth(120.0);
+        timeCol.getChildren().addAll(timeLabel, minutesSpinner);
+        HBox.setHgrow(timeCol, javafx.scene.layout.Priority.ALWAYS);
+
+        VBox priCol = new VBox(4);
+        Label priLabel = new Label("Prioridad");
+        priLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
+        priorityCombo = new ComboBox<>();
+        priorityCombo.getItems().addAll(Priority.HIGH, Priority.MEDIUM, Priority.LOW);
+        priorityCombo.setValue(Priority.MEDIUM);
+        priorityCombo.setConverter(
+                new StringConverter<>() {
+                    @Override
+                    public String toString(Priority p) {
+                        return p != null ? p.getDisplayName() : "";
+                    }
+
+                    @Override
+                    public Priority fromString(String string) {
+                        return Priority.fromDisplayName(string);
+                    }
+                });
+        priorityCombo.setPrefWidth(130.0);
+        priCol.getChildren().addAll(priLabel, priorityCombo);
+        HBox.setHgrow(priCol, javafx.scene.layout.Priority.ALWAYS);
+
+        optionsRow.getChildren().addAll(timeCol, priCol);
+
+        HBox buttonRow = new HBox(8);
+        buttonRow.setAlignment(Pos.CENTER_RIGHT);
+
+        cancelButton = new Button("Cancelar");
+        cancelButton.getStyleClass().add("btn-secondary");
+        cancelButton.setOnAction(e -> stage.close());
+        HBox.setHgrow(cancelButton, javafx.scene.layout.Priority.ALWAYS);
+        cancelButton.setMaxWidth(Double.MAX_VALUE);
+
+        confirmButton = new Button("Agregar");
+        confirmButton.getStyleClass().add("btn-primary");
+        confirmButton.setStyle(
+                "-fx-font-size: 12px; -fx-padding: 7px 14px; -fx-pref-height: 32px;");
+        confirmButton.setOnAction(e -> handleConfirm());
+        HBox.setHgrow(confirmButton, javafx.scene.layout.Priority.ALWAYS);
+        confirmButton.setMaxWidth(Double.MAX_VALUE);
+
+        buttonRow.getChildren().addAll(cancelButton, confirmButton);
+
+        card.getChildren().addAll(titleLabel, nameField, optionsRow, buttonRow);
+
+        Scene scene = new Scene(card);
+        themeManager.registerScene(scene);
+
+        // Keyboard shortcuts: Enter to submit, Esc to cancel
+        scene.setOnKeyPressed(
+                event -> {
+                    if (event.getCode() == KeyCode.ENTER) {
+                        handleConfirm();
+                    } else if (event.getCode() == KeyCode.ESCAPE) {
+                        stage.close();
+                    }
+                });
+
+        // Window drag handling
+        card.setOnMousePressed(
+                e -> {
+                    dragOffsetX = e.getSceneX();
+                    dragOffsetY = e.getSceneY();
+                });
+        card.setOnMouseDragged(
+                e -> {
+                    stage.setX(e.getScreenX() - dragOffsetX);
+                    stage.setY(e.getScreenY() - dragOffsetY);
+                });
+
+        stage.setScene(scene);
+    }
+
+    protected void handleConfirm() {
+        String name = nameField.getText() != null ? nameField.getText().trim() : "";
+        if (name.isEmpty()) {
+            nameField.requestFocus();
+            return;
+        }
+
+        int minutes = minutesSpinner.getValue() != null ? minutesSpinner.getValue() : 25;
+        Priority priority =
+                priorityCombo.getValue() != null ? priorityCombo.getValue() : Priority.MEDIUM;
+
+        result = new TaskFormData(name, priority, minutes);
+        stage.close();
+    }
+
+    public Optional<TaskFormData> showAndWait() {
+        if (stage.getOwner() != null) {
+            stage.setX(Math.max(0, stage.getOwner().getX() - 310));
+            stage.setY(stage.getOwner().getY() + 60);
+        }
+        stage.showAndWait();
+        return Optional.ofNullable(result);
+    }
+}

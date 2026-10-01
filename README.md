@@ -1,199 +1,167 @@
 # TaskFlow
 
-TaskFlow es una app de escritorio (PyQt6) para gestionar tareas con temporizador tipo Pomodoro, prioridad visual e historial.
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
 
-Está preparada para:
-- **Uso diario en Linux/Wayland y Windows**.
-- **Build de producción** con `PyInstaller` en un solo ejecutable.
-- **Pipeline de iconos** desde un PNG maestro.
+TaskFlow is a production-quality native desktop task manager built with **Java 21** and **JavaFX**. It combines Pomodoro-style countdown timers, visual priorities, completion history, local SQLite persistence, customizable sound notifications, and platform-specific window behaviors into a sleek, responsive desktop tool.
 
 ---
 
-## Características
+## Highlights & Features
 
-- Tarjetas de tarea con:
-  - Nombre
-  - Prioridad (`Alta`, `Media`, `Baja`)
-  - Temporizador
-  - Barra de progreso
-  - Acciones rápidas de edición (✎) y borrado (✕)
-- Solo una tarea puede estar en reproducción simultánea (autopausa del resto).
-- Historial de tareas completadas.
-- Persistencia local de:
-  - Tareas
-  - Historial
-  - Geometría de ventana
-- Comportamiento de ventana por plataforma:
-  - **Windows**: ventana nativa (minimizar/maximizar/snap), con chincheta para *always-on-top*.
-  - **Linux/Wayland**: modo frameless con comportamiento flotante.
+- **Task Cards**:
+  - Name with wrapping and high-contrast typography
+  - Priority badge (`Alta` / High, `Media` / Medium, `Baja` / Low) with distinct visual accents
+  - Monospace countdown timer display (MM:SS)
+  - Custom gradient progress bar indicating remaining duration
+  - Quick action controls: Edit (✎), Delete (✕), Mark Completed (✓), and Play/Pause (▶ / ❚❚)
+- **Single-Timer Coordination**: Only one task timer runs at any moment; starting another timer automatically pauses the previous one.
+- **Completion & Deletion History**:
+  - Detailed audit log of completed and deleted tasks
+  - Tracks event mode: timer expiration, manual completion, or deletion
+  - One-click task restoration from history back to the active list
+- **Theme Engine**:
+  - High-contrast Dark theme (`#111114` base, `#7c6af7` accent)
+  - Clean Light theme (`#f4f7fc` base, `#2f7ef7` accent)
+  - Dynamic stylesheet switching without restarting the application
+- **Platform-Aware Window Experience**:
+  - **Linux / Wayland / X11**: Sleek frameless floating panel with smooth edge resizing, draggable header, and default always-on-top behavior.
+  - **Windows**: Native window decorations supporting Snap Layouts, minimizing, maximizing, and pin toggle.
+  - **macOS**: Native application styling with retina display support.
+- **Audio Feedback**:
+  - Automatic chime playback when a timer expires
+  - Customizable completion audio via `bell.mp3` in the user's data directory with built-in fallbacks.
 
 ---
 
-## Estructura del proyecto
+## Architecture Overview
 
-```text
-.
-├── src/
-│   ├── main.py           # Entry point
-│   ├── app.py            # Ventana principal y layout global
-│   ├── task_card.py      # Tarjetas + temporizador por tarea
-│   ├── dialogs.py        # Diálogos (crear/editar tarea, historial)
-│   ├── widgets.py        # Widgets reutilizables
-│   └── config.py         # Config visual + persistencia
-├── assets/
-│   └── README.md         # Flujo de iconos
-├── generate_icons.py     # Generador de iconos desde PNG maestro
-├── compiler.py           # Build one-file con PyInstaller
-└── README.md
+TaskFlow follows clean architectural boundaries with strict separation of concerns:
+
+```
+src/main/java/io/github/marodriguezd/taskflow/
+├── domain/              # Immutable domain entities & records (Task, Priority, HistoryItem, etc.)
+├── persistence/         # SQLite JDBC repositories, schema management, and legacy data migration
+├── service/             # Business logic (TaskService, TimerService, SoundService, PlatformService)
+├── ui/                  # JavaFX controllers, views, custom components, and dialogs
+│   ├── component/       # Custom controls (TaskCardView, ProgressBarView, HeaderView, EmptyStateView)
+│   ├── dialog/          # Modal dialogs (AddTaskDialog, EditTaskDialog, HistoryDialog)
+│   └── theme/           # ThemeManager, layout constants, and dynamic stylesheets
+└── util/                # Formatters (TimeFormatter, DateTimeUtil)
 ```
 
----
-
-## Requisitos
-
-- Python **3.11+** (recomendado 3.12 en Windows)
-- `pip`
-- Dependencias:
-  - `PyQt6`
-  - `Pillow` (solo para generar iconos)
-  - `PyInstaller` (solo para compilar ejecutable)
+### Modern Java 21 Features
+- **Records**: Concise, immutable domain models (`Task`, `HistoryItem`, `WindowGeometry`, `UserPreferences`).
+- **Pattern Matching & Switch Expressions**: Clean, exhaustively checked branching for platform detection and priority handling.
+- **Standard Math APIs**: `Math.clamp` for bounds enforcement.
+- **Decoupled Concurrency**: `ScheduledExecutorService` with `Platform.runLater` for timer scheduling, ensuring 100% testability in both GUI and headless environments.
+- **Standard JDBC SQLite**: Fast local persistence using write-ahead logging (WAL) and foreign keys without heavy ORM overhead.
 
 ---
 
-## Entorno de desarrollo
+## Technology Stack
 
-### 1) Crear entorno virtual
+- **Runtime**: Java 21 LTS (Eclipse Temurin / OpenJDK)
+- **GUI Toolkit**: JavaFX 21 (Controls, Media, Graphics, FXML)
+- **Build System**: Gradle 8.10+ (Kotlin DSL)
+- **Database**: SQLite 3 via JDBC (`org.xerial:sqlite-jdbc`)
+- **Logging**: SLF4J 2.0 + Logback Classic
+- **Serialization / Migration**: Jackson Databind 2.18
+- **Testing**: JUnit 5 (Jupiter), AssertJ Core
+- **Code Quality**: Spotless (Google Java Format AOSP)
+- **Native Packaging**: JDK `jpackage`
 
-**Windows (PowerShell):**
+---
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
+## Development Setup
 
-**Linux/macOS:**
+### Prerequisites
+- **JDK 21+** installed (or let the Gradle toolchain provision it).
+- Verify your environment:
+  ```bash
+  java --version
+  ```
 
+### Build, Test, and Format
+
+1. **Compile and run all unit & integration tests:**
+   ```bash
+   ./gradlew test
+   ```
+2. **Assemble the application JAR and distributions:**
+   ```bash
+   ./gradlew build
+   ```
+3. **Verify and apply code formatting:**
+   ```bash
+   ./gradlew spotlessCheck
+   ./gradlew spotlessApply
+   ```
+4. **Run TaskFlow locally:**
+   ```bash
+   ./gradlew run
+   ```
+
+---
+
+## Native Packaging (`jpackage`)
+
+TaskFlow leverages Java's native packaging tool (`jpackage`) to build standalone application bundles that include an optimized Java runtime environment. End users do not need to install Java.
+
+### Standalone Application Image
+Builds a standalone image under `build/dist/TaskFlow/` containing the native executable and bundled runtime:
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+./gradlew jpackageImage
 ```
+To run the generated binary:
+- **Linux**: `./build/dist/TaskFlow/bin/TaskFlow`
+- **Windows**: `.\build\dist\TaskFlow\TaskFlow.exe`
+- **macOS**: `open build/dist/TaskFlow.app`
 
-### 2) Instalar dependencias
-
+### Distributable Installers
+Builds native installers appropriate for the host operating system under `build/dist/`:
 ```bash
-pip install PyQt6 pillow pyinstaller
+./gradlew jpackagePackage
 ```
-
-### 3) Ejecutar en local
-
-```bash
-python src/main.py
-```
+- **Linux**: Generates `.deb` (or `.rpm`) package with desktop entry and menu category.
+- **Windows**: Generates `.msi` (or `.exe`) installer with desktop shortcut and start menu integration.
+- **macOS**: Generates `.dmg` disk image with application bundle.
 
 ---
 
-## Pipeline de iconos (recomendado para producción)
+## Data Storage & Migration
 
-1. Coloca el icono maestro en:
-   - `assets/TaskFlow.png` (fuente maestra)
-   - `assets/taskflow.png` (compatibilidad)
-2. Genera variantes:
+TaskFlow stores its SQLite database and user preferences in dedicated per-user application directories:
 
-```bash
-python generate_icons.py
-```
+| Platform | Primary Data Directory | Database File |
+| :--- | :--- | :--- |
+| **Linux** | `~/.TaskFlow` (or `$XDG_DATA_HOME/TaskFlow`) | `taskflow.db` |
+| **Windows** | `%APPDATA%\TaskFlow` (or `%USERPROFILE%\.TaskFlow`) | `taskflow.db` |
+| **macOS** | `~/Library/Application Support/TaskFlow` | `taskflow.db` |
 
-Esto generará:
-- `assets/taskflow.ico` (usado por Windows/PyInstaller)
-- `assets/generated/taskflow-*.png`
-- `assets/taskflow.icns` (si Pillow soporta ICNS)
+### Legacy Migration
+If upgrading from the legacy Python/PyQt6 implementation of TaskFlow, the application detects existing JSON files on first launch:
+- `taskflow_data.json` (Active tasks)
+- `taskflow_history.json` (Task history)
+- `taskflow_geometry.json` (Window position and size)
+- `taskflow_settings.json` (Theme and pin preferences)
 
----
+The built-in `LegacyDataMigrator` automatically imports these records into SQLite and safely renames the original files with a `.migrated` extension.
 
-## Build de producción (Windows/Linux)
-
-Compila un único binario con icono:
-
-```bash
-python compiler.py
-```
-
-Salida esperada:
-- `dist/TaskFlow` (Linux/macOS)
-- `dist/TaskFlow.exe` (Windows)
-
-### Qué hace `compiler.py`
-
-- Detecta icono automáticamente desde `assets/` priorizando `TaskFlow.*` y luego `taskflow.*`.
-- Ejecuta `PyInstaller` en modo:
-  - `--onefile`
-  - `--windowed`
-  - `--icon ...`
-- Incluye el icono también como recurso para que la app pueda cargarlo en runtime.
+### Customizing Completion Audio
+To use a custom chime sound:
+1. Replace `bell.mp3` located in your data directory (e.g. `~/.TaskFlow/bell.mp3`).
+2. TaskFlow will automatically use your custom sound file. If removed, the default bundled chime is restored.
 
 ---
 
-## Persistencia de datos
+## Continuous Integration
 
-TaskFlow guarda datos en una carpeta dedicada dentro del home del usuario:
-
-- `~/.TaskFlow/taskflow_data.json`
-- `~/.TaskFlow/taskflow_history.json`
-- `~/.TaskFlow/taskflow_geometry.json`
-- `~/.TaskFlow/bell.mp3` (sonido de fin de temporizador, personalizable)
-
-> En Windows se resuelven dentro de `C:\Users\<usuario>\.TaskFlow\`.
->
-> Compatibilidad legacy: si existen ficheros antiguos (`~/.taskflow_*.json`),
-> se migran automáticamente a `~/.TaskFlow/` en el arranque.
-
-Para cambiar la campana, sustituye `~/.TaskFlow/bell.mp3` por tu propio mp3 (mismo nombre).
-Si no existe, TaskFlow intentará copiar el sonido por defecto incluido en `assets/bell.mp3`.
+Multi-platform GitHub Actions workflows are configured in `.github/workflows/`:
+- **`ci.yml`**: Compiles, runs tests, checks formatting, and produces native images on Linux (`ubuntu-latest`), Windows (`windows-latest`), and macOS (`macos-latest`).
+- **`release.yml`**: Automatically builds native packages (`.deb`, `.msi`, `.dmg`) upon tagging a release (`v*`).
 
 ---
 
-## Checklist rápida de release
+## License
 
-1. `python -m py_compile compiler.py generate_icons.py src/*.py`
-2. `python generate_icons.py`
-3. `python compiler.py`
-4. Probar `dist/TaskFlow(.exe)`:
-   - abrir/cerrar
-   - crear tareas
-   - iniciar/pausar temporizador
-   - historial
-   - icono en app y ejecutable
-   - comportamiento snap (Windows)
-
----
-
-## Troubleshooting
-
-### El icono no sale bien en Windows
-
-- Usa un `.ico` multiresolución (16, 20, 24, 32, 40, 48, 64, 128, 256).
-- Regenera iconos con `python generate_icons.py`.
-- Recompila con `python compiler.py`.
-- Si Explorer cachea iconos antiguos, reinicia explorer o limpia caché de iconos.
-
-### `generate_icons.py` pide Pillow
-
-Instala dependencia:
-
-```bash
-pip install pillow
-```
-
-### Error al compilar con PyInstaller
-
-Verifica instalación:
-
-```bash
-pip install pyinstaller
-```
-
----
-
-## Licencia
-
-Este proyecto se distribuye bajo la licencia indicada en `LICENSE`.
+This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](LICENSE).
