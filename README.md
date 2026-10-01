@@ -128,6 +128,8 @@ TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/w
 
 ### Releases
 
+> **Latest: [TaskFlow v1.0.0](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.0.0)** — the first official release, published October 1, 2026. It ships native installers with a bundled Java 21 runtime for Windows (`.msi`), Linux (`.deb`), and macOS (`.dmg`, Apple Silicon), plus SHA-256 checksums for verifying each download.
+
 Official releases are published automatically on the [GitHub Releases page](https://github.com/marodriguezd/TaskFlow/releases) when a `vMAJOR.MINOR.PATCH` tag is pushed (e.g. `v1.0.0`). The pipeline:
 
 1. validates the tag format, that it matches the Gradle project version, and that it points at the built commit;
