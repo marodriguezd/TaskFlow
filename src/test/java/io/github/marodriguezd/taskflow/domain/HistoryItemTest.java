@@ -20,7 +20,7 @@ class HistoryItemTest {
         assertThat(item.remainingSeconds()).isEqualTo(0);
         assertThat(item.eventType()).isEqualTo(HistoryEventType.COMPLETED);
         assertThat(item.completedManually()).isFalse();
-        assertThat(item.getModeDescription()).isEqualTo("Completada por temporizador");
+        assertThat(item.getModeDescription()).isEqualTo("Completed by timer");
     }
 
     @Test
@@ -36,7 +36,7 @@ class HistoryItemTest {
                         HistoryEventType.COMPLETED,
                         true,
                         Instant.now());
-        assertThat(manual.getModeDescription()).isEqualTo("Completada manual");
+        assertThat(manual.getModeDescription()).isEqualTo("Completed manually");
 
         HistoryItem timer =
                 new HistoryItem(
@@ -48,7 +48,7 @@ class HistoryItemTest {
                         HistoryEventType.COMPLETED,
                         false,
                         Instant.now());
-        assertThat(timer.getModeDescription()).isEqualTo("Completada por temporizador");
+        assertThat(timer.getModeDescription()).isEqualTo("Completed by timer");
 
         HistoryItem deleted =
                 new HistoryItem(
@@ -60,7 +60,7 @@ class HistoryItemTest {
                         HistoryEventType.DELETED,
                         false,
                         Instant.now());
-        assertThat(deleted.getModeDescription()).isEqualTo("Eliminada");
+        assertThat(deleted.getModeDescription()).isEqualTo("Deleted");
     }
 
     @Test

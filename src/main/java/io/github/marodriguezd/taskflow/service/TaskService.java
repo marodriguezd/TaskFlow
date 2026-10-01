@@ -69,10 +69,7 @@ public class TaskService {
         Task existing =
                 taskRepository
                         .findById(id)
-                        .orElseThrow(
-                                () ->
-                                        new ValidationException(
-                                                "No se encontró la tarea con ID " + id));
+                        .orElseThrow(() -> new ValidationException("Task not found with ID " + id));
 
         timerService.stopIfRunning(id);
 
@@ -162,8 +159,7 @@ public class TaskService {
                         .orElseThrow(
                                 () ->
                                         new ValidationException(
-                                                "No se encontró el elemento de historial con ID "
-                                                        + historyId));
+                                                "History item not found with ID " + historyId));
 
         Task restored = historyItem.toRestoredTask();
         Task saved = taskRepository.save(restored);
@@ -187,13 +183,13 @@ public class TaskService {
 
     private void validateName(String name) {
         if (name == null || name.trim().isEmpty()) {
-            throw new ValidationException("El nombre de la tarea no puede estar vacío.");
+            throw new ValidationException("Task name must not be empty.");
         }
     }
 
     private void validateMinutes(int minutes) {
         if (minutes < 1 || minutes > 999) {
-            throw new ValidationException("La duración debe estar entre 1 y 999 minutos.");
+            throw new ValidationException("Duration must be between 1 and 999 minutes.");
         }
     }
 }

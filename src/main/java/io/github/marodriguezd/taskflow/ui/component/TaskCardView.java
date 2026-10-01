@@ -79,7 +79,7 @@ public class TaskCardView extends HBox {
         editButton.setMinSize(22, 22);
         editButton.setMaxSize(22, 22);
         editButton.setGraphic(Icons.edit(11));
-        editButton.setTooltip(new Tooltip("Editar tarea"));
+        editButton.setTooltip(new Tooltip("Edit task"));
         editButton.getStyleClass().addAll("icon-button", "card-action-button", "card-edit-button");
         editButton.setOnAction(
                 e -> {
@@ -92,7 +92,7 @@ public class TaskCardView extends HBox {
         deleteButton.setMinSize(22, 22);
         deleteButton.setMaxSize(22, 22);
         deleteButton.setGraphic(Icons.close(10));
-        deleteButton.setTooltip(new Tooltip("Eliminar tarea"));
+        deleteButton.setTooltip(new Tooltip("Delete task"));
         deleteButton
                 .getStyleClass()
                 .addAll("icon-button", "card-action-button", "card-delete-button");
@@ -121,7 +121,7 @@ public class TaskCardView extends HBox {
         doneButton = new Button("✓");
         doneButton.setMinSize(24, 24);
         doneButton.setMaxSize(24, 24);
-        doneButton.setTooltip(new Tooltip("Marcar como completada"));
+        doneButton.setTooltip(new Tooltip("Mark as done"));
         doneButton.setStyle(
                 String.format(
                         "-fx-background-color: %s; -fx-text-fill: %s; -fx-font-size: 12px; -fx-font-weight: bold; "

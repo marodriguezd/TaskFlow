@@ -51,7 +51,7 @@ public class HistoryDialog {
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
 
-        Label title = new Label("Historial");
+        Label title = new Label("History");
         title.setStyle("-fx-text-fill: -fx-text-hi; -fx-font-size: 16px; -fx-font-weight: bold;");
 
         Region spacer = new Region();
@@ -75,7 +75,7 @@ public class HistoryDialog {
 
         List<HistoryItem> history = taskService.getHistory();
         if (history.isEmpty()) {
-            Label emptyLabel = new Label("No hay tareas en el historial");
+            Label emptyLabel = new Label("No tasks in history");
             emptyLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 12px;");
             emptyLabel.setAlignment(Pos.CENTER);
             emptyLabel.setMaxWidth(Double.MAX_VALUE);
@@ -132,7 +132,7 @@ public class HistoryDialog {
         infoLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(infoLabel, javafx.scene.layout.Priority.ALWAYS);
 
-        Button restoreBtn = new Button("Restaurar");
+        Button restoreBtn = new Button("Restore");
         restoreBtn.setStyle(
                 "-fx-background-color: transparent; -fx-text-fill: -fx-accent-lt; "
                         + "-fx-border-color: -fx-border; -fx-border-radius: 7px; -fx-background-radius: 7px; "

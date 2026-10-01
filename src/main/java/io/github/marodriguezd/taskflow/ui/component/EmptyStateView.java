@@ -16,11 +16,11 @@ public class EmptyStateView extends VBox {
         iconLabel.setGraphic(Icons.clipboard(36));
         iconLabel.setStyle("-fx-background-color: transparent;");
 
-        Label titleLabel = new Label("Sin tareas todavía");
+        Label titleLabel = new Label("No tasks yet");
         titleLabel.setStyle(
                 "-fx-text-fill: -fx-text-mid; -fx-font-size: 13px; -fx-font-weight: bold;");
 
-        Label hintLabel = new Label("Pulsa + Nueva tarea para empezar");
+        Label hintLabel = new Label("Press + New task to get started");
         hintLabel.setStyle("-fx-text-fill: -fx-text-lo; -fx-font-size: 11px;");
 
         getChildren().addAll(iconLabel, titleLabel, hintLabel);

@@ -62,12 +62,12 @@ public record HistoryItem(
 
     public String getModeDescription() {
         if (eventType == HistoryEventType.DELETED) {
-            return "Eliminada";
+            return "Deleted";
         }
         if (completedManually) {
-            return "Completada manual";
+            return "Completed manually";
         }
-        return "Completada por temporizador";
+        return "Completed by timer";
     }
 
     /** Converts this history item back into an active Task for restoration. */

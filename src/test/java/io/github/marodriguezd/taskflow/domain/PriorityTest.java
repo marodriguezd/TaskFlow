@@ -17,9 +17,9 @@ class PriorityTest {
         assertThat(Priority.MEDIUM.getOrder()).isEqualTo(1);
         assertThat(Priority.LOW.getOrder()).isEqualTo(2);
 
-        assertThat(Priority.HIGH.getDisplayName()).isEqualTo("Alta");
-        assertThat(Priority.MEDIUM.getDisplayName()).isEqualTo("Media");
-        assertThat(Priority.LOW.getDisplayName()).isEqualTo("Baja");
+        assertThat(Priority.HIGH.getDisplayName()).isEqualTo("High");
+        assertThat(Priority.MEDIUM.getDisplayName()).isEqualTo("Medium");
+        assertThat(Priority.LOW.getDisplayName()).isEqualTo("Low");
 
         assertThat(Priority.HIGH.getHexColor()).isEqualTo("#ff5e78");
         assertThat(Priority.MEDIUM.getHexColor()).isEqualTo("#ffb340");
@@ -39,7 +39,7 @@ class PriorityTest {
         "baja, LOW",
         "LOW, LOW"
     })
-    @DisplayName("Priority correctly parses from Spanish or English names")
+    @DisplayName("Priority correctly parses from English names and legacy Spanish labels")
     void testFromDisplayNameValid(String input, Priority expected) {
         assertThat(Priority.fromDisplayName(input)).isEqualTo(expected);
     }

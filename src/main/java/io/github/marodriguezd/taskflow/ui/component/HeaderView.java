@@ -44,7 +44,7 @@ public class HeaderView extends HBox {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        countBadge = new Label("0 tareas");
+        countBadge = new Label("0 tasks");
         countBadge.getStyleClass().add("badge-count");
         countBadge.setVisible(false);
         countBadge.managedProperty().bind(countBadge.visibleProperty());
@@ -53,17 +53,17 @@ public class HeaderView extends HBox {
         pinButton.getStyleClass().add("icon-button");
         pinButton.setGraphic(Icons.pin(13));
         pinButton.setSelected(initialAlwaysOnTop);
-        pinButton.setTooltip(new Tooltip("Alternar siempre en primer plano"));
+        pinButton.setTooltip(new Tooltip("Toggle always on top"));
 
         historyButton = new Button();
         historyButton.getStyleClass().add("icon-button");
         historyButton.setGraphic(Icons.history(13));
-        historyButton.setTooltip(new Tooltip("Ver historial de tareas"));
+        historyButton.setTooltip(new Tooltip("View task history"));
 
         themeButton = new Button();
         themeButton.getStyleClass().add("icon-button");
         themeButton.setGraphic(initialTheme == ThemeMode.DARK ? Icons.sun(13) : Icons.moon(13));
-        themeButton.setTooltip(new Tooltip("Cambiar tema claro/oscuro"));
+        themeButton.setTooltip(new Tooltip("Switch light/dark theme"));
 
         getChildren()
                 .addAll(
@@ -91,7 +91,7 @@ public class HeaderView extends HBox {
         if (count <= 0) {
             countBadge.setVisible(false);
         } else {
-            countBadge.setText(count + (count == 1 ? " tarea" : " tareas"));
+            countBadge.setText(count + (count == 1 ? " task" : " tasks"));
             countBadge.setVisible(true);
         }
     }

@@ -104,7 +104,7 @@ public class LegacyDataMigrator {
             List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
             int migratedCount = 0;
             for (Map<String, Object> map : list) {
-                String name = (String) map.getOrDefault("name", "Tarea");
+                String name = (String) map.getOrDefault("name", "Task");
                 if (name == null || name.isBlank()) {
                     continue;
                 }
@@ -136,7 +136,7 @@ public class LegacyDataMigrator {
             List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
             int migratedCount = 0;
             for (Map<String, Object> map : list) {
-                String name = (String) map.getOrDefault("name", "Tarea completada");
+                String name = (String) map.getOrDefault("name", "Completed task");
                 if (name == null || name.isBlank()) {
                     continue;
                 }

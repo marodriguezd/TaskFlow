@@ -48,18 +48,18 @@ public class AddTaskDialog {
         card.setPadding(new Insets(18, 18, 18, 18));
         card.setPrefWidth(300.0);
 
-        titleLabel = new Label("Nueva tarea");
+        titleLabel = new Label("New task");
         titleLabel.setStyle(
                 "-fx-text-fill: -fx-text-hi; -fx-font-size: 15px; -fx-font-weight: bold;");
 
         nameField = new TextField();
-        nameField.setPromptText("¿Qué vas a hacer?");
+        nameField.setPromptText("What are you going to work on?");
 
         HBox optionsRow = new HBox(10);
         optionsRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox timeCol = new VBox(4);
-        Label timeLabel = new Label("Minutos");
+        Label timeLabel = new Label("Minutes");
         timeLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
         minutesSpinner = new Spinner<>();
         minutesSpinner.setValueFactory(
@@ -70,7 +70,7 @@ public class AddTaskDialog {
         HBox.setHgrow(timeCol, javafx.scene.layout.Priority.ALWAYS);
 
         VBox priCol = new VBox(4);
-        Label priLabel = new Label("Prioridad");
+        Label priLabel = new Label("Priority");
         priLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
         priorityCombo = new ComboBox<>();
         priorityCombo.getItems().addAll(Priority.HIGH, Priority.MEDIUM, Priority.LOW);
@@ -96,13 +96,13 @@ public class AddTaskDialog {
         HBox buttonRow = new HBox(8);
         buttonRow.setAlignment(Pos.CENTER_RIGHT);
 
-        cancelButton = new Button("Cancelar");
+        cancelButton = new Button("Cancel");
         cancelButton.getStyleClass().add("btn-secondary");
         cancelButton.setOnAction(e -> stage.close());
         HBox.setHgrow(cancelButton, javafx.scene.layout.Priority.ALWAYS);
         cancelButton.setMaxWidth(Double.MAX_VALUE);
 
-        confirmButton = new Button("Agregar");
+        confirmButton = new Button("Add");
         confirmButton.getStyleClass().add("btn-primary");
         confirmButton.setStyle(
                 "-fx-font-size: 12px; -fx-padding: 7px 14px; -fx-pref-height: 32px;");

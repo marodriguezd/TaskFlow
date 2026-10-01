@@ -2,8 +2,8 @@ package io.github.marodriguezd.taskflow.domain;
 
 /** Supported UI visual themes. */
 public enum ThemeMode {
-    DARK("dark", "🌙", "Tema oscuro"),
-    LIGHT("light", "☀", "Tema claro");
+    DARK("dark", "🌙", "Dark theme"),
+    LIGHT("light", "☀", "Light theme");
 
     private final String code;
     private final String icon;

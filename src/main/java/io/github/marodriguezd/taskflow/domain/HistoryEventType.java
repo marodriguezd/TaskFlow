@@ -2,8 +2,8 @@ package io.github.marodriguezd.taskflow.domain;
 
 /** Event type for items logged in the task history. */
 public enum HistoryEventType {
-    COMPLETED("completed", "Completada"),
-    DELETED("deleted", "Eliminada");
+    COMPLETED("completed", "Completed"),
+    DELETED("deleted", "Deleted");
 
     private final String code;
     private final String label;

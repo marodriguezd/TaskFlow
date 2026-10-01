@@ -1,12 +1,12 @@
 package io.github.marodriguezd.taskflow.domain;
 
-import java.util.Arrays;
+import java.util.Locale;
 
 /** Task priority levels with display metadata and ordering. */
 public enum Priority {
-    HIGH("Alta", 0, "#ff5e78", "#2a0a0a"),
-    MEDIUM("Media", 1, "#ffb340", "#2a1a00"),
-    LOW("Baja", 2, "#3ddc84", "#021a0c");
+    HIGH("High", 0, "#ff5e78", "#2a0a0a"),
+    MEDIUM("Medium", 1, "#ffb340", "#2a1a00"),
+    LOW("Low", 2, "#3ddc84", "#021a0c");
 
     private final String displayName;
     private final int order;
@@ -41,12 +41,17 @@ public enum Priority {
             return MEDIUM;
         }
         String trimmed = name.trim();
-        return Arrays.stream(values())
-                .filter(
-                        p ->
-                                p.displayName.equalsIgnoreCase(trimmed)
-                                        || p.name().equalsIgnoreCase(trimmed))
-                .findFirst()
-                .orElse(MEDIUM);
+        for (Priority p : values()) {
+            if (p.displayName.equalsIgnoreCase(trimmed) || p.name().equalsIgnoreCase(trimmed)) {
+                return p;
+            }
+        }
+        // Legacy labels from pre-2.0 (Spanish) data files and databases
+        return switch (trimmed.toLowerCase(Locale.ROOT)) {
+            case "alta" -> HIGH;
+            case "media" -> MEDIUM;
+            case "baja" -> LOW;
+            default -> MEDIUM;
+        };
     }
 }

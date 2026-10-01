@@ -141,7 +141,7 @@ public class MainWindow {
             footer.setStyle("-fx-background-radius: 0 0 16px 16px;");
         }
 
-        Button addButton = new Button("＋  Nueva tarea");
+        Button addButton = new Button("＋  New task");
         addButton.getStyleClass().add("btn-primary");
         addButton.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(addButton, javafx.scene.layout.Priority.ALWAYS);

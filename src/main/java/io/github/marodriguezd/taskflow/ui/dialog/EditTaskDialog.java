@@ -13,8 +13,8 @@ public class EditTaskDialog extends AddTaskDialog {
         super(owner, themeManager);
         this.originalTask = task;
 
-        titleLabel.setText("Editar tarea");
-        confirmButton.setText("Guardar");
+        titleLabel.setText("Edit task");
+        confirmButton.setText("Save");
 
         nameField.setText(task.name());
         int totalMinutes = Math.max(1, task.totalSeconds() / 60);
