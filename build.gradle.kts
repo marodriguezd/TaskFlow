@@ -5,7 +5,7 @@ plugins {
     java
     jacoco
     id("org.openjfx.javafxplugin") version "0.1.0"
-    id("com.diffplug.spotless") version "7.0.2"
+    id("com.diffplug.spotless") version "8.10.3"
 }
 
 group = "io.github.marodriguezd.taskflow"
