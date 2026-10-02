@@ -1,9 +1,13 @@
 package io.github.marodriguezd.taskflow.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import io.github.marodriguezd.taskflow.domain.HistoryEventType;
+import io.github.marodriguezd.taskflow.domain.HistoryItem;
 import io.github.marodriguezd.taskflow.domain.Priority;
 import io.github.marodriguezd.taskflow.domain.Task;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -15,11 +19,13 @@ class SqliteTaskRepositoryTest {
 
     private DatabaseManager databaseManager;
     private SqliteTaskRepository repository;
+    private SqliteHistoryRepository historyRepository;
 
     @BeforeEach
     void setUp() {
         databaseManager = DatabaseManager.inMemory();
         repository = new SqliteTaskRepository(databaseManager);
+        historyRepository = new SqliteHistoryRepository(databaseManager);
     }
 
     @AfterEach
@@ -88,5 +94,31 @@ class SqliteTaskRepositoryTest {
         repository.clearAll();
         assertThat(repository.count()).isEqualTo(0);
         assertThat(repository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Restore rolls back the inserted task if removing history fails")
+    void restoreRollbackPreservesHistory() throws Exception {
+        HistoryItem item =
+                historyRepository.save(
+                        new HistoryItem(
+                                null,
+                                "Atomic restore",
+                                Priority.HIGH,
+                                600,
+                                300,
+                                HistoryEventType.DELETED,
+                                false,
+                                Instant.now()));
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE TRIGGER fail_history_delete BEFORE DELETE ON history "
+                            + "BEGIN SELECT RAISE(ABORT, 'simulated history delete failure'); END");
+        }
+
+        assertThatThrownBy(() -> repository.restore(item)).isInstanceOf(PersistenceException.class);
+        assertThat(repository.findAll()).isEmpty();
+        assertThat(historyRepository.findById(item.id())).isPresent();
     }
 }

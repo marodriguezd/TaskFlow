@@ -3,6 +3,7 @@ import org.gradle.internal.os.OperatingSystem
 plugins {
     application
     java
+    jacoco
     id("org.openjfx.javafxplugin") version "0.1.0"
     id("com.diffplug.spotless") version "7.0.2"
 }
@@ -58,9 +59,43 @@ tasks.withType<JavaCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    finalizedBy(tasks.jacocoTestReport)
     testLogging {
         events("passed", "skipped", "failed")
     }
+}
+
+jacoco {
+    toolVersion = "0.8.12"
+}
+
+tasks.jacocoTestReport {
+    dependsOn(tasks.test)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
+}
+
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.45".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
+}
+
+tasks.named("build") {
+    dependsOn(tasks.jacocoTestCoverageVerification)
 }
 
 spotless {
@@ -138,7 +173,8 @@ tasks.register("releaseStamp") {
 }
 
 // Linux: jpackage builds a plain app image, then tools/build-appimage.sh turns
-// it into a portable .AppImage that runs on any x86_64 distribution (no dpkg).
+// it into an x86_64 AppImage. The bundled runtime still relies on compatible Linux userspace
+// and desktop/runtime libraries (no dpkg package integration is required).
 if (currentOs.isLinux) {
     val appImageStagingDir = layout.buildDirectory.dir("dist/appimage-staging")
     val linuxJavaHome =

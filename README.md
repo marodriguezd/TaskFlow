@@ -26,7 +26,7 @@ A lightweight, cross-platform desktop task manager with Pomodoro-style timers, b
 - **Always-on-top mode** — toggleable window pinning
 - **Window geometry persistence** — window position and size are remembered between sessions
 - **Legacy data migration** — automatic one-time import of JSON data from previous versions
-- **Audio notification** — a bell chime plays when a timer completes (user-replaceable)
+- **Audio notification** — an optional bell chime plays when a timer completes (user-replaceable)
 
 ## Technology
 
@@ -36,7 +36,7 @@ A lightweight, cross-platform desktop task manager with Pomodoro-style timers, b
 | UI toolkit | JavaFX 21 |
 | Build | Gradle (Kotlin DSL, wrapper included) |
 | Persistence | SQLite via JDBC (`sqlite-jdbc`) |
-| Testing | JUnit 5, AssertJ |
+| Testing | JUnit 5, AssertJ, JaCoCo (45% minimum line coverage) |
 | Code style | Spotless with Google Java Format |
 | Packaging | `jpackage` with a bundled Java 21 runtime |
 | Logging | SLF4J + Logback |
@@ -126,7 +126,7 @@ The packaged application image is written to `build/dist/TaskFlow` and can be la
 | --- | --- |
 | Windows | `.msi` |
 | macOS | `.dmg` |
-| Linux | `.AppImage` (portable, runs on any x86_64 distribution) |
+| Linux | `.AppImage` (x86_64; requires a compatible Linux userspace and desktop/runtime libraries) |
 
 TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/workflows/ci.yml`, `.github/workflows/release.yml`) build and package the application on all three platforms.
 
@@ -188,7 +188,11 @@ Legacy files are looked up in the data directory and in the home directory root 
 ## Development
 
 - **Formatting** is enforced with Spotless (Google Java Format, AOSP style). Run `./gradlew spotlessApply` before committing; CI fails on `spotlessCheck` violations.
-- **Tests** use JUnit 5 with AssertJ and cover the domain model, services, repositories, legacy migration, internationalization (bundle completeness, fallback, language detection), and an end-to-end application flow. All tests run headless — no display or JavaFX toolkit required.
+- **Tests** use JUnit 5 with AssertJ and cover the domain model, services, repositories, legacy migration, internationalization (bundle completeness, fallback, language detection), timer edge cases, schema and transaction behavior, geometry recovery, and an end-to-end application flow. JaCoCo enforces a 45% minimum line-coverage threshold. Tests run headless — no display or JavaFX toolkit required.
+
+## Repository administration
+
+Recommended `main` branch protection, including required CI checks and signed-commit considerations, is documented in [docs/REPOSITORY_HARDENING.md](docs/REPOSITORY_HARDENING.md). Branch rules require GitHub repository administration and are not configured by source files.
 
 ## License
 

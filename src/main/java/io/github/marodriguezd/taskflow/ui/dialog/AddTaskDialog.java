@@ -53,8 +53,7 @@ public class AddTaskDialog {
         card.setMinWidth(300.0);
 
         titleLabel = new Label(Messages.get("dialog.add.title"));
-        titleLabel.setStyle(
-                "-fx-text-fill: -fx-text-hi; -fx-font-size: 15px; -fx-font-weight: bold;");
+        titleLabel.getStyleClass().add("dialog-title");
 
         nameField = new TextField();
         nameField.setPromptText(Messages.get("dialog.name.prompt"));
@@ -64,7 +63,7 @@ public class AddTaskDialog {
 
         VBox timeCol = new VBox(4);
         Label timeLabel = new Label(Messages.get("dialog.minutes"));
-        timeLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
+        timeLabel.getStyleClass().add("dialog-label");
         minutesSpinner = new Spinner<>();
         minutesSpinner.setValueFactory(
                 new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 999, 25));
@@ -75,7 +74,7 @@ public class AddTaskDialog {
 
         VBox priCol = new VBox(4);
         Label priLabel = new Label(Messages.get("dialog.priority"));
-        priLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 11px;");
+        priLabel.getStyleClass().add("dialog-label");
         priorityCombo = new ComboBox<>();
         priorityCombo.getItems().addAll(Priority.HIGH, Priority.MEDIUM, Priority.LOW);
         priorityCombo.setValue(Priority.MEDIUM);
@@ -107,9 +106,7 @@ public class AddTaskDialog {
         cancelButton.setMaxWidth(Double.MAX_VALUE);
 
         confirmButton = new Button(Messages.get("dialog.add"));
-        confirmButton.getStyleClass().add("btn-primary");
-        confirmButton.setStyle(
-                "-fx-font-size: 12px; -fx-padding: 7px 14px; -fx-pref-height: 32px;");
+        confirmButton.getStyleClass().addAll("btn-primary", "dialog-confirm-small");
         confirmButton.setOnAction(e -> handleConfirm());
         HBox.setHgrow(confirmButton, javafx.scene.layout.Priority.ALWAYS);
         confirmButton.setMaxWidth(Double.MAX_VALUE);

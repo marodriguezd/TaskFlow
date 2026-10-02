@@ -18,17 +18,16 @@ public class EmptyStateView extends VBox {
 
         Label iconLabel = new Label();
         iconLabel.setGraphic(Icons.clipboard(36));
-        iconLabel.setStyle("-fx-background-color: transparent;");
+        iconLabel.getStyleClass().add("empty-state-icon");
 
         titleLabel = new Label(Messages.get("empty.title"));
-        titleLabel.setStyle(
-                "-fx-text-fill: -fx-text-mid; -fx-font-size: 13px; -fx-font-weight: bold;");
+        titleLabel.getStyleClass().add("empty-state-title");
 
         hintLabel = new Label(Messages.get("empty.hint"));
         // Wrap long translations (e.g. German) instead of clipping at the 300px min width
         hintLabel.setWrapText(true);
         hintLabel.setMaxWidth(260.0);
-        hintLabel.setStyle("-fx-text-fill: -fx-text-lo; -fx-font-size: 11px;");
+        hintLabel.getStyleClass().add("empty-state-hint");
 
         getChildren().addAll(iconLabel, titleLabel, hintLabel);
     }

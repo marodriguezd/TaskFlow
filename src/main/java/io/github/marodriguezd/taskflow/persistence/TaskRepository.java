@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 /** Repository interface for managing active Task persistence. */
-public interface TaskRepository {
+public interface TaskRepository extends TaskLifecycleRepository {
 
     List<Task> findAll();
 

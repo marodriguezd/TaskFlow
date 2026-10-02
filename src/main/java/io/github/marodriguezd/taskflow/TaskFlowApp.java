@@ -28,6 +28,8 @@ public class TaskFlowApp extends Application {
     private static final Logger log = LoggerFactory.getLogger(TaskFlowApp.class);
 
     private DatabaseManager databaseManager;
+    private TimerService timerService;
+    private TaskService taskService;
 
     @Override
     public void start(Stage primaryStage) {
@@ -54,14 +56,15 @@ public class TaskFlowApp extends Application {
                             preferenceRepository);
             migrator.migrateIfNecessary();
 
-            // 4. Domain & UI services
-            TimerService timerService = new TimerService();
-            SoundService soundService = new SoundService(platformService);
-            TaskService taskService =
-                    new TaskService(taskRepository, historyRepository, timerService, soundService);
-
             UserPreferences preferences =
                     preferenceRepository.loadPreferences(platformService.getDefaultAlwaysOnTop());
+
+            // 4. Domain & UI services
+            timerService = new TimerService();
+            SoundService soundService = new SoundService(platformService);
+            soundService.setSoundEnabled(preferences.soundEnabled());
+            taskService =
+                    new TaskService(taskRepository, historyRepository, timerService, soundService);
 
             // First run (blank) or corrupt value: resolve the UI language from the OS locale
             // and persist the resolution so later OS changes never silently flip the language.
@@ -109,6 +112,12 @@ public class TaskFlowApp extends Application {
     @Override
     public void stop() {
         log.info("Stopping TaskFlow application and releasing database resources...");
+        if (timerService != null) {
+            timerService.shutdown();
+        }
+        if (taskService != null) {
+            taskService.shutdown();
+        }
         if (databaseManager != null) {
             databaseManager.close();
         }

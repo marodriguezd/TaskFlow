@@ -9,6 +9,8 @@ import io.github.marodriguezd.taskflow.persistence.TaskRepository;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,20 +23,45 @@ public class TaskService {
     private final HistoryRepository historyRepository;
     private final TimerService timerService;
     private final SoundService soundService;
+    private final ExecutorService timerPersistenceExecutor;
 
     public TaskService(
             TaskRepository taskRepository,
             HistoryRepository historyRepository,
             TimerService timerService,
             SoundService soundService) {
+        this(
+                taskRepository,
+                historyRepository,
+                timerService,
+                soundService,
+                newTimerPersistenceExecutor());
+    }
+
+    TaskService(
+            TaskRepository taskRepository,
+            HistoryRepository historyRepository,
+            TimerService timerService,
+            SoundService soundService,
+            ExecutorService timerPersistenceExecutor) {
         this.taskRepository = Objects.requireNonNull(taskRepository);
         this.historyRepository = Objects.requireNonNull(historyRepository);
         this.timerService = Objects.requireNonNull(timerService);
         this.soundService = Objects.requireNonNull(soundService);
+        this.timerPersistenceExecutor = Objects.requireNonNull(timerPersistenceExecutor);
 
         // Listen for automatic timer completions
         this.timerService.addCompletionListener(this::handleTimerCompletion);
         this.timerService.addTickListener(this::handleTimerTick);
+    }
+
+    private static ExecutorService newTimerPersistenceExecutor() {
+        return Executors.newSingleThreadExecutor(
+                runnable -> {
+                    Thread thread = new Thread(runnable, "taskflow-timer-persistence");
+                    thread.setDaemon(true);
+                    return thread;
+                });
     }
 
     public List<Task> getAllTasks() {
@@ -66,12 +93,13 @@ public class TaskService {
         validateName(newName);
         validateMinutes(newMinutes);
 
+        timerService.stopIfRunning(id);
+        awaitTimerPersistence();
+        timerService.invalidateSnapshot(id);
         Task existing =
                 taskRepository
                         .findById(id)
                         .orElseThrow(() -> new ValidationException("Task not found with ID " + id));
-
-        timerService.stopIfRunning(id);
 
         int newTotalSeconds = newMinutes * 60;
         int newRemaining;
@@ -89,6 +117,7 @@ public class TaskService {
         Task updated =
                 existing.withDetails(newName.trim(), effPriority, newTotalSeconds, newRemaining);
         taskRepository.save(updated);
+        timerService.invalidateSnapshot(id);
         timerService.updateActiveTask(updated);
         log.info(
                 "Updated task id={}, name='{}', remaining={}",
@@ -100,7 +129,8 @@ public class TaskService {
 
     public void deleteTask(long id, boolean trackInHistory) {
         timerService.stopIfRunning(id);
-
+        awaitTimerPersistence();
+        timerService.invalidateSnapshot(id);
         Optional<Task> existingOpt = taskRepository.findById(id);
         if (existingOpt.isEmpty()) {
             return;
@@ -109,17 +139,21 @@ public class TaskService {
         Task task = existingOpt.get();
         if (trackInHistory && !task.isExpired()) {
             HistoryItem historyItem = HistoryItem.fromTask(task, HistoryEventType.DELETED, false);
-            historyRepository.save(historyItem);
+            taskRepository.archiveAndDelete(task, historyItem);
+            timerService.invalidateSnapshot(id);
             log.info("Archived deleted task id={} to history", id);
+            return;
         }
 
         taskRepository.deleteById(id);
+        timerService.invalidateSnapshot(id);
         log.info("Deleted task id={}", id);
     }
 
     public void completeTaskManually(long id) {
         timerService.stopIfRunning(id);
-
+        awaitTimerPersistence();
+        timerService.invalidateSnapshot(id);
         Optional<Task> existingOpt = taskRepository.findById(id);
         if (existingOpt.isEmpty()) {
             return;
@@ -127,8 +161,8 @@ public class TaskService {
 
         Task task = existingOpt.get();
         HistoryItem historyItem = HistoryItem.fromTask(task, HistoryEventType.COMPLETED, true);
-        historyRepository.save(historyItem);
-        taskRepository.deleteById(id);
+        taskRepository.archiveAndDelete(task, historyItem);
+        timerService.invalidateSnapshot(id);
         log.info("Manually completed task id={} and moved to history", id);
     }
 
@@ -137,19 +171,73 @@ public class TaskService {
                 "Timer expired for task id={}, name='{}'",
                 completedTask.id(),
                 completedTask.name());
-        soundService.playCompletionSound();
-
-        // Archive completion event
-        HistoryItem historyItem =
-                HistoryItem.fromTask(completedTask, HistoryEventType.COMPLETED, false);
-        historyRepository.save(historyItem);
-
-        // Update remaining seconds in repository
-        taskRepository.updateRemainingSeconds(completedTask.id(), 0);
+        try {
+            timerPersistenceExecutor.execute(
+                    () -> {
+                        HistoryItem historyItem =
+                                HistoryItem.fromTask(
+                                        completedTask, HistoryEventType.COMPLETED, false);
+                        try {
+                            taskRepository.archiveCompletion(completedTask, historyItem);
+                            soundService.playCompletionSound();
+                        } catch (RuntimeException e) {
+                            log.error(
+                                    "Could not persist timer completion for task {}",
+                                    completedTask.id(),
+                                    e);
+                        }
+                    });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            log.warn("Timer completion persistence executor is shutting down", e);
+        }
     }
 
     private void handleTimerTick(Task activeTask) {
-        taskRepository.updateRemainingSeconds(activeTask.id(), activeTask.remainingSeconds());
+        // Pause can be initiated by a JavaFX event; serialize every timer write away from that
+        // thread so SQLite contention never blocks UI interaction.
+        try {
+            timerPersistenceExecutor.execute(
+                    () -> {
+                        if (timerService.isLatestSnapshot(activeTask)
+                                && !timerService.isCompletedTask(activeTask.id())) {
+                            try {
+                                taskRepository.updateRemainingSeconds(
+                                        activeTask.id(), activeTask.remainingSeconds());
+                            } catch (RuntimeException e) {
+                                log.error(
+                                        "Could not persist timer state for task {}",
+                                        activeTask.id(),
+                                        e);
+                            }
+                        }
+                    });
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            log.warn("Timer tick persistence executor is shutting down", e);
+        }
+    }
+
+    private void awaitTimerPersistence() {
+        try {
+            timerPersistenceExecutor.submit(() -> {}).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for timer persistence", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            throw new IllegalStateException("Timer persistence failed", e.getCause());
+        }
+    }
+
+    public void shutdown() {
+        timerPersistenceExecutor.shutdown();
+        try {
+            if (!timerPersistenceExecutor.awaitTermination(
+                    3, java.util.concurrent.TimeUnit.SECONDS)) {
+                timerPersistenceExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            timerPersistenceExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     public Task restoreTaskFromHistory(long historyId) {
@@ -161,9 +249,7 @@ public class TaskService {
                                         new ValidationException(
                                                 "History item not found with ID " + historyId));
 
-        Task restored = historyItem.toRestoredTask();
-        Task saved = taskRepository.save(restored);
-        historyRepository.deleteById(historyId);
+        Task saved = taskRepository.restore(historyItem);
         log.info(
                 "Restored task id={} ('{}') from history item id={}",
                 saved.id(),

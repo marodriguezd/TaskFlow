@@ -4,6 +4,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Objects;
+import java.util.function.Consumer;
 import javafx.application.Platform;
 import javafx.scene.media.AudioClip;
 import org.slf4j.Logger;
@@ -17,12 +19,25 @@ public class SoundService {
 
     private static final Logger log = LoggerFactory.getLogger(SoundService.class);
     private final PlatformService platformService;
+    private final Consumer<Path> playbackDispatcher;
     private AudioClip cachedAudioClip;
     private Path lastLoadedSoundPath;
+    private volatile boolean soundEnabled = true;
 
     public SoundService(PlatformService platformService) {
-        this.platformService = platformService;
-        ensureDefaultSoundExists();
+        this(platformService, null, true);
+    }
+
+    SoundService(
+            PlatformService platformService,
+            Consumer<Path> playbackDispatcher,
+            boolean provisionDefaultSound) {
+        this.platformService = Objects.requireNonNull(platformService);
+        this.playbackDispatcher =
+                playbackDispatcher == null ? this::dispatchPlayback : playbackDispatcher;
+        if (provisionDefaultSound) {
+            ensureDefaultSoundExists();
+        }
     }
 
     /** Ensures default bell.mp3 is copied to user directory if not already customized. */
@@ -46,20 +61,40 @@ public class SoundService {
     }
 
     /** Plays the completion chime. Safe to call from any thread or headless environments. */
+    public void setSoundEnabled(boolean enabled) {
+        soundEnabled = enabled;
+    }
+
     public void playCompletionSound() {
+        if (!soundEnabled) {
+            log.debug("Completion sound disabled; skipping playback");
+            return;
+        }
         Path soundPath = resolveSoundPath();
 
         try {
-            if (Platform.isFxApplicationThread()) {
-                playAudioInternal(soundPath);
-            } else {
-                Platform.runLater(() -> playAudioInternal(soundPath));
-            }
+            playbackDispatcher.accept(soundPath);
+        } catch (IllegalStateException e) {
+            // JavaFX may be unavailable in test/headless use; silently skip the cosmetic alert.
+            log.debug("JavaFX is unavailable; completion audio was skipped: {}", e.getMessage());
         } catch (Exception e) {
             log.warn(
                     "Could not play completion sound (fallback beep will be used): {}",
                     e.getMessage());
             triggerBeepFallback();
+        }
+    }
+
+    private void dispatchPlayback(Path soundPath) {
+        if (Platform.isFxApplicationThread()) {
+            playAudioInternal(soundPath);
+        } else {
+            Platform.runLater(
+                    () -> {
+                        if (soundEnabled) {
+                            playAudioInternal(soundPath);
+                        }
+                    });
         }
     }
 

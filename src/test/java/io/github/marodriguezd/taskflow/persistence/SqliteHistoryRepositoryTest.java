@@ -1,6 +1,7 @@
 package io.github.marodriguezd.taskflow.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.marodriguezd.taskflow.domain.HistoryEventType;
 import io.github.marodriguezd.taskflow.domain.HistoryItem;
@@ -50,73 +51,22 @@ class SqliteHistoryRepositoryTest {
     @Test
     @DisplayName("Returns history items in reverse chronological order (newest first)")
     void testFindAllOrdersDescending() {
-        HistoryItem item1 =
-                new HistoryItem(
-                        null,
-                        "Oldest",
-                        Priority.LOW,
-                        600,
-                        0,
-                        HistoryEventType.COMPLETED,
-                        false,
-                        Instant.now().minusSeconds(100));
-        HistoryItem item2 =
-                new HistoryItem(
-                        null,
-                        "Middle",
-                        Priority.MEDIUM,
-                        600,
-                        0,
-                        HistoryEventType.DELETED,
-                        false,
-                        Instant.now().minusSeconds(50));
-        HistoryItem item3 =
-                new HistoryItem(
-                        null,
-                        "Newest",
-                        Priority.HIGH,
-                        600,
-                        0,
-                        HistoryEventType.COMPLETED,
-                        true,
-                        Instant.now());
-
-        repository.save(item1);
-        repository.save(item2);
-        repository.save(item3);
+        repository.save(item("Oldest", Priority.LOW, Instant.now().minusSeconds(100)));
+        repository.save(item("Middle", Priority.MEDIUM, Instant.now().minusSeconds(50)));
+        repository.save(item("Newest", Priority.HIGH, Instant.now()));
 
         List<HistoryItem> list = repository.findAll();
         assertThat(list).hasSize(3);
-        assertThat(list.get(0).name()).isEqualTo("Newest");
-        assertThat(list.get(1).name()).isEqualTo("Middle");
-        assertThat(list.get(2).name()).isEqualTo("Oldest");
+        assertThat(list)
+                .extracting(HistoryItem::name)
+                .containsExactly("Newest", "Middle", "Oldest");
     }
 
     @Test
     @DisplayName("Deletes history item by ID and clears all")
     void testDeleteAndClear() {
-        HistoryItem saved1 =
-                repository.save(
-                        new HistoryItem(
-                                null,
-                                "H1",
-                                Priority.HIGH,
-                                600,
-                                0,
-                                HistoryEventType.COMPLETED,
-                                false,
-                                Instant.now()));
-        HistoryItem saved2 =
-                repository.save(
-                        new HistoryItem(
-                                null,
-                                "H2",
-                                Priority.LOW,
-                                600,
-                                0,
-                                HistoryEventType.DELETED,
-                                false,
-                                Instant.now()));
+        HistoryItem saved1 = repository.save(item("H1", Priority.HIGH, Instant.now()));
+        HistoryItem saved2 = repository.save(item("H2", Priority.LOW, Instant.now()));
         assertThat(repository.count()).isEqualTo(2);
 
         repository.deleteById(saved1.id());
@@ -124,7 +74,24 @@ class SqliteHistoryRepositoryTest {
         assertThat(repository.findById(saved1.id())).isEmpty();
 
         repository.clearAll();
-        assertThat(repository.count()).isEqualTo(0);
+        assertThat(repository.count()).isZero();
         assertThat(repository.findAll()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("History count propagates database errors instead of returning zero")
+    void propagatesCountFailure() throws Exception {
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute("DROP TABLE history");
+        }
+        assertThatThrownBy(repository::count)
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("Could not count history");
+    }
+
+    private HistoryItem item(String name, Priority priority, Instant eventAt) {
+        return new HistoryItem(
+                null, name, priority, 600, 0, HistoryEventType.COMPLETED, false, eventAt);
     }
 }

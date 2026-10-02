@@ -47,7 +47,7 @@ Package root `io.github.marodriguezd.taskflow` under `src/main/java`:
 Changes must preserve these (tests pin them: `TimerServiceTest`, `TaskServiceTest`, `EndToEndFlowTest`, `LegacyDataMigratorTest`, `PlatformServiceTest`):
 
 - **Single active timer.** `TimerService.start()` autopauses any other running task (single-active-timer invariant). Only one countdown runs at any moment.
-- Timer ticks persist `remaining_seconds` every second via `TaskService` → `taskRepository.updateRemainingSeconds(...)`; on expiry the task archives a `COMPLETED` history item and its remaining time is set to `0` (the task stays in the active list at 00:00).
+- Timer state uses absolute monotonic elapsed time; persistence writes run on a dedicated background executor. On expiry the task archives a `COMPLETED` history item transactionally and its remaining time is set to `0` (the task stays in the active list at 00:00).
 - Editing a task stops its timer; remaining time scales proportionally to the new duration (an already-expired task resets to the full new duration). Duration is validated to 1–999 minutes; names must be non-empty (`ValidationException`).
 - **History semantics:** manual completion → `COMPLETED` + `completed_manually=true`, task deleted; delete → `DELETED` archive (skipped when the task is already expired); restoring a history item creates a new task **and removes the history row** (move semantics). Completed/deleted tasks are archived, never silently lost.
 - **Preferences persist:** theme (`DARK` default), always-on-top, sound-enabled, UI language, and window geometry (saved on move/resize/close, restored on start).
@@ -61,8 +61,8 @@ Changes must preserve these (tests pin them: `TimerServiceTest`, `TaskServiceTes
 - **Database:** `taskflow.db` inside the per-user data directory resolved by `PlatformService`:
   - Windows `%APPDATA%\TaskFlow`, macOS `~/Library/Application Support/TaskFlow`, Linux `$XDG_DATA_HOME/TaskFlow` falling back to `~/.TaskFlow`; an existing legacy `~/.TaskFlow` directory wins for continuity.
   - The data directory also holds the user-replaceable `bell.mp3`.
-- **Schema ownership:** only `DatabaseManager.initializeSchema()` creates schema — tables `tasks`, `history`, `preferences` (+ indexes `idx_tasks_priority`, `idx_history_event_at`). Connections use `PRAGMA foreign_keys=ON`, WAL journal, `busy_timeout=3000`. `DatabaseManager.inMemory()` exists for tests.
-- **Preference keys (1.1.0):** `theme`, `always_on_top`, `sound_enabled`, `language` (BCP 47 tag; `""` = unset → first-run OS detection), `geo_x`/`geo_y`/`geo_width`/`geo_height`. Adding a key is additive-only — no schema change is needed for the key/value table. `LegacyDataMigrator.migrateSettingsFile` must preserve `language`/`sound_enabled` (it only overwrites `theme`/`always_on_top`).
+- **Schema ownership:** only `DatabaseManager.initializeSchema()` creates schema — tables `tasks`, `history`, `preferences` (+ indexes `idx_tasks_priority`, `idx_history_event_at`). SQLite `PRAGMA user_version` is explicitly versioned (current baseline 1; existing schema is unchanged). Connections use `PRAGMA foreign_keys=ON`, WAL journal, `busy_timeout=3000`. `DatabaseManager.inMemory()` exists for tests.
+- **Preference keys (introduced in 1.1.0):** `theme`, `always_on_top`, `sound_enabled`, `language` (BCP 47 tag; `""` = unset → first-run OS detection), `geo_x`/`geo_y`/`geo_width`/`geo_height`. Adding a key is additive-only — no schema change is needed for the key/value table. `LegacyDataMigrator.migrateSettingsFile` must preserve `language`/`sound_enabled` (it only overwrites `theme`/`always_on_top`).
 - **Repositories** are the only read/write path: `SqliteTaskRepository`, `SqliteHistoryRepository`, `SqlitePreferenceRepository`.
 - **Migration behavior:** `LegacyDataMigrator` imports legacy JSON from the data directory and home root (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`), then renames each processed file with a `.migrated` suffix so it imports exactly once; contents are preserved as a backup.
 - **Changing the schema safely:** keep `CREATE TABLE IF NOT EXISTS` idempotent for fresh installs; existing installs need an explicit, additive migration step (SQLite cannot alter columns in place) — handle new columns with defaults, add/adjust tests in `src/test/.../persistence/`, and never rename or drop existing columns. Schema changes are release-worthy behavior changes: update README/RELEASE_NOTES if user-visible.
@@ -74,7 +74,7 @@ Packaging targets actually produced by the pipeline:
 | Platform | Artifact |
 | --- | --- |
 | Windows x64 | `TaskFlow-<version>.msi` |
-| Linux x86_64 | `TaskFlow-<version>-x86_64.AppImage` (any distribution) |
+| Linux x86_64 | `TaskFlow-<version>-x86_64.AppImage` (compatible Linux userspace and desktop/runtime libraries required) |
 | macOS Apple Silicon | `TaskFlow-<version>.dmg` (built on ARM64 runners) |
 
 - **Do not claim Intel or universal macOS builds.** Windows is x64 only.
@@ -98,7 +98,7 @@ Note: Linux `jpackagePackage` needs `APPIMAGETOOL_SHA256` set (CI pins it in `re
 
 ## 8. Testing rules
 
-- After code changes, normally run at least `./gradlew spotlessCheck test`; use `./gradlew build` before declaring a change done. Persistence/timer/platform/packaging changes should also be verified with the specific tests below.
+- After code changes, normally run at least `./gradlew spotlessCheck test`; use `./gradlew build` before declaring a change done. JaCoCo enforces at least 45% bundle line coverage in `check`/`build`. Persistence/timer/platform/packaging changes should also be verified with the specific tests below.
 - Prefer deterministic tests: use `DatabaseManager.inMemory()` for persistence, no sleeps in timer tests (drive `TimerService` synchronously), no reliance on a display.
 - **Never weaken, delete, or `@Disabled` a test just to make CI pass.** Fix the code; if a test is genuinely wrong, explain why and update it deliberately.
 - When touching a area, update its tests in the same change:
@@ -124,7 +124,7 @@ Workflows (`.github/workflows/`):
 ## 10. Versioning
 
 - `build.gradle.kts` `version = "..."` is the single source of the project version; the release tag must equal `v` + that value.
-- Current released version is `1.1.1` — treat it as the value *today*, not a constant: future releases bump `build.gradle.kts` and tag consistently (validator enforces the match). The tag for this version is `v1.1.1`.
+- Current published version is `1.1.1`; it is historical, not a development target. Future development bumps `build.gradle.kts` for the next release and tags consistently (validator enforces the match). The published `v1.1.1` release/tag must remain immutable.
 - Do not touch existing tags or the published release as part of unrelated work.
 
 ## 11. Packaging

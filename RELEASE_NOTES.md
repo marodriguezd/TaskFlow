@@ -1,6 +1,6 @@
 # TaskFlow v1.1.1 — Stability Patch Release
 
-TaskFlow 1.1.1 is a patch release that fixes issues found during post-release testing of 1.1.0. It contains no new features: every change is a low-severity fix or documentation improvement, and existing data, preferences, and the database schema are untouched.
+TaskFlow 1.1.1 was a patch release that fixed issues found during post-release testing of 1.1.0. It contained no new features: every change was a low-severity fix or documentation improvement, and existing data, preferences, and the database schema were untouched.
 
 ## Fixes
 
@@ -16,7 +16,7 @@ Installers are produced with `jpackage` and **bundle a full Java 21 runtime**, s
 | Platform | Package | Notes |
 | --- | --- | --- |
 | Windows (x64) | `TaskFlow-1.1.1.msi` | MSI installer with Start Menu shortcut |
-| Linux (x64, any distribution) | `TaskFlow-1.1.1-x86_64.AppImage` | Portable AppImage — download, `chmod +x`, and run; no installation, no FUSE required (falls back to `--appimage-extract-and-run`) |
+| Linux (x86_64) | `TaskFlow-1.1.1-x86_64.AppImage` | AppImage with bundled Java runtime; requires a compatible Linux userspace and desktop/runtime libraries; no FUSE required (falls back to `--appimage-extract-and-run`) |
 | macOS (Apple Silicon) | `TaskFlow-1.1.1.dmg` | DMG image built on an ARM64 runner (not a universal binary) |
 
 Verify your download before installing:
@@ -28,7 +28,7 @@ sha256sum -c checksums.txt
 ## Supported platforms
 
 - **Windows 10/11** (x64) — `.msi`
-- **Linux** (x64, any distribution) — `.AppImage`
+- **Linux** (x86_64; compatible userspace and desktop/runtime libraries required) — `.AppImage`
 - **macOS (Apple Silicon)** — `.dmg`
 
 Continuous integration builds, tests, and packages the application on all three platforms on every change.

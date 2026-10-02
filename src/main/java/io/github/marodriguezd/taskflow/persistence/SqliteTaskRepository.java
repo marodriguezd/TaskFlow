@@ -1,5 +1,6 @@
 package io.github.marodriguezd.taskflow.persistence;
 
+import io.github.marodriguezd.taskflow.domain.HistoryItem;
 import io.github.marodriguezd.taskflow.domain.Priority;
 import io.github.marodriguezd.taskflow.domain.Task;
 import java.sql.Connection;
@@ -15,7 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** SQLite implementation of TaskRepository. */
-public class SqliteTaskRepository implements TaskRepository {
+public class SqliteTaskRepository implements TaskRepository, TaskLifecycleRepository {
 
     private static final Logger log = LoggerFactory.getLogger(SqliteTaskRepository.class);
     private final DatabaseManager databaseManager;
@@ -186,8 +187,90 @@ public class SqliteTaskRepository implements TaskRepository {
             }
         } catch (SQLException e) {
             log.error("Error counting tasks", e);
+            throw new PersistenceException("Could not count tasks", e);
         }
-        return 0;
+        throw new PersistenceException("Could not count tasks: count query returned no row");
+    }
+
+    @Override
+    public void archiveAndDelete(Task task, HistoryItem historyItem) {
+        databaseManager.inTransaction(
+                conn -> {
+                    insertHistory(conn, historyItem);
+                    try (PreparedStatement stmt =
+                            conn.prepareStatement("DELETE FROM tasks WHERE id = ?")) {
+                        stmt.setLong(1, task.id());
+                        stmt.executeUpdate();
+                    }
+                    return null;
+                });
+    }
+
+    @Override
+    public void archiveCompletion(Task task, HistoryItem historyItem) {
+        databaseManager.inTransaction(
+                conn -> {
+                    insertHistory(conn, historyItem);
+                    try (PreparedStatement stmt =
+                            conn.prepareStatement(
+                                    "UPDATE tasks SET remaining_seconds = 0, updated_at = ? WHERE id = ?")) {
+                        stmt.setString(1, Instant.now().toString());
+                        stmt.setLong(2, task.id());
+                        stmt.executeUpdate();
+                    }
+                    return null;
+                });
+    }
+
+    @Override
+    public Task restore(HistoryItem historyItem) {
+        return databaseManager.inTransaction(
+                conn -> {
+                    Task task = historyItem.toRestoredTask();
+                    String sql =
+                            "INSERT INTO tasks (name, priority, total_seconds, remaining_seconds, created_at, updated_at) "
+                                    + "VALUES (?, ?, ?, ?, ?, ?)";
+                    long id;
+                    try (PreparedStatement stmt =
+                            conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                        stmt.setString(1, task.name());
+                        stmt.setString(2, task.priority().name());
+                        stmt.setInt(3, task.totalSeconds());
+                        stmt.setInt(4, task.remainingSeconds());
+                        stmt.setString(5, task.createdAt().toString());
+                        stmt.setString(6, task.updatedAt().toString());
+                        stmt.executeUpdate();
+                        try (ResultSet keys = stmt.getGeneratedKeys()) {
+                            if (!keys.next()) {
+                                throw new PersistenceException(
+                                        "Restoring task failed, no ID obtained.");
+                            }
+                            id = keys.getLong(1);
+                        }
+                    }
+                    try (PreparedStatement stmt =
+                            conn.prepareStatement("DELETE FROM history WHERE id = ?")) {
+                        stmt.setLong(1, historyItem.id());
+                        stmt.executeUpdate();
+                    }
+                    return task.withId(id);
+                });
+    }
+
+    private void insertHistory(Connection conn, HistoryItem item) throws SQLException {
+        String sql =
+                "INSERT INTO history (name, priority, total_seconds, remaining_seconds, event_type, completed_manually, event_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, item.name());
+            stmt.setString(2, item.priority().name());
+            stmt.setInt(3, item.totalSeconds());
+            stmt.setInt(4, item.remainingSeconds());
+            stmt.setString(5, item.eventType().getCode());
+            stmt.setInt(6, item.completedManually() ? 1 : 0);
+            stmt.setString(7, item.eventAt().toString());
+            stmt.executeUpdate();
+        }
     }
 
     @Override

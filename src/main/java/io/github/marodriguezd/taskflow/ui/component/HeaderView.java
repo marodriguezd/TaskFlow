@@ -39,12 +39,10 @@ public class HeaderView extends HBox {
         getStyleClass().add("header-bar");
 
         Label iconLabel = new Label("⏱");
-        iconLabel.setStyle(
-                "-fx-text-fill: -fx-accent-lt; -fx-font-size: 16px; -fx-background-color: transparent;");
+        iconLabel.getStyleClass().add("header-icon");
 
         Label titleLabel = new Label("TaskFlow");
-        titleLabel.setStyle(
-                "-fx-text-fill: -fx-text-hi; -fx-font-size: 14px; -fx-font-weight: bold;");
+        titleLabel.getStyleClass().add("header-title");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);

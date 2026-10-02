@@ -140,8 +140,9 @@ public class SqliteHistoryRepository implements HistoryRepository {
             }
         } catch (SQLException e) {
             log.error("Error counting history rows", e);
+            throw new PersistenceException("Could not count history rows", e);
         }
-        return 0;
+        throw new PersistenceException("Could not count history rows: count query returned no row");
     }
 
     private HistoryItem mapRow(ResultSet rs) throws SQLException {

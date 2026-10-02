@@ -1,6 +1,7 @@
 package io.github.marodriguezd.taskflow.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.marodriguezd.taskflow.domain.ThemeMode;
 import io.github.marodriguezd.taskflow.domain.UserPreferences;
@@ -58,6 +59,35 @@ class SqlitePreferenceRepositoryTest {
         assertThat(reloaded.language()).isEqualTo("zh-Hans");
         // Other preferences untouched by a language-only update
         assertThat(reloaded.theme()).isEqualTo(ThemeMode.DARK);
+    }
+
+    @Test
+    @DisplayName("Database read failures are not returned as default preferences")
+    void propagatesPreferenceReadFailure() throws Exception {
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute("DROP TABLE preferences");
+        }
+
+        assertThatThrownBy(() -> repository.loadPreferences(false))
+                .isInstanceOf(PersistenceException.class)
+                .hasMessageContaining("Could not read preferences");
+    }
+
+    @Test
+    @DisplayName("Geometry values are written atomically")
+    void geometrySaveRollsBackOnFailure() throws Exception {
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE TRIGGER fail_geo_y BEFORE INSERT ON preferences "
+                            + "WHEN NEW.pref_key = 'geo_y' "
+                            + "BEGIN SELECT RAISE(ABORT, 'simulated geometry failure'); END");
+        }
+
+        assertThatThrownBy(() -> repository.saveGeometry(new WindowGeometry(10, 20, 360, 600)))
+                .isInstanceOf(PersistenceException.class);
+        assertThat(repository.loadGeometry()).isEmpty();
     }
 
     @Test

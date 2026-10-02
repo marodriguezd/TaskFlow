@@ -41,7 +41,7 @@ public class TaskCardView extends HBox {
         this.isRunning = isRunning;
 
         setMinHeight(86.0);
-        getStyleClass().add("task-card");
+        getStyleClass().addAll("task-card", "priority-" + task.priority().name().toLowerCase());
 
         Priority pri = task.priority();
 
@@ -49,10 +49,7 @@ public class TaskCardView extends HBox {
         sideBar = new Region();
         sideBar.setMinWidth(4.0);
         sideBar.setMaxWidth(4.0);
-        sideBar.setStyle(
-                String.format(
-                        "-fx-background-color: %s; -fx-background-radius: 4px 0 0 4px;",
-                        pri.getHexColor()));
+        sideBar.getStyleClass().addAll("priority-sidebar", "priority-" + pri.name().toLowerCase());
 
         // 2. Inner card container
         VBox inner = new VBox(6);
@@ -66,16 +63,11 @@ public class TaskCardView extends HBox {
         nameLabel = new Label(task.name());
         nameLabel.setWrapText(true);
         nameLabel.setMaxWidth(Double.MAX_VALUE);
-        nameLabel.setStyle(
-                "-fx-text-fill: -fx-text-hi; -fx-font-size: 13px; -fx-font-weight: bold;");
+        nameLabel.getStyleClass().add("task-name");
         HBox.setHgrow(nameLabel, javafx.scene.layout.Priority.ALWAYS);
 
         pillLabel = new Label(PriorityLabels.label(pri));
-        pillLabel.setStyle(
-                String.format(
-                        "-fx-text-fill: %s; -fx-background-color: %s; -fx-font-size: 11px; -fx-font-weight: bold; "
-                                + "-fx-background-radius: 5px; -fx-padding: 1px 6px; -fx-min-height: 18px;",
-                        pri.getHexColor(), pri.getPillColor()));
+        pillLabel.getStyleClass().addAll("priority-pill", "priority-" + pri.name().toLowerCase());
 
         editButton = new Button();
         editButton.setMinSize(22, 22);
@@ -112,11 +104,7 @@ public class TaskCardView extends HBox {
         row2.setAlignment(Pos.CENTER_LEFT);
 
         timerLabel = new Label(TimeFormatter.format(task.remainingSeconds()));
-        timerLabel.setStyle(
-                String.format(
-                        "-fx-text-fill: %s; -fx-font-size: 26px; -fx-font-weight: bold; "
-                                + "-fx-font-family: 'Courier New', 'Consolas', monospace;",
-                        pri.getHexColor()));
+        timerLabel.getStyleClass().addAll("task-timer", "priority-" + pri.name().toLowerCase());
         timerLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(timerLabel, javafx.scene.layout.Priority.ALWAYS);
 
@@ -124,11 +112,9 @@ public class TaskCardView extends HBox {
         doneButton.setMinSize(24, 24);
         doneButton.setMaxSize(24, 24);
         doneButton.setTooltip(new Tooltip(Messages.get("tooltip.done")));
-        doneButton.setStyle(
-                String.format(
-                        "-fx-background-color: %s; -fx-text-fill: %s; -fx-font-size: 12px; -fx-font-weight: bold; "
-                                + "-fx-background-radius: 12px; -fx-cursor: hand; -fx-padding: 0;",
-                        pri.getPillColor(), pri.getHexColor()));
+        doneButton
+                .getStyleClass()
+                .addAll("complete-button", "priority-" + pri.name().toLowerCase());
         doneButton.setOnAction(
                 e -> {
                     if (onComplete != null) {
@@ -139,6 +125,7 @@ public class TaskCardView extends HBox {
         playButton = new Button();
         playButton.setMinSize(36, 36);
         playButton.setMaxSize(36, 36);
+        playButton.getStyleClass().add("play-button");
         playButton.setOnAction(
                 e -> {
                     if (task.isExpired()) {
@@ -171,16 +158,24 @@ public class TaskCardView extends HBox {
     public void updateTask(Task updatedTask) {
         this.task = updatedTask;
         nameLabel.setText(task.name());
+        pillLabel.setText(PriorityLabels.label(task.priority()));
+        getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
+        getStyleClass().add("priority-" + task.priority().name().toLowerCase());
+        sideBar.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
+        sideBar.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
+        pillLabel.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
+        pillLabel.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
+        timerLabel.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
+        timerLabel.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
+        doneButton.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
+        doneButton.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
         timerLabel.setText(TimeFormatter.format(task.remainingSeconds()));
         progressBar.setProgress(task.remainingSeconds(), task.totalSeconds());
         updatePlayButtonStyle();
 
+        getStyleClass().removeAll("task-card-expired", "task-card-hover");
         if (task.isExpired()) {
-            setStyle(
-                    String.format(
-                            "-fx-border-color: %s88; -fx-border-width: 1px 1px 1px 0; "
-                                    + "-fx-border-radius: 0 10px 10px 0; -fx-background-radius: 0 10px 10px 0;",
-                            task.priority().getHexColor()));
+            getStyleClass().add("task-card-expired");
         }
     }
 
@@ -193,19 +188,33 @@ public class TaskCardView extends HBox {
         Priority pri = task.priority();
         if (task.isExpired()) {
             playButton.setText("✓");
-            playButton.setStyle(
-                    "-fx-background-color: rgba(96, 96, 120, 0.2); -fx-text-fill: -fx-text-lo; "
-                            + "-fx-font-size: 14px; -fx-font-weight: bold; -fx-background-radius: 18px; -fx-cursor: hand;");
+            playButton.getStyleClass().remove("play-button");
+            playButton
+                    .getStyleClass()
+                    .removeAll(
+                            "priority-high",
+                            "priority-medium",
+                            "priority-low",
+                            "play-button-running");
+            playButton.getStyleClass().remove("play-button-paused");
+            playButton.getStyleClass().add("play-button-expired");
         } else {
-            String icon = isRunning ? "❚❚" : "▶";
-            int fontSize = isRunning ? 13 : 15;
-            int paddingLeft = isRunning ? 0 : 2;
-            playButton.setText(icon);
-            playButton.setStyle(
-                    String.format(
-                            "-fx-background-color: %s; -fx-text-fill: %s; -fx-font-size: %dpx; -fx-font-weight: 900; "
-                                    + "-fx-background-radius: 18px; -fx-cursor: hand; -fx-padding: 0 0 0 %dpx;",
-                            pri.getPillColor(), pri.getHexColor(), fontSize, paddingLeft));
+            playButton.setText(isRunning ? "❚❚" : "▶");
+            playButton.getStyleClass().remove("play-button-expired");
+            playButton
+                    .getStyleClass()
+                    .removeAll(
+                            "priority-high",
+                            "priority-medium",
+                            "priority-low",
+                            "play-button-running",
+                            "play-button-paused");
+            playButton
+                    .getStyleClass()
+                    .addAll(
+                            "play-button",
+                            "priority-" + pri.name().toLowerCase(),
+                            isRunning ? "play-button-running" : "play-button-paused");
         }
     }
 
@@ -213,20 +222,14 @@ public class TaskCardView extends HBox {
         setOnMouseEntered(
                 e -> {
                     if (!task.isExpired()) {
-                        setStyle(
-                                String.format(
-                                        "-fx-border-color: %s; -fx-border-width: 1px 1px 1px 0; "
-                                                + "-fx-border-radius: 0 10px 10px 0; -fx-background-radius: 0 10px 10px 0;",
-                                        task.priority().getHexColor()));
+                        getStyleClass().add("task-card-hover");
                     }
                 });
 
         setOnMouseExited(
                 e -> {
                     if (!task.isExpired()) {
-                        setStyle(
-                                "-fx-border-color: -fx-border; -fx-border-width: 1px 1px 1px 0; "
-                                        + "-fx-border-radius: 0 10px 10px 0; -fx-background-radius: 0 10px 10px 0;");
+                        getStyleClass().remove("task-card-hover");
                     }
                 });
     }

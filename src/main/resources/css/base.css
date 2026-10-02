@@ -9,6 +9,234 @@
     -fx-font-size: 13px;
 }
 
+.main-panel-frameless {
+    -fx-background-radius: 16px;
+    -fx-border-radius: 16px;
+    -fx-border-width: 1px;
+}
+
+.footer-bar-frameless {
+    -fx-background-radius: 0 0 16px 16px;
+}
+
+.header-icon {
+    -fx-text-fill: -fx-accent-lt;
+    -fx-font-size: 16px;
+    -fx-background-color: transparent;
+}
+
+.header-title {
+    -fx-text-fill: -fx-text-hi;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+}
+
+.empty-state-icon {
+    -fx-background-color: transparent;
+}
+
+.empty-state-title {
+    -fx-text-fill: -fx-text-mid;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.empty-state-hint {
+    -fx-text-fill: -fx-text-lo;
+    -fx-font-size: 11px;
+}
+
+.dialog-title {
+    -fx-text-fill: -fx-text-hi;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.dialog-label {
+    -fx-text-fill: -fx-text-mid;
+    -fx-font-size: 11px;
+}
+
+.dialog-confirm-small {
+    -fx-font-size: 12px;
+    -fx-padding: 7px 14px;
+    -fx-pref-height: 32px;
+}
+
+.history-dialog-title {
+    -fx-text-fill: -fx-text-hi;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+.history-empty {
+    -fx-text-fill: -fx-text-mid;
+    -fx-font-size: 12px;
+}
+
+.history-name {
+    -fx-text-fill: -fx-text-hi;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.history-info {
+    -fx-text-fill: -fx-text-mid;
+    -fx-font-size: 10px;
+}
+
+.history-restore {
+    -fx-background-color: transparent;
+    -fx-text-fill: -fx-accent-lt;
+    -fx-border-color: -fx-border;
+    -fx-border-radius: 7px;
+    -fx-background-radius: 7px;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-padding: 3px 8px;
+    -fx-cursor: hand;
+}
+
+/* Priority colors match the palette exposed by Priority metadata. */
+.priority-sidebar {
+    -fx-background-radius: 4px 0 0 4px;
+}
+
+.priority-sidebar.priority-high {
+    -fx-background-color: #ff5e78;
+}
+
+.priority-sidebar.priority-medium {
+    -fx-background-color: #ffb340;
+}
+
+.priority-sidebar.priority-low {
+    -fx-background-color: #3ddc84;
+}
+
+.priority-pill {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5px;
+    -fx-padding: 1px 6px;
+    -fx-min-height: 18px;
+}
+
+.task-name {
+    -fx-text-fill: -fx-text-hi;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+}
+
+.task-timer {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-font-family: 'Courier New', 'Consolas', monospace;
+}
+
+.complete-button {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 12px;
+    -fx-cursor: hand;
+    -fx-padding: 0;
+}
+
+.play-button {
+    -fx-font-weight: 900;
+    -fx-background-radius: 18px;
+    -fx-cursor: hand;
+    -fx-padding: 0 0 0 2px;
+}
+
+.play-button-running {
+    -fx-font-size: 13px;
+    -fx-padding: 0;
+}
+
+.play-button-paused {
+    -fx-font-size: 15px;
+}
+
+.play-button-expired {
+    -fx-background-color: rgba(96, 96, 120, 0.2);
+    -fx-text-fill: -fx-text-lo;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 18px;
+    -fx-cursor: hand;
+}
+
+.task-card-hover,
+.task-card-expired {
+    -fx-border-width: 1px 1px 1px 0;
+    -fx-border-radius: 0 10px 10px 0;
+    -fx-background-radius: 0 10px 10px 0;
+}
+
+.task-card-hover.priority-high {
+    -fx-border-color: #ff5e78;
+}
+
+.task-card-hover.priority-medium {
+    -fx-border-color: #ffb340;
+}
+
+.task-card-hover.priority-low {
+    -fx-border-color: #3ddc84;
+}
+
+.task-card-expired.priority-high {
+    -fx-border-color: derive(#ff5e78, 50%);
+}
+
+.task-card-expired.priority-medium {
+    -fx-border-color: derive(#ffb340, 50%);
+}
+
+.task-card-expired.priority-low {
+    -fx-border-color: derive(#3ddc84, 50%);
+}
+
+.priority-pill.priority-high,
+.task-timer.priority-high,
+.complete-button.priority-high,
+.play-button.priority-high {
+    -fx-text-fill: #ff5e78;
+}
+
+.priority-pill.priority-high,
+.complete-button.priority-high,
+.play-button.priority-high {
+    -fx-background-color: #2a0a0a;
+}
+
+.priority-pill.priority-medium,
+.task-timer.priority-medium,
+.complete-button.priority-medium,
+.play-button.priority-medium {
+    -fx-text-fill: #ffb340;
+}
+
+.priority-pill.priority-medium,
+.complete-button.priority-medium,
+.play-button.priority-medium {
+    -fx-background-color: #2a1a00;
+}
+
+.priority-pill.priority-low,
+.task-timer.priority-low,
+.complete-button.priority-low,
+.play-button.priority-low {
+    -fx-text-fill: #3ddc84;
+}
+
+.priority-pill.priority-low,
+.complete-button.priority-low,
+.play-button.priority-low {
+    -fx-background-color: #021a0c;
+}
+
 /* ScrollPane custom minimal scrollbar */
 .scroll-pane {
     -fx-background-color: transparent;

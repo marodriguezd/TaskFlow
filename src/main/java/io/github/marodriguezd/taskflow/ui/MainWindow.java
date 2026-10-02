@@ -22,7 +22,10 @@ import io.github.marodriguezd.taskflow.ui.theme.UIConstants;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -62,6 +65,15 @@ public class MainWindow {
     private final VBox taskList;
     private final Button addButton;
     private final Map<Long, TaskCardView> cardMap = new HashMap<>();
+    private final ScheduledExecutorService geometrySaver =
+            Executors.newSingleThreadScheduledExecutor(
+                    runnable -> {
+                        Thread thread = new Thread(runnable, "taskflow-geometry-save");
+                        thread.setDaemon(true);
+                        return thread;
+                    });
+    private ScheduledFuture<?> pendingGeometrySave;
+    private long geometrySaveGeneration;
 
     // Frameless resize state
     private boolean isResizing = false;
@@ -111,8 +123,7 @@ public class MainWindow {
         VBox root = new VBox();
         root.getStyleClass().add("main-panel");
         if (frameless) {
-            root.setStyle(
-                    "-fx-background-radius: 16px; -fx-border-radius: 16px; -fx-border-width: 1px;");
+            root.getStyleClass().add("main-panel-frameless");
         }
 
         // 1. Header
@@ -149,7 +160,7 @@ public class MainWindow {
         footer.setPrefHeight(58.0);
         footer.getStyleClass().add("footer-bar");
         if (frameless) {
-            footer.setStyle("-fx-background-radius: 0 0 16px 16px;");
+            footer.getStyleClass().add("footer-bar-frameless");
         }
 
         addButton = new Button(Messages.get("footer.newTask"));
@@ -220,34 +231,60 @@ public class MainWindow {
     }
 
     private void onTimerTick(Task activeTask) {
-        Platform.runLater(
-                () -> {
-                    TaskCardView card = cardMap.get(activeTask.id());
-                    if (card != null) {
-                        card.updateTask(activeTask);
-                    }
-                });
+        if (Platform.isFxApplicationThread()) {
+            applyTimerTick(activeTask);
+        } else {
+            Platform.runLater(() -> applyTimerTick(activeTask));
+        }
+    }
+
+    private void applyTimerTick(Task activeTask) {
+        if (!timerService.isLatestSnapshot(activeTask)) {
+            return;
+        }
+        TaskCardView card = cardMap.get(activeTask.id());
+        if (card != null) {
+            card.updateTask(activeTask);
+        }
     }
 
     private void onTimerRunningChanged(Long taskId, Boolean isRunning) {
-        Platform.runLater(
-                () -> {
-                    TaskCardView card = cardMap.get(taskId);
-                    if (card != null) {
-                        card.setRunning(isRunning);
-                    }
-                });
+        Runnable update = () -> applyRunningState(taskId, isRunning);
+        if (Platform.isFxApplicationThread()) {
+            update.run();
+        } else {
+            Platform.runLater(update);
+        }
+    }
+
+    private void applyRunningState(Long taskId, Boolean isRunning) {
+        if (timerService.isRunning(taskId) != isRunning) {
+            return;
+        }
+        TaskCardView card = cardMap.get(taskId);
+        if (card != null) {
+            card.setRunning(isRunning);
+        }
     }
 
     private void onTimerCompleted(Task completedTask) {
-        Platform.runLater(
-                () -> {
-                    TaskCardView card = cardMap.get(completedTask.id());
-                    if (card != null) {
-                        card.updateTask(completedTask.withRemainingSeconds(0));
-                        card.setRunning(false);
-                    }
-                });
+        Runnable update = () -> applyCompletion(completedTask);
+        if (Platform.isFxApplicationThread()) {
+            update.run();
+        } else {
+            Platform.runLater(update);
+        }
+    }
+
+    private void applyCompletion(Task completedTask) {
+        if (!timerService.isLatestSnapshot(completedTask)) {
+            return;
+        }
+        TaskCardView card = cardMap.get(completedTask.id());
+        if (card != null) {
+            card.updateTask(completedTask.withRemainingSeconds(0));
+            card.setRunning(false);
+        }
     }
 
     private void openAddTaskDialog() {
@@ -334,30 +371,15 @@ public class MainWindow {
     }
 
     private void restoreWindowGeometry() {
-        var bounds = Screen.getPrimary().getVisualBounds();
-        Optional<WindowGeometry> savedGeo = preferenceRepository.loadGeometry();
-        if (savedGeo.isPresent()) {
-            WindowGeometry geo = savedGeo.get();
-            // Ensure saved geometry is visibly within screen bounds
-            if (geo.x() >= 0
-                    && geo.y() >= 0
-                    && geo.x() < bounds.getMaxX() - 50
-                    && geo.y() < bounds.getMaxY() - 50) {
-                stage.setX(geo.x());
-                stage.setY(geo.y());
-                stage.setWidth(Math.max(UIConstants.PANEL_MIN_WIDTH, geo.width()));
-                stage.setHeight(Math.max(UIConstants.PANEL_MIN_HEIGHT, geo.height()));
-                return;
-            }
-        }
-
-        // Default center on primary screen
-        double width = UIConstants.DEFAULT_WIDTH;
-        double height = UIConstants.DEFAULT_HEIGHT;
-        stage.setWidth(width);
-        stage.setHeight(height);
-        stage.setX(Math.max(0, (bounds.getWidth() - width) / 2));
-        stage.setY(Math.max(0, (bounds.getHeight() - height) / 2));
+        List<javafx.geometry.Rectangle2D> bounds =
+                Screen.getScreens().stream().map(Screen::getVisualBounds).toList();
+        WindowGeometry resolved =
+                WindowGeometryResolver.resolve(
+                        preferenceRepository.loadGeometry().orElse(null), bounds);
+        stage.setWidth(resolved.width());
+        stage.setHeight(resolved.height());
+        stage.setX(resolved.x());
+        stage.setY(resolved.y());
     }
 
     private void setupGeometryPersistence() {
@@ -368,18 +390,65 @@ public class MainWindow {
         stage.setOnCloseRequest(e -> closeApplication());
     }
 
-    private void saveGeometry() {
-        if (stage.isShowing() && !stage.isIconified()) {
-            double x = stage.getX();
-            double y = stage.getY();
-            double w = stage.getWidth();
-            double h = stage.getHeight();
-            // Ignore negative/offscreen coordinates caused by tiling window managers (dwm, etc.)
-            if (x >= 0
-                    && y >= 0
-                    && w >= UIConstants.PANEL_MIN_WIDTH
-                    && h >= UIConstants.PANEL_MIN_HEIGHT) {
-                preferenceRepository.saveGeometry(new WindowGeometry(x, y, w, h));
+    private synchronized void saveGeometry() {
+        if (!stage.isShowing() || stage.isIconified()) {
+            return;
+        }
+        WindowGeometry geometry =
+                new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+        if (pendingGeometrySave != null) {
+            pendingGeometrySave.cancel(false);
+        }
+        long generation = ++geometrySaveGeneration;
+        pendingGeometrySave =
+                geometrySaver.schedule(
+                        () -> saveGeometryIfValid(geometry, generation),
+                        300,
+                        TimeUnit.MILLISECONDS);
+    }
+
+    private void saveGeometryIfValid(WindowGeometry geometry, long generation) {
+        synchronized (this) {
+            if (generation != geometrySaveGeneration) {
+                return;
+            }
+        }
+        if (isValidGeometry(geometry)) {
+            try {
+                preferenceRepository.saveGeometry(geometry);
+            } catch (RuntimeException e) {
+                log.warn("Could not persist window geometry", e);
+            }
+        }
+    }
+
+    private boolean isValidGeometry(WindowGeometry geometry) {
+        return geometry.width() >= UIConstants.PANEL_MIN_WIDTH
+                && geometry.height() >= UIConstants.PANEL_MIN_HEIGHT
+                && Double.isFinite(geometry.x())
+                && Double.isFinite(geometry.y());
+    }
+
+    private void flushGeometry() {
+        boolean shouldSave = stage.isShowing() && !stage.isIconified();
+        WindowGeometry geometry =
+                new WindowGeometry(stage.getX(), stage.getY(), stage.getWidth(), stage.getHeight());
+        synchronized (this) {
+            geometrySaveGeneration++;
+            if (pendingGeometrySave != null) {
+                pendingGeometrySave.cancel(false);
+                pendingGeometrySave = null;
+            }
+        }
+        if (shouldSave && isValidGeometry(geometry)) {
+            try {
+                // Queue behind any write already in progress so the final geometry wins.
+                geometrySaver.submit(() -> preferenceRepository.saveGeometry(geometry)).get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while flushing window geometry", e);
+            } catch (java.util.concurrent.ExecutionException e) {
+                log.warn("Could not flush window geometry", e.getCause());
             }
         }
     }
@@ -471,7 +540,8 @@ public class MainWindow {
     }
 
     private void closeApplication() {
-        saveGeometry();
+        flushGeometry();
+        geometrySaver.shutdown();
         timerService.pause();
         // Normal JavaFX shutdown: the toolkit invokes TaskFlowApp.stop(), which releases the
         // database. A racing System.exit(0) would kill the JVM before stop() gets to run.

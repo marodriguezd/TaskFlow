@@ -42,7 +42,7 @@ class LocaleFilesTest {
     private static final String BASE_NAME = "i18n.messages";
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{(\\d+)\\}");
 
-    /** The complete set of bundle files allowed on disk for TaskFlow 1.1.0. */
+    /** The complete set of bundle files allowed on disk; this inventory is version-independent. */
     private static final Set<String> ALLOWED_BUNDLE_FILES =
             Set.of(
                     "messages.properties",

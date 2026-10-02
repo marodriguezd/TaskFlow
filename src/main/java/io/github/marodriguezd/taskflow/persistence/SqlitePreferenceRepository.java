@@ -48,10 +48,16 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
 
     @Override
     public void savePreferences(UserPreferences preferences) {
-        setPreference("theme", preferences.theme().getCode());
-        setPreference("always_on_top", String.valueOf(preferences.alwaysOnTop()));
-        setPreference("sound_enabled", String.valueOf(preferences.soundEnabled()));
-        setPreference("language", preferences.language());
+        databaseManager.inTransaction(
+                conn -> {
+                    savePreference(conn, "theme", preferences.theme().getCode());
+                    savePreference(
+                            conn, "always_on_top", String.valueOf(preferences.alwaysOnTop()));
+                    savePreference(
+                            conn, "sound_enabled", String.valueOf(preferences.soundEnabled()));
+                    savePreference(conn, "language", preferences.language());
+                    return null;
+                });
     }
 
     @Override
@@ -76,10 +82,26 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
 
     @Override
     public void saveGeometry(WindowGeometry geometry) {
-        setPreference("geo_x", String.valueOf(geometry.x()));
-        setPreference("geo_y", String.valueOf(geometry.y()));
-        setPreference("geo_width", String.valueOf(geometry.width()));
-        setPreference("geo_height", String.valueOf(geometry.height()));
+        String sql =
+                "INSERT INTO preferences (pref_key, pref_value) VALUES (?, ?) "
+                        + "ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value";
+        databaseManager.inTransaction(
+                conn -> {
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        saveGeometryValue(stmt, "geo_x", geometry.x());
+                        saveGeometryValue(stmt, "geo_y", geometry.y());
+                        saveGeometryValue(stmt, "geo_width", geometry.width());
+                        saveGeometryValue(stmt, "geo_height", geometry.height());
+                    }
+                    return null;
+                });
+    }
+
+    private void saveGeometryValue(PreparedStatement stmt, String key, double value)
+            throws SQLException {
+        stmt.setString(1, key);
+        stmt.setString(2, String.valueOf(value));
+        stmt.executeUpdate();
     }
 
     private Map<String, String> getAllPreferences() {
@@ -93,24 +115,19 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
             }
         } catch (SQLException e) {
             log.error("Error reading preferences from database", e);
+            throw new PersistenceException("Could not read preferences", e);
         }
         return result;
     }
 
-    private void setPreference(String key, String value) {
+    private void savePreference(Connection conn, String key, String value) throws SQLException {
         String sql =
-                """
-                INSERT INTO preferences (pref_key, pref_value)
-                VALUES (?, ?)
-                ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value
-                """;
-        try (Connection conn = databaseManager.getConnection();
-                PreparedStatement stmt = conn.prepareStatement(sql)) {
+                "INSERT INTO preferences (pref_key, pref_value) VALUES (?, ?) "
+                        + "ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, key);
             stmt.setString(2, value);
             stmt.executeUpdate();
-        } catch (SQLException e) {
-            log.error("Error saving preference {}={}", key, value, e);
         }
     }
 }

@@ -8,9 +8,17 @@ import io.github.marodriguezd.taskflow.domain.HistoryItem;
 import io.github.marodriguezd.taskflow.domain.Priority;
 import io.github.marodriguezd.taskflow.domain.Task;
 import io.github.marodriguezd.taskflow.persistence.DatabaseManager;
+import io.github.marodriguezd.taskflow.persistence.PersistenceException;
 import io.github.marodriguezd.taskflow.persistence.SqliteHistoryRepository;
 import io.github.marodriguezd.taskflow.persistence.SqliteTaskRepository;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +48,89 @@ class TaskServiceTest {
 
     @AfterEach
     void tearDown() {
+        taskService.shutdown();
+        timerService.shutdown();
         databaseManager.close();
+    }
+
+    @Test
+    @DisplayName("Completed countdown persistence leaves task at zero after queued ticks")
+    void completionPersistsZeroAfterEarlierTicks() throws Exception {
+        Task task = taskService.createTask("Complete at zero", Priority.HIGH, 1);
+        CountDownLatch persisted = new CountDownLatch(1);
+        AtomicLong clock = new AtomicLong();
+        TimerService completionTimer = new TimerService(clock::get);
+        TaskService completionService =
+                new TaskService(
+                        new SqliteTaskRepository(databaseManager) {
+                            @Override
+                            public void archiveCompletion(Task completedTask, HistoryItem item) {
+                                super.archiveCompletion(completedTask, item);
+                                persisted.countDown();
+                            }
+                        },
+                        historyRepository,
+                        completionTimer,
+                        soundService);
+        completionTimer.start(task);
+        clock.set(TimeUnit.SECONDS.toNanos(60));
+        completionTimer.dispatchTickForTest(completionTimer.captureGenerationForTest());
+
+        assertThat(persisted.await(2, TimeUnit.SECONDS)).isTrue();
+        completionTimer.shutdown();
+        completionService.shutdown();
+        taskService.shutdown();
+        assertThat(taskRepository.findById(task.id())).isPresent();
+        assertThat(taskRepository.findById(task.id()).orElseThrow().remainingSeconds()).isZero();
+        assertThat(historyRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("Timer persistence runs on its own worker and saves the latest remaining time")
+    void timerPersistenceRunsOffCallerThread() throws Exception {
+        Task task = taskService.createTask("Background write", Priority.MEDIUM, 10);
+        CountDownLatch persisted = new CountDownLatch(1);
+        AtomicReference<String> persistenceThread = new AtomicReference<>();
+        TimerService observer = new TimerService();
+        TaskService observingService =
+                new TaskService(
+                        new SqliteTaskRepository(databaseManager) {
+                            @Override
+                            public void updateRemainingSeconds(long id, int remainingSeconds) {
+                                persistenceThread.set(Thread.currentThread().getName());
+                                super.updateRemainingSeconds(id, remainingSeconds);
+                                persisted.countDown();
+                            }
+                        },
+                        historyRepository,
+                        observer,
+                        soundService);
+        try {
+            observer.start(task.withRemainingSeconds(9));
+            observer.tickForTest();
+            assertThat(persisted.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(persistenceThread.get()).startsWith("taskflow-timer-persistence");
+        } finally {
+            observingService.shutdown();
+            observer.shutdown();
+        }
+    }
+
+    @Test
+    @DisplayName("Failed history archival leaves the task intact")
+    void failedArchiveRollsBackTaskDeletion() throws Exception {
+        Task task = taskService.createTask("Atomic delete", Priority.HIGH, 10);
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE TRIGGER fail_history_insert BEFORE INSERT ON history "
+                            + "BEGIN SELECT RAISE(ABORT, 'simulated history failure'); END");
+        }
+
+        assertThatThrownBy(() -> taskService.completeTaskManually(task.id()))
+                .isInstanceOf(PersistenceException.class);
+        assertThat(taskRepository.findById(task.id())).isPresent();
+        assertThat(historyRepository.findAll()).isEmpty();
     }
 
     @Test
@@ -62,14 +152,62 @@ class TaskServiceTest {
     }
 
     @Test
+    @DisplayName("Task edits drain a queued pause snapshot before reading persisted time")
+    void updateDrainsPauseSnapshotBeforeReadingTask() throws Exception {
+        taskService.shutdown();
+        timerService.shutdown();
+
+        AtomicLong clock = new AtomicLong();
+        timerService = new TimerService(clock::get);
+        CountDownLatch workerBlocked = new CountDownLatch(1);
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        ExecutorService persistenceExecutor = Executors.newSingleThreadExecutor();
+        persistenceExecutor.execute(
+                () -> {
+                    workerBlocked.countDown();
+                    try {
+                        releaseWorker.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+        ExecutorService updateExecutor = Executors.newSingleThreadExecutor();
+        try {
+            assertThat(workerBlocked.await(2, TimeUnit.SECONDS)).isTrue();
+            taskService =
+                    new TaskService(
+                            taskRepository,
+                            historyRepository,
+                            timerService,
+                            soundService,
+                            persistenceExecutor);
+            CountDownLatch pauseSnapshotQueued = new CountDownLatch(1);
+            timerService.addTickListener(task -> pauseSnapshotQueued.countDown());
+            Task task = taskService.createTask("Edited while timer runs", Priority.MEDIUM, 10);
+            timerService.start(task);
+            clock.set(TimeUnit.SECONDS.toNanos(2));
+
+            CompletableFuture<Task> update =
+                    CompletableFuture.supplyAsync(
+                            () -> taskService.updateTask(task.id(), "Edited", Priority.HIGH, 20),
+                            updateExecutor);
+            assertThat(pauseSnapshotQueued.await(2, TimeUnit.SECONDS)).isTrue();
+            releaseWorker.countDown();
+
+            assertThat(update.get(2, TimeUnit.SECONDS).remainingSeconds()).isEqualTo(1196);
+        } finally {
+            releaseWorker.countDown();
+            updateExecutor.shutdownNow();
+        }
+    }
+
+    @Test
     @DisplayName("Updates task and scales remaining time proportionally")
     void testUpdateTaskProportionalTime() {
-        // Original: 10 minutes (600s), 300s remaining (50% progress)
         Task original = taskService.createTask("Original", Priority.MEDIUM, 10);
         taskRepository.updateRemainingSeconds(original.id(), 300);
-
-        // Update to 20 minutes (1200s) -> remaining should be 50% = 600s
         Task updated = taskService.updateTask(original.id(), "Updated", Priority.HIGH, 20);
+
         assertThat(updated.name()).isEqualTo("Updated");
         assertThat(updated.priority()).isEqualTo(Priority.HIGH);
         assertThat(updated.totalSeconds()).isEqualTo(1200);
@@ -96,8 +234,8 @@ class TaskServiceTest {
         assertThat(taskService.getAllTasks()).isEmpty();
         List<HistoryItem> history = taskService.getHistory();
         assertThat(history).hasSize(1);
-        assertThat(history.get(0).name()).isEqualTo("To be deleted");
-        assertThat(history.get(0).eventType()).isEqualTo(HistoryEventType.DELETED);
+        assertThat(history.getFirst().name()).isEqualTo("To be deleted");
+        assertThat(history.getFirst().eventType()).isEqualTo(HistoryEventType.DELETED);
     }
 
     @Test
@@ -109,25 +247,22 @@ class TaskServiceTest {
         assertThat(taskService.getAllTasks()).isEmpty();
         List<HistoryItem> history = taskService.getHistory();
         assertThat(history).hasSize(1);
-        assertThat(history.get(0).name()).isEqualTo("Manual Done");
-        assertThat(history.get(0).eventType()).isEqualTo(HistoryEventType.COMPLETED);
-        assertThat(history.get(0).completedManually()).isTrue();
+        assertThat(history.getFirst().name()).isEqualTo("Manual Done");
+        assertThat(history.getFirst().eventType()).isEqualTo(HistoryEventType.COMPLETED);
+        assertThat(history.getFirst().completedManually()).isTrue();
     }
 
     @Test
-    @DisplayName(
-            "Restoring task from history brings it back to active list and removes from history")
+    @DisplayName("Restoring task from history moves it back to active tasks")
     void testRestoreTaskFromHistory() {
         Task task = taskService.createTask("To restore", Priority.LOW, 15);
         taskService.deleteTask(task.id(), true);
-
         List<HistoryItem> history = taskService.getHistory();
         assertThat(history).hasSize(1);
 
-        Task restored = taskService.restoreTaskFromHistory(history.get(0).id());
+        Task restored = taskService.restoreTaskFromHistory(history.getFirst().id());
         assertThat(restored.name()).isEqualTo("To restore");
         assertThat(restored.priority()).isEqualTo(Priority.LOW);
-
         assertThat(taskService.getAllTasks()).hasSize(1);
         assertThat(taskService.getHistory()).isEmpty();
     }

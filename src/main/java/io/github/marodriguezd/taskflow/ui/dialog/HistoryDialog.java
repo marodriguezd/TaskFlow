@@ -54,7 +54,7 @@ public class HistoryDialog {
         header.setAlignment(Pos.CENTER_LEFT);
 
         Label title = new Label(Messages.get("history.title"));
-        title.setStyle("-fx-text-fill: -fx-text-hi; -fx-font-size: 16px; -fx-font-weight: bold;");
+        title.getStyleClass().add("history-dialog-title");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
@@ -78,7 +78,7 @@ public class HistoryDialog {
         List<HistoryItem> history = taskService.getHistory();
         if (history.isEmpty()) {
             Label emptyLabel = new Label(Messages.get("history.empty"));
-            emptyLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 12px;");
+            emptyLabel.getStyleClass().add("history-empty");
             emptyLabel.setAlignment(Pos.CENTER);
             emptyLabel.setMaxWidth(Double.MAX_VALUE);
             contentList.getChildren().add(emptyLabel);
@@ -120,8 +120,7 @@ public class HistoryDialog {
         box.getStyleClass().add("history-card");
 
         Label nameLabel = new Label(item.name());
-        nameLabel.setStyle(
-                "-fx-text-fill: -fx-text-hi; -fx-font-size: 13px; -fx-font-weight: bold;");
+        nameLabel.getStyleClass().add("history-name");
         nameLabel.setWrapText(true);
 
         HBox footer = new HBox(8);
@@ -130,16 +129,13 @@ public class HistoryDialog {
         String infoText =
                 String.format("%s · %s", item.getFormattedDate(), Messages.get(modeKey(item)));
         Label infoLabel = new Label(infoText);
-        infoLabel.setStyle("-fx-text-fill: -fx-text-mid; -fx-font-size: 10px;");
+        infoLabel.getStyleClass().add("history-info");
         infoLabel.setWrapText(true);
         infoLabel.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(infoLabel, javafx.scene.layout.Priority.ALWAYS);
 
         Button restoreBtn = new Button(Messages.get("history.restore"));
-        restoreBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: -fx-accent-lt; "
-                        + "-fx-border-color: -fx-border; -fx-border-radius: 7px; -fx-background-radius: 7px; "
-                        + "-fx-font-size: 11px; -fx-font-weight: bold; -fx-padding: 3px 8px; -fx-cursor: hand;");
+        restoreBtn.getStyleClass().add("history-restore");
         restoreBtn.setOnAction(
                 e -> {
                     if (onRestoreRequested != null) {
