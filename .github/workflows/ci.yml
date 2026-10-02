@@ -37,7 +37,7 @@ jobs:
 
       - name: Setup Gradle
         # gradle/actions v4.4.2
-        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Verify code formatting (Spotless)
         run: ./gradlew --no-daemon spotlessCheck
