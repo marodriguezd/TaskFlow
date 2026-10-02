@@ -31,7 +31,7 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.47.2.0")
 
     // Logging: SLF4J + Logback
-    implementation("org.slf4j:slf4j-api:2.0.16")
+    implementation("org.slf4j:slf4j-api:2.0.20")
     implementation("ch.qos.logback:logback-classic:1.5.16")
 
     // Jackson for legacy JSON migration & config
