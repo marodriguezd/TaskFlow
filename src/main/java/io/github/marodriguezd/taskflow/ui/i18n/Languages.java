@@ -8,10 +8,10 @@ import java.util.Map;
 /**
  * Registry of the supported UI languages and system-locale detection for first run.
  *
- * <p>TaskFlow 1.1.0 supports EXACTLY five languages, identified by BCP 47 tags: {@code en}, {@code
- * es}, {@code de}, {@code it}, {@code zh-Hans}. French and Portuguese are deliberately not
- * supported. The set is pinned by {@code LanguagesTest}; adding a language means adding a tag here,
- * a native name, and a {@code messages_<tag>.properties} bundle — no architectural change.
+ * <p>TaskFlow supports EXACTLY five languages, identified by BCP 47 tags: {@code en}, {@code es},
+ * {@code de}, {@code it}, {@code zh-Hans}. French and Portuguese are deliberately not supported.
+ * The set is pinned by {@code LanguagesTest}; adding a language means adding a tag here, a native
+ * name, and a {@code messages_<tag>.properties} bundle — no architectural change.
  *
  * <p>Tags are locale-independent persisted values (stored in the {@code preferences} table). This
  * class is pure logic with no JavaFX dependency so it stays headless-testable. Only {@code ui} may
