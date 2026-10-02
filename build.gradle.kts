@@ -28,7 +28,7 @@ javafx {
 
 dependencies {
     // SQLite local persistence
-    implementation("org.xerial:sqlite-jdbc:3.47.2.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.4.0")
 
     // Logging: SLF4J + Logback
     implementation("org.slf4j:slf4j-api:2.0.16")
