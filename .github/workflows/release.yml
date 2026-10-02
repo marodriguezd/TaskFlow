@@ -170,7 +170,7 @@ jobs:
 
       - name: Create GitHub Release
         # softprops/action-gh-release v2.2.2
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
         with:
           name: "TaskFlow ${{ github.ref_name }} — Java 21 Desktop Task Manager"
           body_path: release-notes.md
