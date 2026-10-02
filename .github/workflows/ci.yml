@@ -25,19 +25,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        # actions/checkout v4.2.2
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        # actions/checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Set up JDK 21
-        # actions/setup-java v4.7.1
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        # actions/setup-java v6.0.1
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        # gradle/actions v4.4.2
-        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        # gradle/actions v6.4.0
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Verify code formatting (Spotless)
         run: ./gradlew --no-daemon spotlessCheck
@@ -52,8 +52,8 @@ jobs:
         run: ./gradlew --no-daemon jpackageImage
 
       - name: Upload native application image
-        # actions/upload-artifact v4.6.2
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        # actions/upload-artifact v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: taskflow-${{ matrix.os }}-app-image
           # jpackage emits build/dist/TaskFlow on Linux/Windows but

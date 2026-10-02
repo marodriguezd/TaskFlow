@@ -12,13 +12,13 @@ User data is local-only: SQLite database plus a replaceable notification sound. 
 
 Verified dependencies/tools (from `build.gradle.kts`):
 
-- Java 21 (Gradle toolchain), JavaFX 21.0.4 (OpenJFX Gradle plugin; controls, fxml, media, graphics)
-- Gradle 8.10.2 via wrapper (`./gradlew`), Kotlin DSL (`build.gradle.kts`)
+- Java 21 (Gradle toolchain), JavaFX 21.0.12 (OpenJFX Gradle plugin; controls, fxml, media, graphics)
+- Gradle 9.8.0 via wrapper (`./gradlew`), Kotlin DSL (`build.gradle.kts`)
 - SQLite via `org.xerial:sqlite-jdbc` (WAL mode)
 - Jackson (`jackson-databind`, `jackson-datatype-jsr310`) — legacy JSON migration
 - SLF4J + Logback (`src/main/resources/logback.xml`)
 - JUnit 5 + AssertJ (tests)
-- Spotless 7.0.2 with Google Java Format 1.24.0, **AOSP style** (4-space indent)
+- Spotless 8.10.3 with Google Java Format 1.36.1, **AOSP style** (4-space indent)
 - `jpackage` (JDK 21) for native packaging
 - `appimagetool` (SHA-256-pinned, fetched by `tools/build-appimage.sh`) for the Linux AppImage
 

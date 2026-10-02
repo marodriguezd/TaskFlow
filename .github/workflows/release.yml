@@ -24,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        # actions/checkout v4.2.2
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        # actions/checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
@@ -49,19 +49,19 @@ jobs:
 
     steps:
       - name: Checkout repository
-        # actions/checkout v4.2.2
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        # actions/checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Set up JDK 21
-        # actions/setup-java v4.7.1
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        # actions/setup-java v6.0.1
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        # gradle/actions v4.4.2
-        uses: gradle/actions/setup-gradle@017a9effdb900e5b5b2fddfb590a105619dca3c3
+        # gradle/actions v6.4.0
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
 
       - name: Run test suite
         run: ./gradlew --no-daemon test
@@ -103,8 +103,8 @@ jobs:
           ls -la release-assets
 
       - name: Upload platform package artifact
-        # actions/upload-artifact v4.6.2
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        # actions/upload-artifact v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: taskflow-${{ matrix.os }}-package
           path: release-assets
@@ -121,14 +121,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        # actions/checkout v4.2.2
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        # actions/checkout v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
       - name: Download all platform packages
-        # actions/download-artifact v4.3.0
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        # actions/download-artifact v8.0.1
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           path: artifacts
           pattern: taskflow-*-package
@@ -169,8 +169,8 @@ jobs:
           } > release-notes.md
 
       - name: Create GitHub Release
-        # softprops/action-gh-release v2.2.2
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+        # softprops/action-gh-release v3.0.3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
         with:
           name: "TaskFlow ${{ github.ref_name }} — Java 21 Desktop Task Manager"
           body_path: release-notes.md

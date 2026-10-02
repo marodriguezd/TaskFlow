@@ -5,11 +5,11 @@ plugins {
     java
     jacoco
     id("org.openjfx.javafxplugin") version "0.1.0"
-    id("com.diffplug.spotless") version "7.0.2"
+    id("com.diffplug.spotless") version "8.10.3"
 }
 
 group = "io.github.marodriguezd.taskflow"
-version = "1.1.1"
+version = "1.1.2"
 
 java {
     toolchain {
@@ -22,26 +22,26 @@ repositories {
 }
 
 javafx {
-    version = "21.0.4"
+    version = "21.0.12"
     modules("javafx.controls", "javafx.fxml", "javafx.media", "javafx.graphics")
 }
 
 dependencies {
     // SQLite local persistence
-    implementation("org.xerial:sqlite-jdbc:3.47.2.0")
+    implementation("org.xerial:sqlite-jdbc:3.53.4.0")
 
     // Logging: SLF4J + Logback
-    implementation("org.slf4j:slf4j-api:2.0.16")
-    implementation("ch.qos.logback:logback-classic:1.5.16")
+    implementation("org.slf4j:slf4j-api:2.0.20")
+    implementation("ch.qos.logback:logback-classic:1.6.5")
 
     // Jackson for legacy JSON migration & config
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
-    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.3")
 
     // Testing
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.assertj:assertj-core:3.27.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.14.4")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.14.4")
+    testImplementation("org.assertj:assertj-core:3.27.7")
 }
 
 application {
@@ -66,7 +66,7 @@ tasks.withType<Test> {
 }
 
 jacoco {
-    toolVersion = "0.8.12"
+    toolVersion = "0.8.15"
 }
 
 tasks.jacocoTestReport {
@@ -100,7 +100,7 @@ tasks.named("build") {
 
 spotless {
     java {
-        googleJavaFormat("1.24.0").aosp()
+        googleJavaFormat("1.36.1").aosp()
         removeUnusedImports()
         trimTrailingWhitespace()
         endWithNewline()
@@ -164,11 +164,14 @@ tasks.register("releaseStamp") {
     group = "distribution"
     description =
             "Writes a RELEASE_VERSION stamp into build/dist so packaged artifacts carry verifiable provenance."
+    // Capture at configuration time: resolving Task.project at execution time is deprecated
+    // in Gradle 9 and will fail in Gradle 10.
+    val stampedVersion = project.version.toString()
     doLast {
         val distDir = layout.buildDirectory.dir("dist").get().asFile
         distDir.mkdirs()
-        distDir.resolve("RELEASE_VERSION").writeText(project.version.toString() + "\n")
-        println("RELEASE_VERSION stamp written: ${project.version}")
+        distDir.resolve("RELEASE_VERSION").writeText(stampedVersion + "\n")
+        println("RELEASE_VERSION stamp written: $stampedVersion")
     }
 }
 
