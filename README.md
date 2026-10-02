@@ -132,7 +132,7 @@ TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/w
 
 ### Releases
 
-> **Latest: [TaskFlow v1.1.1](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.1.1)** — a patch release, published in October 2026. It fixes the window-close path so the database is always closed cleanly on exit, logs warnings for corrupt timestamp data, makes OS detection locale-safe, and documents the known no-audio-device limitation. It ships native packages with a bundled Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`, portable), and macOS (`.dmg`, Apple Silicon), plus SHA-256 checksums for verifying each download.
+> **Latest: [TaskFlow v1.1.2](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.1.2)** — a dependency and build maintenance release, published in October 2026. It refreshes Gradle, JavaFX, SQLite, logging, Jackson, test, and formatting toolchains to current stable releases with no application behavior changes, staying on the Java 21 / JavaFX 21 LTS lines. It ships native packages with a bundled Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`, portable), and macOS (`.dmg`, Apple Silicon), plus SHA-256 checksums for verifying each download.
 
 Official releases are published automatically on the [GitHub Releases page](https://github.com/marodriguezd/TaskFlow/releases) when a `vMAJOR.MINOR.PATCH` tag is pushed (e.g. `v1.0.0`). The pipeline:
 
