@@ -140,7 +140,7 @@ Workflows (`.github/workflows/`):
 
 ## 13. Licensing
 
-- License: **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** — `LICENSE` full text; jar manifest carries `Implementation-License: CC-BY-NC-SA-4.0`.
+- License: **GNU General Public License v3.0 only (GPL-3.0-only)** — `LICENSE` full text; jar manifest carries `Implementation-License: GPL-3.0-only`.
 - Do not replace or dual-license the project unless explicitly instructed by the project owner.
 
 ## 14. Agent workflow rules

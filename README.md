@@ -4,7 +4,7 @@ A lightweight, cross-platform desktop task manager with Pomodoro-style timers, b
 
 [![CI](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/marodriguezd/TaskFlow)](https://github.com/marodriguezd/TaskFlow/releases/latest)
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
+[![License: GPL-3.0-only](https://img.shields.io/badge/License-GPL--3.0--only-blue.svg)](LICENSE)
 
 ## Screenshots
 
@@ -196,4 +196,6 @@ Recommended `main` branch protection, including required CI checks and signed-co
 
 ## License
 
-This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](LICENSE) (CC BY-NC-SA 4.0).
+License: GNU General Public License v3.0 only (GPL-3.0-only)
+
+See [LICENSE](LICENSE) for the full license text.

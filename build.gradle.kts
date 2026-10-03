@@ -113,7 +113,7 @@ tasks.jar {
             "Main-Class" to "io.github.marodriguezd.taskflow.TaskFlowLauncher",
             "Implementation-Title" to "TaskFlow",
             "Implementation-Version" to project.version,
-            "Implementation-License" to "CC-BY-NC-SA-4.0"
+            "Implementation-License" to "GPL-3.0-only"
         )
     }
 }

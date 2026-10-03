@@ -106,4 +106,4 @@ The directory contains the SQLite database (`taskflow.db`) and the notification 
 
 ## License
 
-TaskFlow v1.1.1 is released under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](LICENSE).
+TaskFlow v1.1.1 is released under the [GNU General Public License v3.0 only](LICENSE) (GPL-3.0-only).
