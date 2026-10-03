@@ -11,6 +11,7 @@ import io.github.marodriguezd.taskflow.service.TimerService;
 import io.github.marodriguezd.taskflow.ui.component.EmptyStateView;
 import io.github.marodriguezd.taskflow.ui.component.HeaderView;
 import io.github.marodriguezd.taskflow.ui.component.TaskCardView;
+import io.github.marodriguezd.taskflow.ui.dialog.AboutDialog;
 import io.github.marodriguezd.taskflow.ui.dialog.AddTaskDialog;
 import io.github.marodriguezd.taskflow.ui.dialog.EditTaskDialog;
 import io.github.marodriguezd.taskflow.ui.dialog.HistoryDialog;
@@ -133,6 +134,7 @@ public class MainWindow {
         headerView.getHistoryButton().setOnAction(e -> openHistoryDialog());
         headerView.getThemeButton().setOnAction(e -> toggleTheme());
         headerView.getLanguageButton().setOnAction(e -> openLanguageMenu());
+        headerView.getInfoButton().setOnAction(e -> openAboutDialog());
         if (headerView.getCloseButton() != null) {
             headerView.getCloseButton().setOnAction(e -> closeApplication());
         }
@@ -311,6 +313,11 @@ public class MainWindow {
     private void openHistoryDialog() {
         HistoryDialog dialog =
                 new HistoryDialog(stage, themeManager, taskService, this::restoreTaskFromHistory);
+        dialog.showAndWait();
+    }
+
+    private void openAboutDialog() {
+        AboutDialog dialog = new AboutDialog(stage, themeManager);
         dialog.showAndWait();
     }
 

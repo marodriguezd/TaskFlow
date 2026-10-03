@@ -21,6 +21,7 @@ public class HeaderView extends HBox {
     private final Button historyButton;
     private final Button themeButton;
     private final Button languageButton;
+    private final Button infoButton;
     private final Button closeButton;
 
     /** Latest applied task count, re-rendered on language switch. */
@@ -76,6 +77,11 @@ public class HeaderView extends HBox {
         languageButton.setGraphic(Icons.globe(13));
         languageButton.setTooltip(new Tooltip(Messages.get("tooltip.language")));
 
+        infoButton = new Button();
+        infoButton.getStyleClass().add("icon-button");
+        infoButton.setGraphic(Icons.info(13));
+        infoButton.setTooltip(new Tooltip(Messages.get("tooltip.about")));
+
         getChildren()
                 .addAll(
                         iconLabel,
@@ -85,7 +91,8 @@ public class HeaderView extends HBox {
                         pinButton,
                         historyButton,
                         themeButton,
-                        languageButton);
+                        languageButton,
+                        infoButton);
 
         if (isFrameless) {
             closeButton = new Button();
@@ -115,6 +122,7 @@ public class HeaderView extends HBox {
         historyButton.setTooltip(new Tooltip(Messages.get("tooltip.history")));
         themeButton.setTooltip(new Tooltip(Messages.get("tooltip.theme")));
         languageButton.setTooltip(new Tooltip(Messages.get("tooltip.language")));
+        infoButton.setTooltip(new Tooltip(Messages.get("tooltip.about")));
         if (lastTaskCount > 0) {
             countBadge.setText(Messages.count("header.tasks", lastTaskCount));
         }
@@ -138,6 +146,10 @@ public class HeaderView extends HBox {
 
     public Button getLanguageButton() {
         return languageButton;
+    }
+
+    public Button getInfoButton() {
+        return infoButton;
     }
 
     public Button getCloseButton() {
