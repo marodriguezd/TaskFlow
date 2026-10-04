@@ -85,23 +85,35 @@ public class AboutDialog {
 
         HBox actions = new HBox(8, licenseButton, closeTextButton);
         actions.setAlignment(Pos.CENTER_RIGHT);
-        card.getChildren().addAll(header, appName, description, licenseLabel, licenseValue, copyright, warranty, actions);
+        card.getChildren()
+                .addAll(
+                        header,
+                        appName,
+                        description,
+                        licenseLabel,
+                        licenseValue,
+                        copyright,
+                        warranty,
+                        actions);
 
         Scene scene = new Scene(card);
         themeManager.registerScene(scene);
-        scene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                stage.close();
-            }
-        });
-        card.setOnMousePressed(e -> {
-            dragOffsetX = e.getSceneX();
-            dragOffsetY = e.getSceneY();
-        });
-        card.setOnMouseDragged(e -> {
-            stage.setX(e.getScreenX() - dragOffsetX);
-            stage.setY(e.getScreenY() - dragOffsetY);
-        });
+        scene.setOnKeyPressed(
+                event -> {
+                    if (event.getCode() == KeyCode.ESCAPE) {
+                        stage.close();
+                    }
+                });
+        card.setOnMousePressed(
+                e -> {
+                    dragOffsetX = e.getSceneX();
+                    dragOffsetY = e.getSceneY();
+                });
+        card.setOnMouseDragged(
+                e -> {
+                    stage.setX(e.getScreenX() - dragOffsetX);
+                    stage.setY(e.getScreenY() - dragOffsetY);
+                });
         stage.setScene(scene);
     }
 
@@ -117,7 +129,9 @@ public class AboutDialog {
 
     public void showAndWait() {
         if (stage.getOwner() != null) {
-            stage.setX(stage.getOwner().getX() + Math.max(0, (stage.getOwner().getWidth() - 460) / 2));
+            stage.setX(
+                    stage.getOwner().getX()
+                            + Math.max(0, (stage.getOwner().getWidth() - 460) / 2));
             stage.setY(stage.getOwner().getY() + 50);
         }
         stage.showAndWait();
