@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  */
 class MessagesBundleTest {
 
-    /** The canonical key inventory of TaskFlow 1.1.0 — every UI string in one place. */
+    /** The canonical key inventory of TaskFlow 1.1.x — every UI string in one place. */
     private static final List<String> CANONICAL_KEYS =
             List.of(
                     "header.tasks.one",
@@ -31,6 +31,7 @@ class MessagesBundleTest {
                     "tooltip.edit",
                     "tooltip.delete",
                     "tooltip.done",
+                    "tooltip.about",
                     "empty.title",
                     "empty.hint",
                     "footer.newTask",
@@ -50,7 +51,16 @@ class MessagesBundleTest {
                     "history.mode.timer",
                     "priority.high",
                     "priority.medium",
-                    "priority.low");
+                    "priority.low",
+                    "about.title",
+                    "about.app",
+                    "about.description",
+                    "about.license.label",
+                    "about.license.value",
+                    "about.copyright",
+                    "about.warranty",
+                    "about.license.button",
+                    "about.close");
 
     @BeforeEach
     void setUp() {

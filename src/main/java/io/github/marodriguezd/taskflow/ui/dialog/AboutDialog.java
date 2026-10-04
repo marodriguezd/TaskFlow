@@ -130,8 +130,7 @@ public class AboutDialog {
     public void showAndWait() {
         if (stage.getOwner() != null) {
             stage.setX(
-                    stage.getOwner().getX()
-                            + Math.max(0, (stage.getOwner().getWidth() - 460) / 2));
+                    stage.getOwner().getX() + Math.max(0, (stage.getOwner().getWidth() - 460) / 2));
             stage.setY(stage.getOwner().getY() + 50);
         }
         stage.showAndWait();
