@@ -1,3 +1,17 @@
+# TaskFlow v1.1.3 — Legal Information Patch
+
+TaskFlow 1.1.3 is a maintenance patch focused on making the project's licensing information clearly visible inside the application.
+
+## Changes
+
+- Added a **More information** dialog accessible from the main window.
+- The dialog identifies the project as **GNU General Public License v3.0 only (GPL-3.0-only)**.
+- Added the copyright notice and explicit no-warranty notice.
+- Added a button linking to the official GNU GPL v3.0 terms.
+- Localized the legal information in all five supported application languages.
+
+There are no new task-management features, database schema changes, or data migrations in this release.
+
 # TaskFlow v1.1.2 — Dependency & Build Maintenance Release
 
 TaskFlow 1.1.2 is a maintenance release with no application behavior changes: no new features, no database schema changes, and no data migration. It refreshes the dependency and build toolchain to current stable releases and stays on the Java 21 / JavaFX 21 LTS lines.
