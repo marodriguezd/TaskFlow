@@ -22,7 +22,7 @@ A lightweight, cross-platform desktop task manager with Pomodoro-style timers, b
 - **History & restoration** — completed and deleted tasks are logged to a history with the ability to restore them
 - **Internationalization** — interface in 5 languages (English, Español, Deutsch, Italiano, 中文简体) with live switching, first-run OS language detection, and deterministic English fallback
 - **SQLite persistence** — all tasks, history, and preferences are stored locally in a SQLite database
-- **Theme switching** — light and dark themes
+- **Theme switching** — light and dark themes with Apple Liquid Glass styling and native window translucency
 - **Always-on-top mode** — toggleable window pinning
 - **Window geometry persistence** — window position and size are remembered between sessions
 - **Legacy data migration** — automatic one-time import of JSON data from previous versions
@@ -74,7 +74,8 @@ io.github.marodriguezd.taskflow
 │   ├── MainWindow
 │   ├── component/        # HeaderView, TaskCardView, ProgressBarView,
 │   │                     # EmptyStateView, Icons
-│   ├── dialog/           # AddTaskDialog, EditTaskDialog, HistoryDialog
+│   ├── dialog/           # AddTaskDialog, EditTaskDialog, HistoryDialog,
+│   │                     # AboutDialog
 │   ├── i18n/             # Messages, LocaleManager, Languages, PriorityLabels
 │   └── theme/            # ThemeManager, UIConstants
 └── util/                 # DateTimeUtil, TimeFormatter
@@ -132,7 +133,7 @@ TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/w
 
 ### Releases
 
-> **Latest: [TaskFlow v1.1.3](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.1.3)** — a maintenance patch that adds a visible “More information” dialog with the project license and legal notices, including the GNU GPL v3.0-only terms and official license link. It contains no new task-management behavior, database schema changes, or data migration. Native packages continue to bundle a Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`, portable), and macOS (`.dmg`, Apple Silicon), with SHA-256 checksums for verifying each download.
+> **Latest: [TaskFlow v1.2.0](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.0)** — introduces the Apple Liquid Glass design language with native window translucency, dynamic ambient mesh lighting, and continuous organic glass surfaces. Frameless windows and dialogs render without rectangular corner artifacts. Native packages continue to bundle a full Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`, portable), and macOS (`.dmg`, Apple Silicon), with SHA-256 checksums for verifying each download.
 
 Official releases are published automatically on the [GitHub Releases page](https://github.com/marodriguezd/TaskFlow/releases) when a `vMAJOR.MINOR.PATCH` tag is pushed (e.g. `v1.0.0`). The pipeline:
 
