@@ -158,15 +158,8 @@ jobs:
 
       - name: Prepare release notes
         run: |
-          {
-            head -n -1 RELEASE_NOTES.md
-            echo ""
-            echo "## Checksums"
-            echo ""
-            echo '```'
-            cat release-assets/checksums.txt
-            echo '```'
-          } > release-notes.md
+          python3 tools/extract_release_notes.py RELEASE_NOTES.md "${GITHUB_REF_NAME}" release-assets/checksums.txt > release-notes.md
+          cat release-notes.md
 
       - name: Create GitHub Release
         # softprops/action-gh-release v3.0.3
