@@ -42,7 +42,7 @@ public class HistoryDialog {
         stage = new Stage();
         stage.initOwner(owner);
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.initStyle(StageStyle.UNDECORATED);
+        stage.initStyle(StageStyle.TRANSPARENT);
 
         VBox card = new VBox(12);
         card.getStyleClass().add("dialog-card");
@@ -92,6 +92,7 @@ public class HistoryDialog {
         card.getChildren().addAll(header, scrollPane);
 
         Scene scene = new Scene(card);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
         themeManager.registerScene(scene);
 
         scene.setOnKeyPressed(

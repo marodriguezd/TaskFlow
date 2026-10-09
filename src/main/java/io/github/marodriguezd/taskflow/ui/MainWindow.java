@@ -107,7 +107,7 @@ public class MainWindow {
 
         boolean frameless = platformService.usesFramelessWindow();
         if (frameless) {
-            stage.initStyle(StageStyle.UNDECORATED);
+            stage.initStyle(StageStyle.TRANSPARENT);
         }
 
         stage.setTitle("TaskFlow");
@@ -175,6 +175,9 @@ public class MainWindow {
         root.getChildren().addAll(headerView, centerStack, footer);
 
         Scene scene = new Scene(root);
+        if (frameless) {
+            scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
+        }
         themeManager.registerScene(scene);
         stage.setScene(scene);
 

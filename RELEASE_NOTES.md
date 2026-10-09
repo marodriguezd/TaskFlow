@@ -1,3 +1,41 @@
+# TaskFlow v1.2.0 — Apple Liquid Glass Design Release
+
+TaskFlow 1.2.0 introduces the **Apple Liquid Glass** design language, bringing native window translucency, dynamic ambient mesh lighting, and continuous organic glass surfaces across the entire interface.
+
+## Highlights
+
+- **Native Window Translucency**: Frameless windows and modal dialogs render with true transparency (`StageStyle.TRANSPARENT`), eliminating rectangular corner artifacts and floating cleanly over the desktop.
+- **Apple Liquid Glass Material**:
+  - Translucent glass cards with 16px continuous rounded curvature, subtle specular refraction borders, and soft diffuse ambient shadows.
+  - Dynamic ambient mesh backdrop featuring violet and cyan radial light orbs that gently show through translucent surfaces.
+  - Action buttons redesigned with `.glassProminent` pill styling, top reflection highlights, and glowing hover states.
+  - Frosted glass progress bars with translucent white tracks.
+  - Refined modal dialogs (Add Task, Edit Task, History, About) with floating glass containers.
+- **Theme Polish**: Dark and Light themes updated to align with the new continuous glass curvature and specular highlights.
+- **Updated Visual Documentation**: Fresh high-resolution screenshots in the repository documentation reflecting the new Liquid Glass design.
+
+## Native packages with bundled Java
+
+Installers are produced with `jpackage` and **bundle a full Java 21 runtime**, so end users do **not** need to install Java.
+
+| Platform | Package | Notes |
+| --- | --- | --- |
+| Windows (x64) | `TaskFlow-1.2.0.msi` | MSI installer with Start Menu shortcut |
+| Linux (x86_64) | `TaskFlow-1.2.0-x86_64.AppImage` | AppImage with bundled Java runtime; requires a compatible Linux userspace and desktop/runtime libraries; no FUSE required (falls back to `--appimage-extract-and-run`) |
+| macOS (Apple Silicon) | `TaskFlow-1.2.0.dmg` | DMG image built on an ARM64 runner (not a universal binary) |
+
+Verify your download before installing:
+
+```bash
+sha256sum -c checksums.txt
+```
+
+## Upgrading from 1.1.3
+
+Just install the new package over the previous one — your data is untouched. The database schema is unchanged, all tasks, history, preferences, theme, language, and window geometry carry over, and no migration step is required.
+
+---
+
 # TaskFlow v1.1.3 — Legal Information Patch
 
 TaskFlow 1.1.3 is a maintenance patch focused on making the project's licensing information clearly visible inside the application.

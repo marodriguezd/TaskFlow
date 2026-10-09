@@ -1,84 +1,117 @@
-/* Dark theme for TaskFlow */
+/* Apple Liquid Glass Theme for TaskFlow */
 
 .root {
-    -fx-bg-base: #111114;
-    -fx-bg-surface: #1a1a1f;
-    -fx-bg-elevated: #222228;
-    -fx-border: #2e2e38;
-    -fx-border-light: #3e3e4e;
-    -fx-text-hi: #f0f0f8;
-    -fx-text-mid: #a0a0b8;
-    -fx-text-lo: #606078;
+    -fx-bg-base: transparent;
+    -fx-bg-surface: rgba(26, 32, 54, 0.45);
+    -fx-bg-elevated: rgba(32, 40, 68, 0.70);
+    -fx-border: rgba(255, 255, 255, 0.15);
+    -fx-border-light: rgba(255, 255, 255, 0.28);
+    -fx-text-hi: #ffffff;
+    -fx-text-mid: #b8c0dc;
+    -fx-text-lo: #7882a6;
     -fx-accent: #7c6af7;
     -fx-accent-lt: #a898ff;
-    -fx-accent-muted: rgba(124, 106, 247, 0.22);
-    -fx-card-hover: #212129;
+    -fx-accent-muted: rgba(124, 106, 247, 0.28);
+    -fx-card-hover: rgba(42, 52, 82, 0.55);
 
-    -fx-background-color: -fx-bg-base;
+    -fx-background-color: transparent;
 }
 
 .main-panel {
-    -fx-background-color: -fx-bg-base;
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        radial-gradient(focus-distance 0%, center 25% 15%, radius 65%, rgba(138, 115, 255, 0.24), transparent),
+        radial-gradient(focus-distance 0%, center 80% 85%, radius 60%, rgba(0, 210, 255, 0.18), transparent),
+        linear-gradient(to bottom, rgba(24, 28, 46, 0.78) 0%, rgba(14, 16, 28, 0.84) 100%);
+    -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(138, 115, 255, 0.22) 100%);
+    -fx-border-width: 1px;
+}
+
+.main-panel-frameless {
+    -fx-background-radius: 20px;
+    -fx-border-radius: 20px;
     -fx-border-width: 1px;
 }
 
 .header-bar {
-    -fx-background-color: -fx-bg-surface;
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.01) 100%),
+        rgba(20, 24, 40, 0.40);
+    -fx-border-color: rgba(255, 255, 255, 0.10);
     -fx-border-width: 0 0 1px 0;
 }
 
 .footer-bar {
-    -fx-background-color: -fx-bg-surface;
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        linear-gradient(to top, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%),
+        rgba(20, 24, 40, 0.40);
+    -fx-border-color: rgba(255, 255, 255, 0.08);
     -fx-border-width: 1px 0 0 0;
 }
 
 .badge-count {
-    -fx-background-color: -fx-bg-elevated;
-    -fx-border-color: -fx-border;
-    -fx-border-radius: 9px;
-    -fx-background-radius: 9px;
-    -fx-text-fill: -fx-text-mid;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 100%),
+        rgba(42, 50, 78, 0.50);
+    -fx-border-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.08) 100%);
+    -fx-border-radius: 12px;
+    -fx-background-radius: 12px;
+    -fx-text-fill: #ffffff;
     -fx-font-size: 11px;
-    -fx-padding: 2px 8px;
+    -fx-padding: 3px 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.20), 8, 0.08, 0, 2);
 }
 
 .task-card {
-    -fx-background-color: -fx-bg-surface;
-    -fx-border-color: -fx-border;
-    -fx-border-width: 1px 1px 1px 0;
-    -fx-border-radius: 0 10px 10px 0;
-    -fx-background-radius: 0 10px 10px 0;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 100%),
+        rgba(28, 34, 56, 0.48);
+    -fx-border-color:
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.07) 50%, rgba(140, 120, 255, 0.20) 100%);
+    -fx-border-width: 1px;
+    -fx-border-radius: 16px;
+    -fx-background-radius: 16px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.25), 14, 0.08, 0, 4);
 }
 
 .task-card:hover {
-    -fx-background-color: -fx-card-hover;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 100%),
+        rgba(38, 46, 76, 0.60);
+    -fx-border-color:
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.50) 0%, rgba(255, 255, 255, 0.12) 50%, rgba(168, 152, 255, 0.35) 100%);
+    -fx-effect: dropshadow(gaussian, rgba(124, 106, 247, 0.30), 18, 0.12, 0, 5);
 }
 
 .history-card {
-    -fx-background-color: -fx-bg-surface;
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%),
+        rgba(28, 34, 56, 0.48);
+    -fx-border-color:
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.30) 0%, rgba(255, 255, 255, 0.06) 100%);
     -fx-border-width: 1px;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
-    -fx-padding: 8px 10px;
+    -fx-border-radius: 14px;
+    -fx-background-radius: 14px;
+    -fx-padding: 10px 12px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.20), 10, 0.08, 0, 3);
 }
 
-/* Language picker popup (ContextMenu inherits the scene stylesheets at show time) */
+/* Language picker popup */
 .context-menu {
-    -fx-background-color: -fx-bg-elevated;
-    -fx-border-color: -fx-border-light;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.03) 100%),
+        rgba(22, 27, 46, 0.88);
+    -fx-border-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.08) 100%);
     -fx-border-width: 1px;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
-    -fx-padding: 4px;
+    -fx-border-radius: 14px;
+    -fx-background-radius: 14px;
+    -fx-padding: 6px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.45), 20, 0.15, 0, 8);
 }
 
 .menu-item {
     -fx-background-color: transparent;
-    -fx-background-radius: 5px;
+    -fx-background-radius: 8px;
+    -fx-padding: 6px 10px;
 }
 
 .menu-item .label {

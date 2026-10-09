@@ -99,7 +99,7 @@
 
 /* Priority colors match the palette exposed by Priority metadata. */
 .priority-sidebar {
-    -fx-background-radius: 4px 0 0 4px;
+    -fx-background-radius: 16px 0 0 16px;
 }
 
 .priority-sidebar.priority-high {
@@ -117,8 +117,10 @@
 .priority-pill {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
-    -fx-background-radius: 5px;
-    -fx-padding: 1px 6px;
+    -fx-background-radius: 10px;
+    -fx-border-radius: 10px;
+    -fx-border-width: 1px;
+    -fx-padding: 2px 8px;
     -fx-min-height: 18px;
 }
 
@@ -137,7 +139,9 @@
 .complete-button {
     -fx-font-size: 12px;
     -fx-font-weight: bold;
-    -fx-background-radius: 12px;
+    -fx-background-radius: 14px;
+    -fx-border-radius: 14px;
+    -fx-border-width: 1px;
     -fx-cursor: hand;
     -fx-padding: 0;
 }
@@ -145,6 +149,8 @@
 .play-button {
     -fx-font-weight: 900;
     -fx-background-radius: 18px;
+    -fx-border-radius: 18px;
+    -fx-border-width: 1px;
     -fx-cursor: hand;
     -fx-padding: 0 0 0 2px;
 }
@@ -159,43 +165,48 @@
 }
 
 .play-button-expired {
-    -fx-background-color: rgba(96, 96, 120, 0.2);
+    -fx-background-color: rgba(255, 255, 255, 0.08);
+    -fx-border-color: rgba(255, 255, 255, 0.15);
+    -fx-border-radius: 18px;
+    -fx-background-radius: 18px;
     -fx-text-fill: -fx-text-lo;
     -fx-font-size: 14px;
     -fx-font-weight: bold;
-    -fx-background-radius: 18px;
     -fx-cursor: hand;
 }
 
 .task-card-hover,
 .task-card-expired {
-    -fx-border-width: 1px 1px 1px 0;
-    -fx-border-radius: 0 10px 10px 0;
-    -fx-background-radius: 0 10px 10px 0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 16px;
+    -fx-background-radius: 16px;
 }
 
 .task-card-hover.priority-high {
-    -fx-border-color: #ff5e78;
+    -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.55) 0%, rgba(255, 94, 120, 0.40) 50%, rgba(255, 94, 120, 0.18) 100%);
+    -fx-effect: dropshadow(gaussian, rgba(255, 94, 120, 0.25), 16, 0.1, 0, 4);
 }
 
 .task-card-hover.priority-medium {
-    -fx-border-color: #ffb340;
+    -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.55) 0%, rgba(255, 179, 64, 0.40) 50%, rgba(255, 179, 64, 0.18) 100%);
+    -fx-effect: dropshadow(gaussian, rgba(255, 179, 64, 0.25), 16, 0.1, 0, 4);
 }
 
 .task-card-hover.priority-low {
-    -fx-border-color: #3ddc84;
+    -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.55) 0%, rgba(61, 220, 132, 0.40) 50%, rgba(61, 220, 132, 0.18) 100%);
+    -fx-effect: dropshadow(gaussian, rgba(61, 220, 132, 0.25), 16, 0.1, 0, 4);
 }
 
 .task-card-expired.priority-high {
-    -fx-border-color: derive(#ff5e78, 50%);
+    -fx-border-color: rgba(255, 94, 120, 0.25);
 }
 
 .task-card-expired.priority-medium {
-    -fx-border-color: derive(#ffb340, 50%);
+    -fx-border-color: rgba(255, 179, 64, 0.25);
 }
 
 .task-card-expired.priority-low {
-    -fx-border-color: derive(#3ddc84, 50%);
+    -fx-border-color: rgba(61, 220, 132, 0.25);
 }
 
 .priority-pill.priority-high,
@@ -208,7 +219,10 @@
 .priority-pill.priority-high,
 .complete-button.priority-high,
 .play-button.priority-high {
-    -fx-background-color: #2a0a0a;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.0) 100%),
+        rgba(255, 94, 120, 0.18);
+    -fx-border-color: rgba(255, 94, 120, 0.35);
 }
 
 .priority-pill.priority-medium,
@@ -221,7 +235,10 @@
 .priority-pill.priority-medium,
 .complete-button.priority-medium,
 .play-button.priority-medium {
-    -fx-background-color: #2a1a00;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.0) 100%),
+        rgba(255, 179, 64, 0.18);
+    -fx-border-color: rgba(255, 179, 64, 0.35);
 }
 
 .priority-pill.priority-low,
@@ -234,7 +251,10 @@
 .priority-pill.priority-low,
 .complete-button.priority-low,
 .play-button.priority-low {
-    -fx-background-color: #021a0c;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.0) 100%),
+        rgba(61, 220, 132, 0.18);
+    -fx-border-color: rgba(61, 220, 132, 0.35);
 }
 
 /* ScrollPane custom minimal scrollbar */
@@ -283,47 +303,59 @@
 /* Icon Buttons (Header actions) */
 .icon-button {
     -fx-background-color: transparent;
-    -fx-background-radius: 13px;
-    -fx-min-width: 26px;
-    -fx-min-height: 26px;
-    -fx-max-width: 26px;
-    -fx-max-height: 26px;
+    -fx-background-radius: 14px;
+    -fx-border-radius: 14px;
+    -fx-min-width: 28px;
+    -fx-min-height: 28px;
+    -fx-max-width: 28px;
+    -fx-max-height: 28px;
     -fx-alignment: center;
     -fx-cursor: hand;
     -fx-padding: 0;
 }
 
 .icon-button:hover {
-    -fx-background-color: -fx-accent-muted;
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-border-color: rgba(255, 255, 255, 0.20);
+    -fx-border-width: 1px;
 }
 
 .icon-button:selected {
     -fx-background-color: -fx-accent-muted;
+    -fx-border-color: rgba(168, 152, 255, 0.35);
+    -fx-border-width: 1px;
 }
 
 .close-button:hover {
-    -fx-background-color: rgba(255, 94, 120, 0.18);
+    -fx-background-color: rgba(255, 94, 120, 0.22);
+    -fx-border-color: rgba(255, 94, 120, 0.35);
+    -fx-border-width: 1px;
 }
 
 /* Card Action Buttons (Edit / Delete) */
 .card-action-button {
     -fx-background-color: transparent;
-    -fx-background-radius: 11px;
-    -fx-min-width: 22px;
-    -fx-min-height: 22px;
-    -fx-max-width: 22px;
-    -fx-max-height: 22px;
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-min-width: 24px;
+    -fx-min-height: 24px;
+    -fx-max-width: 24px;
+    -fx-max-height: 24px;
     -fx-alignment: center;
     -fx-cursor: hand;
     -fx-padding: 0;
 }
 
 .card-edit-button:hover {
-    -fx-background-color: -fx-accent-muted;
+    -fx-background-color: rgba(255, 255, 255, 0.12);
+    -fx-border-color: rgba(255, 255, 255, 0.22);
+    -fx-border-width: 1px;
 }
 
 .card-delete-button:hover {
-    -fx-background-color: rgba(255, 94, 120, 0.18);
+    -fx-background-color: rgba(255, 94, 120, 0.22);
+    -fx-border-color: rgba(255, 94, 120, 0.35);
+    -fx-border-width: 1px;
 }
 
 /* Vector SVG Icons */
@@ -348,24 +380,32 @@
     -fx-fill: -fx-accent-lt;
 }
 
-/* Action Button: Primary Add Task Button */
+/* Action Button: Primary Add Task Button (Apple .glassProminent style) */
 .btn-primary {
-    -fx-background-color: -fx-accent;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%),
+        linear-gradient(to bottom right, #8a78ff 0%, #6351e6 100%);
     -fx-text-fill: #ffffff;
     -fx-font-size: 13px;
     -fx-font-weight: bold;
-    -fx-background-radius: 10px;
-    -fx-pref-height: 38px;
+    -fx-border-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.50) 0%, rgba(255, 255, 255, 0.15) 100%);
+    -fx-border-radius: 20px;
+    -fx-background-radius: 20px;
+    -fx-pref-height: 40px;
     -fx-cursor: hand;
-    -fx-border-color: transparent;
+    -fx-effect: dropshadow(gaussian, rgba(124, 106, 247, 0.50), 16, 0.20, 0, 5);
 }
 
 .btn-primary:hover {
-    -fx-background-color: -fx-accent-lt;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.50) 0%, rgba(255, 255, 255, 0.10) 50%, transparent 100%),
+        linear-gradient(to bottom right, #9e8eff 0%, #7260f0 100%);
+    -fx-effect: dropshadow(gaussian, rgba(124, 106, 247, 0.70), 20, 0.28, 0, 6);
 }
 
 .btn-primary:pressed {
-    -fx-background-color: -fx-accent;
+    -fx-background-color: linear-gradient(to bottom right, #6351e6 0%, #5240d4 100%);
+    -fx-effect: dropshadow(gaussian, rgba(124, 106, 247, 0.25), 8, 0.1, 0, 2);
 }
 
 /* Text Inputs */
@@ -374,21 +414,22 @@
     -fx-text-fill: -fx-text-hi;
     -fx-prompt-text-fill: -fx-text-lo;
     -fx-border-color: -fx-border;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
-    -fx-padding: 7px 10px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-padding: 8px 12px;
 }
 
 .text-field:focused {
-    -fx-border-color: -fx-accent;
+    -fx-border-color: linear-gradient(to right, -fx-accent-lt, -fx-accent);
+    -fx-effect: dropshadow(gaussian, rgba(124, 106, 247, 0.30), 8, 0.1, 0, 2);
 }
 
 /* Spinner */
 .spinner {
     -fx-background-color: -fx-bg-surface;
     -fx-border-color: -fx-border;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
 }
 
 .spinner .text-field {
@@ -412,8 +453,8 @@
 .combo-box {
     -fx-background-color: -fx-bg-surface;
     -fx-border-color: -fx-border;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
     -fx-cursor: hand;
 }
 
@@ -426,8 +467,8 @@
 .combo-box-popup .list-view {
     -fx-background-color: -fx-bg-elevated;
     -fx-border-color: -fx-border-light;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
 }
 
 .combo-box-popup .list-cell:filled:hover {
@@ -442,27 +483,35 @@
 
 /* Dialog Backdrop & Cards */
 .dialog-card {
-    -fx-background-color: -fx-bg-elevated;
-    -fx-border-color: -fx-border-light;
+    -fx-background-color:
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.02) 100%),
+        -fx-bg-elevated;
+    -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(124, 106, 247, 0.20) 100%);
     -fx-border-width: 1px;
-    -fx-border-radius: 14px;
-    -fx-background-radius: 14px;
-    -fx-padding: 18px;
+    -fx-border-radius: 16px;
+    -fx-background-radius: 16px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.55), 24, 0.2, 0, 8);
 }
 
 .btn-secondary {
-    -fx-background-color: transparent;
+    -fx-background-color:
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%),
+        rgba(255, 255, 255, 0.04);
     -fx-text-fill: -fx-text-mid;
-    -fx-border-color: -fx-border;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
+    -fx-border-color: rgba(255, 255, 255, 0.12);
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
     -fx-padding: 7px 14px;
     -fx-cursor: hand;
 }
 
 .btn-secondary:hover {
+    -fx-background-color:
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.03) 100%),
+        rgba(255, 255, 255, 0.08);
     -fx-text-fill: -fx-text-hi;
-    -fx-border-color: -fx-border-light;
+    -fx-border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* About dialog */

@@ -32,7 +32,7 @@ public class ProgressBarView extends Pane {
         trackRect = new Rectangle();
         trackRect.setArcWidth(4.0);
         trackRect.setArcHeight(4.0);
-        trackRect.setFill(Color.web("#2e2e38", 0.5));
+        trackRect.setFill(Color.web("#ffffff", 0.12));
 
         fillRect = new Rectangle();
         fillRect.setArcWidth(4.0);

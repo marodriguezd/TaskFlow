@@ -31,7 +31,7 @@ public class AboutDialog {
         stage = new Stage();
         stage.initOwner(owner);
         stage.initModality(Modality.APPLICATION_MODAL);
-        stage.initStyle(StageStyle.UNDECORATED);
+        stage.initStyle(StageStyle.TRANSPARENT);
         stage.setTitle(Messages.get("about.title"));
 
         VBox card = new VBox(12);
@@ -97,6 +97,7 @@ public class AboutDialog {
                         actions);
 
         Scene scene = new Scene(card);
+        scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
         themeManager.registerScene(scene);
         scene.setOnKeyPressed(
                 event -> {

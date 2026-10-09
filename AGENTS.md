@@ -124,7 +124,7 @@ Workflows (`.github/workflows/`):
 ## 10. Versioning
 
 - `build.gradle.kts` `version = "..."` is the single source of the project version; the release tag must equal `v` + that value.
-- Current published version is `1.1.2` (dependency/build maintenance release; no behavior changes); `1.1.1` is historical, not a development target. Future development bumps `build.gradle.kts` for the next release and tags consistently (validator enforces the match). Published releases/tags must remain immutable.
+- Current published version is `1.2.0` (Apple Liquid Glass design release); earlier versions (`1.1.3`, `1.1.2`, `1.1.1`, `1.1.0`, `1.0.0`) are historical, not development targets. Published releases/tags must remain immutable.
 - Do not touch existing tags or the published release as part of unrelated work.
 
 ## 11. Packaging
