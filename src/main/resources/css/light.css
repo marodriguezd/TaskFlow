@@ -1,25 +1,28 @@
-/* Light theme for TaskFlow */
+/* Apple Liquid Glass Theme (Light) for TaskFlow */
 
 .root {
-    -fx-bg-base: #f4f7fc;
-    -fx-bg-surface: #ffffff;
-    -fx-bg-elevated: #f8fbff;
-    -fx-border: #d4deed;
-    -fx-border-light: #bfcee4;
+    -fx-bg-base: transparent;
+    -fx-bg-surface: rgba(255, 255, 255, 0.65);
+    -fx-bg-elevated: rgba(255, 255, 255, 0.88);
+    -fx-border: rgba(0, 0, 0, 0.09);
+    -fx-border-light: rgba(0, 0, 0, 0.16);
     -fx-text-hi: #132033;
     -fx-text-mid: #4f6382;
     -fx-text-lo: #7b8faa;
     -fx-accent: #2f7ef7;
     -fx-accent-lt: #5a9bff;
     -fx-accent-muted: rgba(47, 126, 247, 0.16);
-    -fx-card-hover: #eef2f8;
+    -fx-card-hover: rgba(255, 255, 255, 0.85);
 
-    -fx-background-color: -fx-bg-base;
+    -fx-background-color: transparent;
 }
 
 .main-panel {
-    -fx-background-color: -fx-bg-base;
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        radial-gradient(focus-distance 0%, center 25% 15%, radius 65%, rgba(138, 165, 255, 0.22), transparent),
+        radial-gradient(focus-distance 0%, center 80% 85%, radius 60%, rgba(120, 210, 255, 0.18), transparent),
+        linear-gradient(to bottom, rgba(245, 247, 252, 0.78) 0%, rgba(235, 240, 248, 0.84) 100%);
+    -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.40) 50%, rgba(160, 190, 235, 0.50) 100%);
     -fx-border-width: 1px;
 }
 
@@ -30,67 +33,96 @@
 }
 
 .header-bar {
-    -fx-background-color: rgba(255, 255, 255, 0.65);
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.50) 0%, rgba(255, 255, 255, 0.15) 100%),
+        rgba(255, 255, 255, 0.40);
+    -fx-border-color: rgba(0, 0, 0, 0.07);
     -fx-border-width: 0 0 1px 0;
 }
 
 .footer-bar {
-    -fx-background-color: rgba(255, 255, 255, 0.65);
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        linear-gradient(to top, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.12) 100%),
+        rgba(255, 255, 255, 0.40);
+    -fx-border-color: rgba(0, 0, 0, 0.07);
     -fx-border-width: 1px 0 0 0;
 }
 
 .badge-count {
-    -fx-background-color: rgba(235, 242, 252, 0.85);
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.20) 100%),
+        rgba(225, 235, 250, 0.60);
+    -fx-border-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(180, 205, 235, 0.50) 100%);
     -fx-border-radius: 12px;
     -fx-background-radius: 12px;
     -fx-text-fill: -fx-text-mid;
     -fx-font-size: 11px;
     -fx-padding: 3px 10px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 35, 75, 0.08), 8, 0.05, 0, 2);
 }
 
 .task-card {
     -fx-background-color:
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(246, 249, 255, 0.88) 100%);
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.38) 100%),
+        rgba(255, 255, 255, 0.45);
     -fx-border-color:
-        linear-gradient(to bottom right, rgba(255, 255, 255, 0.95) 0%, rgba(200, 215, 235, 0.65) 100%);
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.40) 50%, rgba(180, 205, 240, 0.50) 100%);
     -fx-border-width: 1px;
     -fx-border-radius: 16px;
     -fx-background-radius: 16px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 30, 80, 0.06), 10, 0.05, 0, 3);
+    -fx-effect: dropshadow(gaussian, rgba(15, 35, 75, 0.08), 12, 0.06, 0, 3);
 }
 
 .task-card:hover {
-    -fx-background-color: #ffffff;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.55) 100%),
+        rgba(255, 255, 255, 0.65);
     -fx-border-color:
-        linear-gradient(to bottom right, rgba(255, 255, 255, 1.0) 0%, rgba(160, 190, 235, 0.85) 100%);
-    -fx-effect: dropshadow(gaussian, rgba(47, 126, 247, 0.16), 14, 0.08, 0, 4);
+        linear-gradient(to bottom right, rgba(255, 255, 255, 1.0) 0%, rgba(160, 195, 245, 0.85) 100%);
+    -fx-effect: dropshadow(gaussian, rgba(47, 126, 247, 0.20), 16, 0.08, 0, 4);
 }
 
 .history-card {
-    -fx-background-color: rgba(255, 255, 255, 0.90);
-    -fx-border-color: -fx-border;
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.68) 0%, rgba(255, 255, 255, 0.32) 100%),
+        rgba(255, 255, 255, 0.45);
+    -fx-border-color:
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.90) 0%, rgba(190, 210, 235, 0.50) 100%);
     -fx-border-width: 1px;
     -fx-border-radius: 14px;
     -fx-background-radius: 14px;
     -fx-padding: 10px 12px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 35, 75, 0.06), 8, 0.05, 0, 2);
 }
 
-/* Language picker popup (ContextMenu inherits the scene stylesheets at show time) */
-.context-menu {
-    -fx-background-color: -fx-bg-elevated;
-    -fx-border-color: -fx-border-light;
+.dialog-card {
+    -fx-background-color:
+        radial-gradient(focus-distance 0%, center 25% 15%, radius 65%, rgba(138, 165, 255, 0.18), transparent),
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.92) 0%, rgba(240, 245, 252, 0.86) 100%);
+    -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.40) 50%, rgba(160, 190, 235, 0.50) 100%);
     -fx-border-width: 1px;
-    -fx-border-radius: 8px;
-    -fx-background-radius: 8px;
-    -fx-padding: 4px;
+    -fx-border-radius: 16px;
+    -fx-background-radius: 16px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 35, 75, 0.22), 24, 0.15, 0, 8);
+}
+
+/* Language picker popup */
+.context-menu {
+    -fx-background-color:
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.94) 0%, rgba(245, 248, 255, 0.88) 100%);
+    -fx-border-color: linear-gradient(to bottom, rgba(255, 255, 255, 0.95) 0%, rgba(190, 210, 235, 0.60) 100%);
+    -fx-border-width: 1px;
+    -fx-border-radius: 14px;
+    -fx-background-radius: 14px;
+    -fx-padding: 6px;
+    -fx-effect: dropshadow(gaussian, rgba(15, 35, 75, 0.16), 18, 0.10, 0, 6);
 }
 
 .menu-item {
     -fx-background-color: transparent;
-    -fx-background-radius: 5px;
+    -fx-background-radius: 8px;
+    -fx-padding: 6px 10px;
 }
 
 .menu-item .label {
