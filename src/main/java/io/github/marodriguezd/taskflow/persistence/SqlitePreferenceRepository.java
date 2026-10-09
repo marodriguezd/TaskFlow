@@ -43,7 +43,16 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
         // The repository never interprets the value — it stays bundle-free.
         String language = map.getOrDefault("language", "");
 
-        return new UserPreferences(theme, alwaysOnTop, soundEnabled, language);
+        double glassOpacity = UserPreferences.DEFAULT_GLASS_OPACITY;
+        if (map.containsKey("glass_opacity")) {
+            try {
+                glassOpacity = Double.parseDouble(map.get("glass_opacity"));
+            } catch (NumberFormatException e) {
+                log.warn("Failed to parse glass_opacity from database: {}", e.getMessage());
+            }
+        }
+
+        return new UserPreferences(theme, alwaysOnTop, soundEnabled, language, glassOpacity);
     }
 
     @Override
@@ -56,6 +65,8 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
                     savePreference(
                             conn, "sound_enabled", String.valueOf(preferences.soundEnabled()));
                     savePreference(conn, "language", preferences.language());
+                    savePreference(
+                            conn, "glass_opacity", String.valueOf(preferences.glassOpacity()));
                     return null;
                 });
     }

@@ -55,6 +55,7 @@ class MessagesBundleTest {
                     "about.title",
                     "about.app",
                     "about.description",
+                    "about.glass.opacity",
                     "about.license.label",
                     "about.license.value",
                     "about.copyright",

@@ -98,7 +98,7 @@
 .dialog-card {
     -fx-background-color:
         radial-gradient(focus-distance 0%, center 25% 15%, radius 65%, rgba(138, 165, 255, 0.18), transparent),
-        linear-gradient(to bottom right, rgba(255, 255, 255, 0.92) 0%, rgba(240, 245, 252, 0.86) 100%);
+        linear-gradient(to bottom right, rgba(255, 255, 255, 0.98) 0%, rgba(240, 245, 252, 0.98) 100%);
     -fx-border-color: linear-gradient(to bottom right, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.40) 50%, rgba(160, 190, 235, 0.50) 100%);
     -fx-border-width: 1px;
     -fx-border-radius: 16px;
@@ -139,4 +139,8 @@
 
 .context-menu .menu-item .check {
     -fx-mark-color: -fx-accent;
+}
+
+.opacity-slider .track {
+    -fx-background-color: rgba(0, 0, 0, 0.12);
 }

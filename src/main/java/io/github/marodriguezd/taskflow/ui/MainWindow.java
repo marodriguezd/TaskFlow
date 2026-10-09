@@ -2,6 +2,7 @@ package io.github.marodriguezd.taskflow.ui;
 
 import io.github.marodriguezd.taskflow.domain.HistoryItem;
 import io.github.marodriguezd.taskflow.domain.Task;
+import io.github.marodriguezd.taskflow.domain.ThemeMode;
 import io.github.marodriguezd.taskflow.domain.UserPreferences;
 import io.github.marodriguezd.taskflow.domain.WindowGeometry;
 import io.github.marodriguezd.taskflow.persistence.PreferenceRepository;
@@ -22,6 +23,7 @@ import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
 import io.github.marodriguezd.taskflow.ui.theme.UIConstants;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,6 +62,7 @@ public class MainWindow {
     private final LocaleManager localeManager;
 
     private UserPreferences preferences;
+    private final VBox root;
     private final HeaderView headerView;
     private final EmptyStateView emptyStateView;
     private final ScrollPane scrollPane;
@@ -121,11 +124,12 @@ public class MainWindow {
             stage.setMaxHeight(UIConstants.PANEL_MAX_HEIGHT);
         }
 
-        VBox root = new VBox();
+        root = new VBox();
         root.getStyleClass().add("main-panel");
         if (frameless) {
             root.getStyleClass().add("main-panel-frameless");
         }
+        applyGlassOpacity(preferences.glassOpacity());
 
         // 1. Header
         headerView =
@@ -320,7 +324,16 @@ public class MainWindow {
     }
 
     private void openAboutDialog() {
-        AboutDialog dialog = new AboutDialog(stage, themeManager);
+        AboutDialog dialog =
+                new AboutDialog(
+                        stage,
+                        themeManager,
+                        preferences.glassOpacity(),
+                        newOpacity -> {
+                            preferences = preferences.withGlassOpacity(newOpacity);
+                            preferenceRepository.savePreferences(preferences);
+                            applyGlassOpacity(newOpacity);
+                        });
         dialog.showAndWait();
     }
 
@@ -341,6 +354,34 @@ public class MainWindow {
         preferences = preferences.withTheme(themeManager.getCurrentTheme());
         preferenceRepository.savePreferences(preferences);
         headerView.updateThemeIcon(themeManager.getCurrentTheme());
+        applyGlassOpacity(preferences.glassOpacity());
+    }
+
+    private void applyGlassOpacity(double opacity) {
+        boolean isDark = themeManager.getCurrentTheme() == ThemeMode.DARK;
+        double alphaTop = Math.min(1.0, opacity);
+        double alphaBottom = Math.min(1.0, opacity + 0.06);
+        if (isDark) {
+            root.setStyle(
+                    String.format(
+                            Locale.ROOT,
+                            "-fx-background-color: "
+                                    + "radial-gradient(focus-distance 0%%, center 25%% 15%%, radius 65%%, rgba(138, 115, 255, 0.24), transparent), "
+                                    + "radial-gradient(focus-distance 0%%, center 80%% 85%%, radius 60%%, rgba(0, 210, 255, 0.18), transparent), "
+                                    + "linear-gradient(to bottom, rgba(24, 28, 46, %.3f) 0%%, rgba(14, 16, 28, %.3f) 100%%);",
+                            alphaTop,
+                            alphaBottom));
+        } else {
+            root.setStyle(
+                    String.format(
+                            Locale.ROOT,
+                            "-fx-background-color: "
+                                    + "radial-gradient(focus-distance 0%%, center 25%% 15%%, radius 65%%, rgba(138, 165, 255, 0.22), transparent), "
+                                    + "radial-gradient(focus-distance 0%%, center 80%% 85%%, radius 60%%, rgba(120, 210, 255, 0.18), transparent), "
+                                    + "linear-gradient(to bottom, rgba(245, 247, 252, %.3f) 0%%, rgba(235, 240, 248, %.3f) 100%%);",
+                            alphaTop,
+                            alphaBottom));
+        }
     }
 
     /** Shows the language picker anchored to the globe button. */

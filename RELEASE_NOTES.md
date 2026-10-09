@@ -1,3 +1,36 @@
+# TaskFlow v1.2.3 — Liquid Glass Intensity & Dialog Legibility Patch
+
+TaskFlow 1.2.3 adds an adjustable Liquid Glass intensity slider to fine-tune window translucency and makes modal dialog backgrounds 98% opaque, ensuring crisp text legibility over any desktop wallpaper.
+
+## Highlights
+
+- **Modal Dialog Legibility**: Increased modal dialog card background opacity to 98% in both Dark and Light themes. Text, copyright, and legal information remain sharp and perfectly readable even against complex, high-contrast desktop wallpapers.
+- **Liquid Glass Opacity Slider**: Added an interactive opacity slider (40% to 100%, default 80%) in the "More information" dialog. Dragging the slider dynamically adjusts window translucency in real time.
+- **Glass Opacity Persistence**: The selected opacity preference is saved to SQLite under the `glass_opacity` key and restored across application launches.
+- **Full Localization**: The new opacity slider label is localized across all five supported languages (English, Spanish, German, Italian, and Simplified Chinese).
+
+## Native packages with bundled Java
+
+Installers are produced with `jpackage` and **bundle a full Java 21 runtime**, so end users do **not** need to install Java.
+
+| Platform | Package | Notes |
+| --- | --- | --- |
+| Windows (x64) | `TaskFlow-1.2.3.msi` | MSI installer with Start Menu shortcut |
+| Linux (x86_64) | `TaskFlow-1.2.3-x86_64.AppImage` | AppImage with bundled Java runtime; requires a compatible Linux userspace and desktop/runtime libraries; no FUSE required (falls back to `--appimage-extract-and-run`) |
+| macOS (Apple Silicon) | `TaskFlow-1.2.3.dmg` | DMG image built on an ARM64 runner (not a universal binary) |
+
+Verify your download before installing:
+
+```bash
+sha256sum -c checksums.txt
+```
+
+## Upgrading from 1.2.2
+
+Just install the new package over the previous one — user data, SQLite database, tasks, preferences, and window geometry are preserved automatically.
+
+---
+
 # TaskFlow v1.2.2 — Light Theme Liquid Glass Transparency Patch
 
 TaskFlow 1.2.2 brings the Apple Liquid Glass translucent material and ambient lighting to the Light theme, ensuring full transparency across both Dark and Light modes on all platforms.

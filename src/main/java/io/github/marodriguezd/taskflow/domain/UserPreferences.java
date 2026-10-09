@@ -9,7 +9,16 @@ package io.github.marodriguezd.taskflow.domain;
  * plain {@link String} (not an enum) precisely so "unset" remains distinguishable from "en".
  */
 public record UserPreferences(
-        ThemeMode theme, boolean alwaysOnTop, boolean soundEnabled, String language) {
+        ThemeMode theme,
+        boolean alwaysOnTop,
+        boolean soundEnabled,
+        String language,
+        double glassOpacity) {
+
+    public static final double DEFAULT_GLASS_OPACITY = 0.80;
+    public static final double MIN_GLASS_OPACITY = 0.40;
+    public static final double MAX_GLASS_OPACITY = 1.00;
+
     public UserPreferences {
         if (theme == null) {
             theme = ThemeMode.DARK;
@@ -17,25 +26,38 @@ public record UserPreferences(
         if (language == null) {
             language = "";
         }
+        if (glassOpacity < MIN_GLASS_OPACITY || glassOpacity > MAX_GLASS_OPACITY) {
+            glassOpacity = DEFAULT_GLASS_OPACITY;
+        }
+    }
+
+    public UserPreferences(
+            ThemeMode theme, boolean alwaysOnTop, boolean soundEnabled, String language) {
+        this(theme, alwaysOnTop, soundEnabled, language, DEFAULT_GLASS_OPACITY);
     }
 
     public static UserPreferences defaults(boolean defaultAlwaysOnTop) {
-        return new UserPreferences(ThemeMode.DARK, defaultAlwaysOnTop, true, "");
+        return new UserPreferences(
+                ThemeMode.DARK, defaultAlwaysOnTop, true, "", DEFAULT_GLASS_OPACITY);
     }
 
     public UserPreferences withTheme(ThemeMode newTheme) {
-        return new UserPreferences(newTheme, alwaysOnTop, soundEnabled, language);
+        return new UserPreferences(newTheme, alwaysOnTop, soundEnabled, language, glassOpacity);
     }
 
     public UserPreferences withAlwaysOnTop(boolean newAlwaysOnTop) {
-        return new UserPreferences(theme, newAlwaysOnTop, soundEnabled, language);
+        return new UserPreferences(theme, newAlwaysOnTop, soundEnabled, language, glassOpacity);
     }
 
     public UserPreferences withSoundEnabled(boolean newSoundEnabled) {
-        return new UserPreferences(theme, alwaysOnTop, newSoundEnabled, language);
+        return new UserPreferences(theme, alwaysOnTop, newSoundEnabled, language, glassOpacity);
     }
 
     public UserPreferences withLanguage(String newLanguage) {
-        return new UserPreferences(theme, alwaysOnTop, soundEnabled, newLanguage);
+        return new UserPreferences(theme, alwaysOnTop, soundEnabled, newLanguage, glassOpacity);
+    }
+
+    public UserPreferences withGlassOpacity(double newGlassOpacity) {
+        return new UserPreferences(theme, alwaysOnTop, soundEnabled, language, newGlassOpacity);
     }
 }

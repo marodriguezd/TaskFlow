@@ -1,15 +1,18 @@
 package io.github.marodriguezd.taskflow.ui.dialog;
 
+import io.github.marodriguezd.taskflow.domain.UserPreferences;
 import io.github.marodriguezd.taskflow.ui.component.Icons;
 import io.github.marodriguezd.taskflow.ui.i18n.Messages;
 import io.github.marodriguezd.taskflow.ui.theme.ThemeManager;
 import java.awt.Desktop;
 import java.net.URI;
+import java.util.function.Consumer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -28,6 +31,14 @@ public class AboutDialog {
     private double dragOffsetY;
 
     public AboutDialog(Stage owner, ThemeManager themeManager) {
+        this(owner, themeManager, UserPreferences.DEFAULT_GLASS_OPACITY, null);
+    }
+
+    public AboutDialog(
+            Stage owner,
+            ThemeManager themeManager,
+            double currentGlassOpacity,
+            Consumer<Double> onOpacityChanged) {
         stage = new Stage();
         stage.initOwner(owner);
         stage.initModality(Modality.APPLICATION_MODAL);
@@ -60,6 +71,38 @@ public class AboutDialog {
         description.getStyleClass().add("about-text");
         description.setWrapText(true);
 
+        VBox opacityBox = new VBox(6);
+        Label opacityLabel = new Label(Messages.get("about.glass.opacity"));
+        opacityLabel.getStyleClass().add("about-label");
+
+        Slider opacitySlider =
+                new Slider(
+                        UserPreferences.MIN_GLASS_OPACITY * 100,
+                        UserPreferences.MAX_GLASS_OPACITY * 100,
+                        currentGlassOpacity * 100);
+        opacitySlider.getStyleClass().add("opacity-slider");
+        opacitySlider.setBlockIncrement(5);
+        HBox.setHgrow(opacitySlider, javafx.scene.layout.Priority.ALWAYS);
+
+        Label opacityValue = new Label(Math.round(opacitySlider.getValue()) + "%");
+        opacityValue.getStyleClass().add("about-text");
+        opacityValue.setMinWidth(42);
+
+        opacitySlider
+                .valueProperty()
+                .addListener(
+                        (obs, oldVal, newVal) -> {
+                            int percent = (int) Math.round(newVal.doubleValue());
+                            opacityValue.setText(percent + "%");
+                            if (onOpacityChanged != null) {
+                                onOpacityChanged.accept(newVal.doubleValue() / 100.0);
+                            }
+                        });
+
+        HBox opacityRow = new HBox(12, opacitySlider, opacityValue);
+        opacityRow.setAlignment(Pos.CENTER_LEFT);
+        opacityBox.getChildren().addAll(opacityLabel, opacityRow);
+
         Label licenseLabel = new Label(Messages.get("about.license.label"));
         licenseLabel.getStyleClass().add("about-label");
 
@@ -90,6 +133,7 @@ public class AboutDialog {
                         header,
                         appName,
                         description,
+                        opacityBox,
                         licenseLabel,
                         licenseValue,
                         copyright,

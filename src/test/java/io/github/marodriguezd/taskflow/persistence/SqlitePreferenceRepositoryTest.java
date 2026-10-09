@@ -62,6 +62,23 @@ class SqlitePreferenceRepositoryTest {
     }
 
     @Test
+    @DisplayName("Glass opacity preference persists and clamps within valid range")
+    void testSaveAndLoadGlassOpacity() {
+        UserPreferences initial = repository.loadPreferences(false);
+        assertThat(initial.glassOpacity()).isEqualTo(0.80);
+
+        repository.savePreferences(initial.withGlassOpacity(0.95));
+        assertThat(repository.loadPreferences(false).glassOpacity()).isEqualTo(0.95);
+
+        // Clamping check in domain record
+        UserPreferences low = new UserPreferences(ThemeMode.DARK, false, true, "", 0.10);
+        assertThat(low.glassOpacity()).isEqualTo(UserPreferences.DEFAULT_GLASS_OPACITY);
+
+        UserPreferences high = new UserPreferences(ThemeMode.DARK, false, true, "", 1.50);
+        assertThat(high.glassOpacity()).isEqualTo(UserPreferences.DEFAULT_GLASS_OPACITY);
+    }
+
+    @Test
     @DisplayName("Database read failures are not returned as default preferences")
     void propagatesPreferenceReadFailure() throws Exception {
         try (var connection = databaseManager.getConnection();
