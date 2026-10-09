@@ -60,9 +60,8 @@ public class PlatformService {
     }
 
     public boolean usesFramelessWindow() {
-        // Linux/Wayland floating panel uses frameless styling with custom drag header; Windows uses
-        // native snap-friendly window
-        return isLinux();
+        // Floating liquid glass panel uses frameless transparent styling with custom drag header
+        return true;
     }
 
     public Path getDataDirectory() {

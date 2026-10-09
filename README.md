@@ -133,7 +133,7 @@ TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/w
 
 ### Releases
 
-> **Latest: [TaskFlow v1.2.0](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.0)** — introduces the Apple Liquid Glass design language with native window translucency, dynamic ambient mesh lighting, and continuous organic glass surfaces. Frameless windows and dialogs render without rectangular corner artifacts. Native packages continue to bundle a full Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`, portable), and macOS (`.dmg`, Apple Silicon), with SHA-256 checksums for verifying each download.
+> **Latest: [TaskFlow v1.2.1](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.1)** — brings frameless window transparency to Windows, matching the Apple Liquid Glass rendering of Linux and macOS. Native packages bundle a full Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`), and macOS (`.dmg`, Apple Silicon), with SHA-256 checksums for verifying each download.
 
 Official releases are published automatically on the [GitHub Releases page](https://github.com/marodriguezd/TaskFlow/releases) when a `vMAJOR.MINOR.PATCH` tag is pushed (e.g. `v1.0.0`). The pipeline:
 

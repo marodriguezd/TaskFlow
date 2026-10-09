@@ -19,7 +19,7 @@ class PlatformServiceTest {
 
         if (platformService.isWindows()) {
             assertThat(platformService.getDefaultAlwaysOnTop()).isFalse();
-            assertThat(platformService.usesFramelessWindow()).isFalse();
+            assertThat(platformService.usesFramelessWindow()).isTrue();
         } else if (platformService.isLinux()) {
             assertThat(platformService.getDefaultAlwaysOnTop()).isTrue();
             assertThat(platformService.usesFramelessWindow()).isTrue();

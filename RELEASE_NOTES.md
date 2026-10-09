@@ -1,3 +1,33 @@
+# TaskFlow v1.2.1 — Windows Transparency Patch
+
+TaskFlow 1.2.1 brings true frameless window transparency to Windows, matching the Apple Liquid Glass rendering of Linux and macOS.
+
+## Highlights
+
+- **Windows Frameless Transparency**: Windows now renders in frameless `StageStyle.TRANSPARENT` mode, eliminating the opaque OS window frame and bringing the full Apple Liquid Glass translucent aesthetic, continuous rounded corners, and integrated draggable header to Windows users.
+
+## Native packages with bundled Java
+
+Installers are produced with `jpackage` and **bundle a full Java 21 runtime**, so end users do **not** need to install Java.
+
+| Platform | Package | Notes |
+| --- | --- | --- |
+| Windows (x64) | `TaskFlow-1.2.1.msi` | MSI installer with Start Menu shortcut |
+| Linux (x86_64) | `TaskFlow-1.2.1-x86_64.AppImage` | AppImage with bundled Java runtime; requires a compatible Linux userspace and desktop/runtime libraries; no FUSE required (falls back to `--appimage-extract-and-run`) |
+| macOS (Apple Silicon) | `TaskFlow-1.2.1.dmg` | DMG image built on an ARM64 runner (not a universal binary) |
+
+Verify your download before installing:
+
+```bash
+sha256sum -c checksums.txt
+```
+
+## Upgrading from 1.2.0
+
+Just install the new package over the previous one — user data, SQLite database, tasks, preferences, and window geometry are preserved automatically.
+
+---
+
 # TaskFlow v1.2.0 — Apple Liquid Glass Design Release
 
 TaskFlow 1.2.0 introduces the **Apple Liquid Glass** design language, bringing native window translucency, dynamic ambient mesh lighting, and continuous organic glass surfaces across the entire interface.
