@@ -119,7 +119,6 @@ public class AddTaskDialog {
         scene.setFill(javafx.scene.paint.Color.TRANSPARENT);
         themeManager.registerScene(scene);
 
-        // Keyboard shortcuts: Enter to submit, Esc to cancel
         scene.setOnKeyPressed(
                 event -> {
                     if (event.getCode() == KeyCode.ENTER) {
@@ -129,7 +128,6 @@ public class AddTaskDialog {
                     }
                 });
 
-        // Window drag handling
         card.setOnMousePressed(
                 e -> {
                     dragOffsetX = e.getSceneX();

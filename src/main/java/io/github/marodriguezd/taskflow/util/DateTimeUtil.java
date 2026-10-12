@@ -11,9 +11,7 @@ public final class DateTimeUtil {
     private static final DateTimeFormatter DISPLAY_FORMATTER =
             DateTimeFormatter.ofPattern("HH:mm  —  dd/MM/yy");
 
-    private DateTimeUtil() {
-        // Prevent instantiation
-    }
+    private DateTimeUtil() {}
 
     /**
      * Formats an Instant using the application's standard display format (matching legacy

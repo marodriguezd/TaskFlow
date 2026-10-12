@@ -45,18 +45,15 @@ public class TaskCardView extends HBox {
 
         Priority pri = task.priority();
 
-        // 1. Left priority color stripe (4px width)
         sideBar = new Region();
         sideBar.setMinWidth(4.0);
         sideBar.setMaxWidth(4.0);
         sideBar.getStyleClass().addAll("priority-sidebar", "priority-" + pri.name().toLowerCase());
 
-        // 2. Inner card container
         VBox inner = new VBox(6);
         inner.setPadding(new Insets(10, 12, 10, 12));
         HBox.setHgrow(inner, javafx.scene.layout.Priority.ALWAYS);
 
-        // Row 1: Name + Priority Pill + Edit + Delete
         HBox row1 = new HBox(6);
         row1.setAlignment(Pos.CENTER_LEFT);
 
@@ -99,7 +96,6 @@ public class TaskCardView extends HBox {
 
         row1.getChildren().addAll(nameLabel, pillLabel, editButton, deleteButton);
 
-        // Row 2: Timer + Mark Done + Play/Pause Button
         HBox row2 = new HBox(8);
         row2.setAlignment(Pos.CENTER_LEFT);
 
@@ -140,7 +136,6 @@ public class TaskCardView extends HBox {
 
         row2.getChildren().addAll(timerLabel, doneButton, playButton);
 
-        // Row 3: Progress Bar
         progressBar =
                 new ProgressBarView(
                         task.totalSeconds(), task.remainingSeconds(), pri.getHexColor());

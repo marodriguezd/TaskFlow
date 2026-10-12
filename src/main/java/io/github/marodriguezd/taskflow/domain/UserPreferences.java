@@ -1,7 +1,7 @@
 package io.github.marodriguezd.taskflow.domain;
 
 /**
- * User preferences settings record.
+ * User preferences record.
  *
  * <p>{@code language} is the persisted UI language as a locale-independent BCP 47 tag ({@code en},
  * {@code es}, {@code de}, {@code it}, {@code zh-Hans}). Blank means "never chosen" and triggers

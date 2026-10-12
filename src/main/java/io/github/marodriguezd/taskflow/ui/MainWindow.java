@@ -79,7 +79,6 @@ public class MainWindow {
     private ScheduledFuture<?> pendingGeometrySave;
     private long geometrySaveGeneration;
 
-    // Frameless resize state
     private boolean isResizing = false;
     private int resizeMode = 0; // bitmask: 1=left, 2=right, 4=top, 8=bottom
     private double resizeStartScreenX;
@@ -116,7 +115,6 @@ public class MainWindow {
         stage.setTitle("TaskFlow");
         stage.setAlwaysOnTop(preferences.alwaysOnTop());
 
-        // Configure min/max constraints
         stage.setMinWidth(UIConstants.PANEL_MIN_WIDTH);
         stage.setMinHeight(UIConstants.PANEL_MIN_HEIGHT);
         if (!platformService.isWindows()) {
@@ -131,7 +129,6 @@ public class MainWindow {
         }
         applyGlassOpacity(preferences.glassOpacity());
 
-        // 1. Header
         headerView =
                 new HeaderView(stage, frameless, preferences.theme(), preferences.alwaysOnTop());
         headerView.getPinButton().setOnAction(e -> toggleAlwaysOnTop());
@@ -143,7 +140,6 @@ public class MainWindow {
             headerView.getCloseButton().setOnAction(e -> closeApplication());
         }
 
-        // 2. Center: StackPane with Task List and Empty State
         StackPane centerStack = new StackPane();
         VBox.setVgrow(centerStack, javafx.scene.layout.Priority.ALWAYS);
 
@@ -159,7 +155,6 @@ public class MainWindow {
 
         centerStack.getChildren().addAll(emptyStateView, scrollPane);
 
-        // 3. Footer
         HBox footer = new HBox();
         footer.setAlignment(Pos.CENTER);
         footer.setPadding(new Insets(10, 12, 10, 12));
@@ -185,12 +180,10 @@ public class MainWindow {
         themeManager.registerScene(scene);
         stage.setScene(scene);
 
-        // Timer event wiring
         timerService.addTickListener(this::onTimerTick);
         timerService.addRunningStateListener(this::onTimerRunningChanged);
         timerService.addCompletionListener(this::onTimerCompleted);
 
-        // Geometry & close handling
         restoreWindowGeometry();
         setupGeometryPersistence();
 
@@ -562,19 +555,19 @@ public class MainWindow {
                     double dx = e.getScreenX() - resizeStartScreenX;
                     double dy = e.getScreenY() - resizeStartScreenY;
 
-                    if ((resizeMode & 2) != 0) { // Right
+                    if ((resizeMode & 2) != 0) {
                         stage.setWidth(
                                 Math.max(UIConstants.PANEL_MIN_WIDTH, resizeStartWidth + dx));
-                    } else if ((resizeMode & 1) != 0) { // Left
+                    } else if ((resizeMode & 1) != 0) {
                         double newW = Math.max(UIConstants.PANEL_MIN_WIDTH, resizeStartWidth - dx);
                         stage.setWidth(newW);
                         stage.setX(resizeStartX + (resizeStartWidth - newW));
                     }
 
-                    if ((resizeMode & 8) != 0) { // Bottom
+                    if ((resizeMode & 8) != 0) {
                         stage.setHeight(
                                 Math.max(UIConstants.PANEL_MIN_HEIGHT, resizeStartHeight + dy));
-                    } else if ((resizeMode & 4) != 0) { // Top
+                    } else if ((resizeMode & 4) != 0) {
                         double newH =
                                 Math.max(UIConstants.PANEL_MIN_HEIGHT, resizeStartHeight - dy);
                         stage.setHeight(newH);

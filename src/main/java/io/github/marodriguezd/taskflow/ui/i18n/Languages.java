@@ -30,9 +30,7 @@ public final class Languages {
 
     private static final Map<String, String> NATIVE_NAMES = buildNativeNames();
 
-    private Languages() {
-        // Prevent instantiation
-    }
+    private Languages() {}
 
     private static Map<String, String> buildNativeNames() {
         Map<String, String> names = new LinkedHashMap<>();

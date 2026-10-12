@@ -70,7 +70,6 @@ class SqlitePreferenceRepositoryTest {
         repository.savePreferences(initial.withGlassOpacity(0.95));
         assertThat(repository.loadPreferences(false).glassOpacity()).isEqualTo(0.95);
 
-        // Clamping check in domain record
         UserPreferences low = new UserPreferences(ThemeMode.DARK, false, true, "", 0.10);
         assertThat(low.glassOpacity()).isEqualTo(UserPreferences.DEFAULT_GLASS_OPACITY);
 

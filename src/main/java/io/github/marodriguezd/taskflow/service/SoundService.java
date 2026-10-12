@@ -136,7 +136,7 @@ public class SoundService {
         try {
             java.awt.Toolkit.getDefaultToolkit().beep();
         } catch (Throwable ignored) {
-            // In headless CI or minimal linux, beep might not be available
+            // In headless CI or minimal Linux, beep might not be available
         }
     }
 }

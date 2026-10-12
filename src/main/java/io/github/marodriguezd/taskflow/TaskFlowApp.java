@@ -36,18 +36,15 @@ public class TaskFlowApp extends Application {
         log.info("Starting TaskFlow Application (Java 21 / JavaFX)...");
 
         try {
-            // 1. Core infrastructure
             PlatformService platformService = new PlatformService();
             databaseManager = new DatabaseManager(platformService.getDatabasePath());
 
-            // 2. Repositories
             SqliteTaskRepository taskRepository = new SqliteTaskRepository(databaseManager);
             SqliteHistoryRepository historyRepository =
                     new SqliteHistoryRepository(databaseManager);
             PreferenceRepository preferenceRepository =
                     new SqlitePreferenceRepository(databaseManager);
 
-            // 3. Migrate legacy JSON data if present
             LegacyDataMigrator migrator =
                     new LegacyDataMigrator(
                             platformService.getDataDirectory(),
@@ -59,7 +56,6 @@ public class TaskFlowApp extends Application {
             UserPreferences preferences =
                     preferenceRepository.loadPreferences(platformService.getDefaultAlwaysOnTop());
 
-            // 4. Domain & UI services
             timerService = new TimerService();
             SoundService soundService = new SoundService(platformService);
             soundService.setSoundEnabled(preferences.soundEnabled());
@@ -77,10 +73,8 @@ public class TaskFlowApp extends Application {
             LocaleManager localeManager = new LocaleManager(resolvedLanguage);
             ThemeManager themeManager = new ThemeManager(preferences.theme());
 
-            // 5. Load application icon
             loadApplicationIcon(primaryStage);
 
-            // 6. Build and show main window
             MainWindow mainWindow =
                     new MainWindow(
                             primaryStage,

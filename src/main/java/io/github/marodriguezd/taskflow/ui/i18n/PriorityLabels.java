@@ -13,9 +13,7 @@ import java.util.Locale;
  */
 public final class PriorityLabels {
 
-    private PriorityLabels() {
-        // Prevent instantiation
-    }
+    private PriorityLabels() {}
 
     /** Returns the i18n key for a priority, e.g. {@code priority.high}. */
     public static String key(Priority priority) {

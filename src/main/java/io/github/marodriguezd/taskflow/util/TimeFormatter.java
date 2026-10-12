@@ -5,9 +5,7 @@ import java.util.Locale;
 /** Utility class for formatting duration in seconds to standard clock displays. */
 public final class TimeFormatter {
 
-    private TimeFormatter() {
-        // Prevent instantiation
-    }
+    private TimeFormatter() {}
 
     /**
      * Formats seconds into MM:SS display string. E.g. 1500 -> "25:00", 65 -> "01:05", 0 -> "00:00".

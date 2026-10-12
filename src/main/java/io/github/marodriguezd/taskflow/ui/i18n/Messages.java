@@ -55,9 +55,7 @@ public final class Messages {
     private static volatile Locale currentLocale = Locale.ENGLISH;
     private static volatile ResourceBundle bundle = load(Locale.ENGLISH);
 
-    private Messages() {
-        // Prevent instantiation
-    }
+    private Messages() {}
 
     /** Switches the active locale, reloading the bundle. {@code null} falls back to English. */
     public static synchronized void setLocale(Locale locale) {

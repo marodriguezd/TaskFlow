@@ -50,7 +50,6 @@ public class TaskService {
         this.soundService = Objects.requireNonNull(soundService);
         this.timerPersistenceExecutor = Objects.requireNonNull(timerPersistenceExecutor);
 
-        // Listen for automatic timer completions
         this.timerService.addCompletionListener(this::handleTimerCompletion);
         this.timerService.addTickListener(this::handleTimerTick);
     }

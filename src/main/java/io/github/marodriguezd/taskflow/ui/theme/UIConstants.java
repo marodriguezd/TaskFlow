@@ -13,7 +13,5 @@ public final class UIConstants {
 
     public static final int RESIZE_MARGIN = 8;
 
-    private UIConstants() {
-        // Prevent instantiation
-    }
+    private UIConstants() {}
 }

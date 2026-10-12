@@ -8,9 +8,7 @@ import java.util.Locale;
  */
 public final class TaskFlowLauncher {
 
-    private TaskFlowLauncher() {
-        // Prevent instantiation
-    }
+    private TaskFlowLauncher() {}
 
     public static void main(String[] args) {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);

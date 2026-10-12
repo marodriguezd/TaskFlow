@@ -49,7 +49,6 @@ public class HistoryDialog {
         card.setPadding(new Insets(16, 18, 16, 18));
         card.setPrefSize(420, 420);
 
-        // Header
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
 
@@ -66,7 +65,6 @@ public class HistoryDialog {
 
         header.getChildren().addAll(title, spacer, closeBtn);
 
-        // Scroll Area
         ScrollPane scrollPane = new ScrollPane();
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
