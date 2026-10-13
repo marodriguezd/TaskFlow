@@ -86,9 +86,9 @@ public final class Languages {
 
     /**
      * Detects the UI language from the JVM default (OS) locale on first run. Any locale that is not
-     * one of the six supported languages — including Portuguese — resolves to English.
-     * For Chinese, only Simplified is shipped: Traditional script variants (TW/HK/MO) fall back to
-     * English rather than receiving Simplified text.
+     * one of the six supported languages — including Portuguese — resolves to English. For Chinese,
+     * only Simplified is shipped: Traditional script variants (TW/HK/MO) fall back to English
+     * rather than receiving Simplified text.
      */
     public static String systemDefaultCode() {
         Locale system = Locale.getDefault();

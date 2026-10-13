@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test;
  *
  * <ul>
  *   <li>Bundle files on disk ↔ {@link Languages#SUPPORTED} are in one-to-one correspondence — a
- *       stray {@code messages_pt.properties}, or a seventh
- *       supported tag without a file, fails this suite.
+ *       stray {@code messages_pt.properties}, or a seventh supported tag without a file, fails this
+ *       suite.
  *   <li>Every locale exposes exactly the base key set (nothing missing, nothing extra).
  *   <li>MessageFormat placeholder sets match per key across locales.
  *   <li>Representative translated values are genuinely non-English.
