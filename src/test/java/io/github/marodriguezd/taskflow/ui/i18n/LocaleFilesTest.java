@@ -23,11 +23,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Enforces the "exactly five languages" contract and translation completeness:
+ * Enforces the "exactly six languages" contract and translation completeness:
  *
  * <ul>
  *   <li>Bundle files on disk ↔ {@link Languages#SUPPORTED} are in one-to-one correspondence — a
- *       stray {@code messages_fr.properties} or {@code messages_pt.properties}, or a sixth
+ *       stray {@code messages_pt.properties}, or a seventh
  *       supported tag without a file, fails this suite.
  *   <li>Every locale exposes exactly the base key set (nothing missing, nothing extra).
  *   <li>MessageFormat placeholder sets match per key across locales.
@@ -48,6 +48,7 @@ class LocaleFilesTest {
                     "messages.properties",
                     "messages_es.properties",
                     "messages_de.properties",
+                    "messages_fr.properties",
                     "messages_it.properties",
                     "messages_zh_Hans.properties");
 
@@ -101,7 +102,7 @@ class LocaleFilesTest {
     }
 
     @Test
-    @DisplayName("Exactly 5 bundle files exist on disk — no French, no Portuguese, no extras")
+    @DisplayName("Exactly 6 bundle files exist on disk — no Portuguese, no extras")
     void testBundleFileBijection() throws IOException, URISyntaxException {
         URL i18nDir = getClass().getResource("/i18n");
         assertThat(i18nDir).as("i18n resource directory").isNotNull();
@@ -114,11 +115,11 @@ class LocaleFilesTest {
                     .forEach(found::add);
         }
         assertThat(found)
-                .as("bundle files on disk (exactly 5 supported languages)")
+                .as("bundle files on disk (exactly 6 supported languages)")
                 .containsExactlyInAnyOrderElementsOf(ALLOWED_BUNDLE_FILES)
-                .hasSize(5);
-        // Explicit contract statements (also fail if someone adds fr/pt alongside a rename)
-        assertThat(found).doesNotContain("messages_fr.properties", "messages_pt.properties");
+                .hasSize(6);
+        // Explicit contract statements (also fail if someone adds pt alongside a rename)
+        assertThat(found).doesNotContain("messages_pt.properties");
     }
 
     @Test
@@ -171,6 +172,11 @@ class LocaleFilesTest {
         assertThat(de.getString("history.restore")).isEqualTo("Wiederherstellen");
         assertThat(de.getString("header.tasks.other")).isEqualTo("{0} Aufgaben");
 
+        ResourceBundle fr = localeBundle(Languages.FR);
+        assertThat(fr.getString("dialog.cancel")).isEqualTo("Annuler");
+        assertThat(fr.getString("priority.high")).isEqualTo("Haute");
+        assertThat(fr.getString("empty.title")).isEqualTo("Aucune tâche pour le moment");
+
         ResourceBundle it = localeBundle(Languages.IT);
         assertThat(it.getString("dialog.cancel")).isEqualTo("Annulla");
         assertThat(it.getString("empty.title")).isEqualTo("Nessuna attività ancora");
@@ -201,9 +207,9 @@ class LocaleFilesTest {
     }
 
     @Test
-    @DisplayName("Locales without any bundle file (fr, pt, ja) resolve to the English base")
+    @DisplayName("Locales without any bundle file (pt, ja) resolve to the English base")
     void testUnsupportedLocaleResolvesToEnglishBase() {
-        for (String tag : new String[] {"fr", "pt", "ja"}) {
+        for (String tag : new String[] {"pt", "ja"}) {
             ResourceBundle bundle = localeBundle(tag);
             // No messages_fr/pt/ja file exists -> the base bundle (English) is returned.
             // The base bundle reports no locale (null on some JDKs, Locale.ROOT on others).

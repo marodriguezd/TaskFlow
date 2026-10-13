@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/generated/taskflow-128.png" alt="TaskFlow logo" height="96" />
+</div>
+
 # TaskFlow
 
 A lightweight, cross-platform desktop task manager with Pomodoro-style timers, built with Java 21 and JavaFX. Tasks are persisted locally in SQLite, and the application ships as a native package with a bundled Java runtime — no Java installation required for end users.
@@ -5,6 +9,8 @@ A lightweight, cross-platform desktop task manager with Pomodoro-style timers, b
 [![CI](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/marodriguezd/TaskFlow/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/marodriguezd/TaskFlow)](https://github.com/marodriguezd/TaskFlow/releases/latest)
 [![License: GPL-3.0-only](https://img.shields.io/badge/License-GPL--3.0--only-blue.svg)](LICENSE)
+
+English · [Español](README_es.md) · [Deutsch](README_de.md) · [Français](README_fr.md) · [Italiano](README_it.md) · [中文](README_zh.md)
 
 ## Screenshots
 
@@ -133,6 +139,7 @@ TaskFlow runs on Windows, Linux, and macOS. GitHub Actions workflows (`.github/w
 
 ### Releases
 
+> [!NOTE]
 > **Latest: [TaskFlow v1.2.3](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.3)** — adds an adjustable Liquid Glass intensity slider to fine-tune window translucency and makes modal dialog backgrounds 98% opaque for maximum legibility. Native packages bundle a full Java 21 runtime for Windows (`.msi`), Linux (`.AppImage`), and macOS (`.dmg`, Apple Silicon), with SHA-256 checksums for verifying each download.
 
 Official releases are published automatically on the [GitHub Releases page](https://github.com/marodriguezd/TaskFlow/releases) when a `vMAJOR.MINOR.PATCH` tag is pushed (e.g. `v1.0.0`). The pipeline:
@@ -194,9 +201,3 @@ Legacy files are looked up in the data directory and in the home directory root 
 ## Repository administration
 
 Recommended `main` branch protection, including required CI checks and signed-commit considerations, is documented in [docs/REPOSITORY_HARDENING.md](docs/REPOSITORY_HARDENING.md). Branch rules require GitHub repository administration and are not configured by source files.
-
-## License
-
-License: GNU General Public License v3.0 only (GPL-3.0-only)
-
-See [LICENSE](LICENSE) for the full license text.

@@ -76,7 +76,10 @@ class LocaleManagerTest {
         LocaleManager manager = new LocaleManager("en");
         manager.addLocaleChangeListener(received::add);
 
-        assertThat(manager.setLocale("fr")).isFalse();
+        assertThat(manager.setLocale("fr")).isTrue();
+        // reset to en for the rejection checks below
+        assertThat(manager.setLocale("en")).isTrue();
+        received.clear();
         assertThat(manager.setLocale("pt")).isFalse();
         assertThat(manager.setLocale("pt-BR")).isFalse();
         assertThat(manager.setLocale("zh")).isFalse();
@@ -99,7 +102,7 @@ class LocaleManagerTest {
     }
 
     @Test
-    @DisplayName("Full first-run flow: resolve OS locale, construct, switch, all five languages")
+    @DisplayName("Full first-run flow: resolve OS locale, construct, switch, all six languages")
     void testFirstRunResolutionAndAllLanguages() {
         // Simulated composition root: blank persisted value -> OS detection -> LocaleManager
         Locale original = Locale.getDefault();

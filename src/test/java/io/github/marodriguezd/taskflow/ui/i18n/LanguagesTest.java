@@ -27,20 +27,19 @@ class LanguagesTest {
     }
 
     @Test
-    @DisplayName("Exactly five supported languages: en, es, de, it, zh-Hans")
+    @DisplayName("Exactly six supported languages: en, es, de, fr, it, zh-Hans")
     void testExactlyFiveSupportedLanguages() {
         assertThat(Languages.SUPPORTED)
-                .containsExactly("en", "es", "de", "it", "zh-Hans")
-                .hasSize(5);
+                .containsExactly("en", "es", "de", "fr", "it", "zh-Hans")
+                .hasSize(6);
     }
 
     @Test
-    @DisplayName("French and Portuguese are not supported")
+    @DisplayName("Portuguese is not supported (French is supported since 1.2)")
     void testFrenchAndPortugueseExcluded() {
-        assertThat(Languages.SUPPORTED).doesNotContain("fr", "pt");
-        assertThat(Languages.isSupported("fr")).isFalse();
+        assertThat(Languages.SUPPORTED).doesNotContain("pt");
+        assertThat(Languages.isSupported("fr")).isTrue();
         assertThat(Languages.isSupported("pt")).isFalse();
-        assertThat(Languages.isSupported("fr-FR")).isFalse();
         assertThat(Languages.isSupported("pt-BR")).isFalse();
     }
 
@@ -56,6 +55,7 @@ class LanguagesTest {
         assertThat(Languages.nativeName("en")).isEqualTo("English");
         assertThat(Languages.nativeName("es")).isEqualTo("Español");
         assertThat(Languages.nativeName("de")).isEqualTo("Deutsch");
+        assertThat(Languages.nativeName("fr")).isEqualTo("Français");
         assertThat(Languages.nativeName("it")).isEqualTo("Italiano");
         assertThat(Languages.nativeName("zh-Hans")).isEqualTo("中文（简体）");
         // Unknown/null tags never render blank
@@ -64,11 +64,12 @@ class LanguagesTest {
     }
 
     @Test
-    @DisplayName("isSupported accepts only the five canonical tags")
+    @DisplayName("isSupported accepts only the six canonical tags")
     void testIsSupported() {
         assertThat(Languages.isSupported("en")).isTrue();
         assertThat(Languages.isSupported("es")).isTrue();
         assertThat(Languages.isSupported("de")).isTrue();
+        assertThat(Languages.isSupported("fr")).isTrue();
         assertThat(Languages.isSupported("it")).isTrue();
         assertThat(Languages.isSupported("zh-Hans")).isTrue();
         assertThat(Languages.isSupported(" zh-Hans ")).isTrue();
@@ -83,9 +84,9 @@ class LanguagesTest {
     @DisplayName("resolveStored keeps supported values, detects first run, falls back to English")
     void testResolveStored() {
         assertThat(Languages.resolveStored("de")).isEqualTo("de");
+        assertThat(Languages.resolveStored("fr")).isEqualTo("fr");
         assertThat(Languages.resolveStored("zh-Hans")).isEqualTo("zh-Hans");
         assertThat(Languages.resolveStored(" unknown ")).isEqualTo("en");
-        assertThat(Languages.resolveStored("fr")).isEqualTo("en");
         assertThat(Languages.resolveStored("pt")).isEqualTo("en");
 
         // Blank (first run) resolves from the OS locale
@@ -95,7 +96,7 @@ class LanguagesTest {
         assertThat(Languages.resolveStored("   ")).isEqualTo("it");
 
         Locale.setDefault(Locale.forLanguageTag("fr-FR"));
-        assertThat(Languages.resolveStored("")).isEqualTo("en");
+        assertThat(Languages.resolveStored("")).isEqualTo("fr");
     }
 
     @Test
@@ -107,6 +108,8 @@ class LanguagesTest {
         assertThat(Languages.systemDefaultCode()).isEqualTo("es");
         Locale.setDefault(Locale.forLanguageTag("de-AT"));
         assertThat(Languages.systemDefaultCode()).isEqualTo("de");
+        Locale.setDefault(Locale.forLanguageTag("fr-FR"));
+        assertThat(Languages.systemDefaultCode()).isEqualTo("fr");
         Locale.setDefault(Locale.forLanguageTag("it-CH"));
         assertThat(Languages.systemDefaultCode()).isEqualTo("it");
 
@@ -122,9 +125,7 @@ class LanguagesTest {
         Locale.setDefault(Locale.forLanguageTag("zh-TW"));
         assertThat(Languages.systemDefaultCode()).isEqualTo("en");
 
-        // Unsupported languages, including French and Portuguese, detect as English
-        Locale.setDefault(Locale.forLanguageTag("fr-FR"));
-        assertThat(Languages.systemDefaultCode()).isEqualTo("en");
+        // Unsupported languages, including Portuguese, detect as English
         Locale.setDefault(Locale.forLanguageTag("pt-BR"));
         assertThat(Languages.systemDefaultCode()).isEqualTo("en");
         Locale.setDefault(Locale.forLanguageTag("pl-PL"));

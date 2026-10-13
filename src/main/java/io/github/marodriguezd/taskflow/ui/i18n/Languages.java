@@ -8,8 +8,8 @@ import java.util.Map;
 /**
  * Registry of the supported UI languages and system-locale detection for first run.
  *
- * <p>TaskFlow supports EXACTLY five languages, identified by BCP 47 tags: {@code en}, {@code es},
- * {@code de}, {@code it}, {@code zh-Hans}. French and Portuguese are deliberately not supported.
+ * <p>TaskFlow supports EXACTLY six languages, identified by BCP 47 tags: {@code en}, {@code es},
+ * {@code de}, {@code fr}, {@code it}, {@code zh-Hans}. Portuguese is deliberately not supported.
  * The set is pinned by {@code LanguagesTest}; adding a language means adding a tag here, a native
  * name, and a {@code messages_<tag>.properties} bundle — no architectural change.
  *
@@ -22,11 +22,12 @@ public final class Languages {
     public static final String EN = "en";
     public static final String ES = "es";
     public static final String DE = "de";
+    public static final String FR = "fr";
     public static final String IT = "it";
     public static final String ZH_HANS = "zh-Hans";
 
-    /** Exactly five supported languages, in menu display order. */
-    public static final List<String> SUPPORTED = List.of(EN, ES, DE, IT, ZH_HANS);
+    /** Exactly six supported languages, in menu display order. */
+    public static final List<String> SUPPORTED = List.of(EN, ES, DE, FR, IT, ZH_HANS);
 
     private static final Map<String, String> NATIVE_NAMES = buildNativeNames();
 
@@ -37,12 +38,13 @@ public final class Languages {
         names.put(EN, "English");
         names.put(ES, "Español");
         names.put(DE, "Deutsch");
+        names.put(FR, "Français");
         names.put(IT, "Italiano");
         names.put(ZH_HANS, "中文（简体）");
         return Map.copyOf(names);
     }
 
-    /** Returns whether the given BCP 47 tag is one of the five supported languages. */
+    /** Returns whether the given BCP 47 tag is one of the six supported languages. */
     public static boolean isSupported(String tag) {
         if (tag == null) {
             return false;
@@ -84,7 +86,7 @@ public final class Languages {
 
     /**
      * Detects the UI language from the JVM default (OS) locale on first run. Any locale that is not
-     * one of the five supported languages — including French and Portuguese — resolves to English.
+     * one of the six supported languages — including Portuguese — resolves to English.
      * For Chinese, only Simplified is shipped: Traditional script variants (TW/HK/MO) fall back to
      * English rather than receiving Simplified text.
      */
@@ -92,7 +94,7 @@ public final class Languages {
         Locale system = Locale.getDefault();
         String language = system.getLanguage();
         return switch (language) {
-            case "en", "es", "de", "it" -> language;
+            case "en", "es", "de", "fr", "it" -> language;
             case "zh" -> isTraditionalChinese(system) ? EN : ZH_HANS;
             default -> EN;
         };
