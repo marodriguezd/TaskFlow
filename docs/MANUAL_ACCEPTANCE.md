@@ -73,7 +73,7 @@ phases with the packaging step in between:
 | Platform | Automated sequence |
 | --- | --- |
 | Windows MSI | install MSI → `prepare` with isolated `%APPDATA%` → `msiexec /x` → assert launcher gone → `verify` |
-| macOS DMG | mount DMG → copy `.app` to a temp install → `prepare` with isolated `HOME` → delete the copy → `verify` |
+| macOS DMG | mount DMG → copy `.app` to a disposable install directory → `prepare` with isolated `HOME` → delete the copy → `verify` |
 | Linux AppImage | extract AppImage → `prepare` with temporary `XDG_DATA_HOME` → delete the `.AppImage` → `verify` |
 
 `prepare` records SHA-256 hashes of `taskflow.db` and `bell.mp3` plus a sentinel task;
