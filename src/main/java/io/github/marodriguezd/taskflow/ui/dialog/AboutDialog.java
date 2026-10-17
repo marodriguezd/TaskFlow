@@ -160,6 +160,8 @@ public class AboutDialog {
                     stage.setY(e.getScreenY() - dragOffsetY);
                 });
         stage.setScene(scene);
+        // Release the registered scene when the dialog closes; opening it again builds a new one.
+        stage.setOnHidden(e -> themeManager.unregisterScene(scene));
     }
 
     private void openGplPage() {

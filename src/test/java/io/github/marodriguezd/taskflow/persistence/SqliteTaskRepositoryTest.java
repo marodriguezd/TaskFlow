@@ -97,6 +97,73 @@ class SqliteTaskRepositoryTest {
     }
 
     @Test
+    @DisplayName("Completion archiving skips tasks that were removed concurrently")
+    void archiveCompletionSkipsVanishedTask() {
+        Task task = repository.save(Task.create("Completed twice", Priority.MEDIUM, 600));
+        repository.deleteById(task.id());
+
+        repository.archiveCompletion(
+                task, HistoryItem.fromTask(task, HistoryEventType.COMPLETED, false));
+
+        assertThat(historyRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("Delete archiving skips tasks that no longer exist")
+    void archiveAndDeleteSkipsVanishedTask() {
+        Task task = repository.save(Task.create("Deleted twice", Priority.MEDIUM, 600));
+        repository.deleteById(task.id());
+
+        repository.archiveAndDelete(
+                task, HistoryItem.fromTask(task, HistoryEventType.DELETED, false));
+
+        assertThat(historyRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("Bulk import is atomic: a failing row rolls back the whole batch")
+    void saveAllRollsBackOnFailure() throws Exception {
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE TRIGGER fail_second_bulk BEFORE INSERT ON tasks "
+                            + "WHEN NEW.name = 'Second' "
+                            + "BEGIN SELECT RAISE(ABORT, 'simulated batch failure'); END");
+        }
+
+        assertThatThrownBy(
+                        () ->
+                                repository.saveAll(
+                                        List.of(
+                                                Task.create("First", Priority.HIGH, 600),
+                                                Task.create("Second", Priority.LOW, 600))))
+                .isInstanceOf(PersistenceException.class);
+        assertThat(repository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("A corrupt task row is skipped instead of breaking the whole list")
+    void corruptRowDoesNotBreakListing() throws Exception {
+        Task healthy = repository.save(Task.create("Healthy", Priority.HIGH, 600));
+        long corruptId;
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "INSERT INTO tasks (name, priority, total_seconds, remaining_seconds, created_at, updated_at) "
+                            + "VALUES ('Corrupt', 'HIGH', 0, 0, 'not-a-timestamp', 'not-a-timestamp')");
+            try (var keys = statement.executeQuery("SELECT last_insert_rowid()")) {
+                assertThat(keys.next()).isTrue();
+                corruptId = keys.getLong(1);
+            }
+        }
+
+        List<Task> all = repository.findAll();
+        assertThat(all).extracting(Task::name).containsExactly("Healthy");
+        assertThat(repository.findById(healthy.id())).isPresent();
+        assertThat(repository.findById(corruptId)).isEmpty();
+    }
+
+    @Test
     @DisplayName("Restore rolls back the inserted task if removing history fails")
     void restoreRollbackPreservesHistory() throws Exception {
         HistoryItem item =

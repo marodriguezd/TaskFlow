@@ -26,7 +26,7 @@ English · [Español](README_es.md) · [Deutsch](README_de.md) · [Français](RE
 - **Single active timer invariant** — starting a timer automatically pauses any other running timer (autopause)
 - **Progress tracking** — visual progress bar for the active session
 - **History & restoration** — completed and deleted tasks are logged to a history with the ability to restore them
-- **Internationalization** — interface in 5 languages (English, Español, Deutsch, Italiano, 中文简体) with live switching, first-run OS language detection, and deterministic English fallback
+- **Internationalization** — interface in 6 languages (English, Español, Deutsch, Français, Italiano, 中文简体) with live switching, first-run OS language detection, and deterministic English fallback
 - **SQLite persistence** — all tasks, history, and preferences are stored locally in a SQLite database
 - **Theme switching** — light and dark themes with Apple Liquid Glass styling and native window translucency
 - **Always-on-top mode** — toggleable window pinning
@@ -42,7 +42,7 @@ English · [Español](README_es.md) · [Deutsch](README_de.md) · [Français](RE
 | UI toolkit | JavaFX 21 |
 | Build | Gradle (Kotlin DSL, wrapper included) |
 | Persistence | SQLite via JDBC (`sqlite-jdbc`) |
-| Testing | JUnit 5, AssertJ, JaCoCo (45% minimum line coverage) |
+| Testing | JUnit 6, AssertJ, JaCoCo (45% minimum line coverage) |
 | Code style | Spotless with Google Java Format |
 | Packaging | `jpackage` with a bundled Java 21 runtime |
 | Logging | SLF4J + Logback |
@@ -166,20 +166,21 @@ If a legacy `~/.TaskFlow` directory already exists, it is kept as the data direc
 
 ## Language
 
-TaskFlow's interface ships in exactly five languages:
+TaskFlow's interface ships in exactly six languages:
 
 | Language | Tag |
 | --- | --- |
 | English | `en` |
 | Spanish | `es` |
 | German | `de` |
+| French | `fr` |
 | Italian | `it` |
 | Simplified Chinese | `zh-Hans` |
 
 - **Live switching** — pick a language from the globe button in the header; the whole UI (including open state such as the task badge and tooltips) re-renders immediately, without restarting.
 - **Persistent per user** — the choice is stored in the `preferences` table (`language` key) as a locale-independent BCP 47 tag. Existing databases from 1.0.0 need no migration: the key is simply added on first save.
-- **First-run detection** — on first launch the interface language is detected from the OS locale. Unsupported OS languages (including French and Portuguese) fall back to English; Traditional Chinese locales also fall back to English, since only Simplified Chinese is shipped.
-- **Deterministic English fallback** — translations live in `src/main/resources/i18n/messages*.properties`; any missing key resolves to the English base bundle, and a key missing everywhere is returned as-is (logged once) rather than crashing. The test suite enforces that exactly these five bundles exist and are complete (key and placeholder parity).
+- **First-run detection** — on first launch the interface language is detected from the OS locale. Unsupported OS languages (including Portuguese and any language not shipped) fall back to English; Traditional Chinese locales also fall back to English, since only Simplified Chinese is shipped.
+- **Deterministic English fallback** — translations live in `src/main/resources/i18n/messages*.properties`; any missing key resolves to the English base bundle, and a key missing everywhere is returned as-is (logged once) rather than crashing. The test suite enforces that exactly these six bundles exist and are complete (key and placeholder parity).
 - **Not translated** — log output, database values, priority/history codes, and internal identifiers remain locale-independent English for data compatibility.
 
 ## Migration
@@ -196,7 +197,7 @@ Legacy files are looked up in the data directory and in the home directory root 
 ## Development
 
 - **Formatting** is enforced with Spotless (Google Java Format, AOSP style). Run `./gradlew spotlessApply` before committing; CI fails on `spotlessCheck` violations.
-- **Tests** use JUnit 5 with AssertJ and cover the domain model, services, repositories, legacy migration, internationalization (bundle completeness, fallback, language detection), timer edge cases, schema and transaction behavior, geometry recovery, and an end-to-end application flow. JaCoCo enforces a 45% minimum line-coverage threshold. Tests run headless — no display or JavaFX toolkit required.
+- **Tests** use JUnit 6 with AssertJ and cover the domain model, services, repositories, legacy migration, internationalization (bundle completeness, fallback, language detection), timer edge cases, schema and transaction behavior, geometry recovery, and an end-to-end application flow. JaCoCo enforces a 45% minimum line-coverage threshold. Tests run headless — no display or JavaFX toolkit required.
 
 ## Repository administration
 

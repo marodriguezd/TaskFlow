@@ -26,7 +26,7 @@
 - **单计时器不变式**——启动一个计时器会自动暂停其他正在运行的计时器（自动暂停）
 - **进度跟踪**——当前会话的可视进度条
 - **历史与恢复**——已完成和已删除的任务记入历史，可恢复
-- **国际化**——界面支持 5 种语言（English、Español、Deutsch、Italiano、中文简体），实时切换、首次启动检测系统语言、确定性英语回退
+- **国际化**——界面支持 6 种语言（English、Español、Deutsch、Français、Italiano、中文简体），实时切换、首次启动检测系统语言、确定性英语回退
 - **SQLite 持久化**——所有任务、历史与偏好均存于本地 SQLite 数据库
 - **主题切换**——浅色与深色主题，Apple Liquid Glass 风格与原生窗口半透明
 - **置顶模式**——可切换的窗口置顶
@@ -42,12 +42,12 @@
 | UI 工具包 | JavaFX 21 |
 | 构建 | Gradle（Kotlin DSL，含 wrapper） |
 | 持久化 | SQLite via JDBC（`sqlite-jdbc`） |
-| 测试 | JUnit 5、AssertJ、JaCoCo（最低 45% 行覆盖率） |
+| 测试 | JUnit 6、AssertJ、JaCoCo（最低 45% 行覆盖率） |
 | 代码风格 | Spotless + Google Java Format |
 | 打包 | `jpackage`，捆绑 Java 21 运行时 |
 | 日志 | SLF4J + Logback |
 | 旧版迁移 | Jackson（JSON） |
-| 国际化 | Java `ResourceBundle`（UTF-8，5 个 locale） |
+| 国际化 | Java `ResourceBundle`（UTF-8，6 个 locale） |
 
 CI 流水线在 Ubuntu、Windows 与 macOS 上构建、测试、检查格式并打包。
 
@@ -166,20 +166,21 @@ TaskFlow 将所有用户数据存于按用户目录，含 SQLite 数据库（`ta
 
 ## 语言
 
-TaskFlow 界面恰好支持五种语言：
+TaskFlow 界面恰好支持六种语言：
 
 | 语言 | 标记 |
 | --- | --- |
 | 英语 | `en` |
 | 西班牙语 | `es` |
 | 德语 | `de` |
+| 法语 | `fr` |
 | 意大利语 | `it` |
 | 简体中文 | `zh-Hans` |
 
 - **实时切换**——点击顶栏地球按钮选择语言；整个 UI（含任务徽标、tooltip 等打开状态）即时重绘，无需重启。
 - **按用户持久化**——选择存于 `preferences` 表（`language` 键），为与 locale 无关的 BCP 47 标记。1.0.0 的旧库无需迁移：首次保存时自动添加该键。
-- **首次启动检测**——首次启动从系统 locale 检测界面语言。不支持的系统语言（含法语、葡萄牙语）回退英语；繁体中文 locale 同样回退英语，因为仅发布简体中文。
-- **确定性英语回退**——翻译位于 `src/main/resources/i18n/messages*.properties`；缺失键解析到英语基础包，到处缺失的键按原样返回（记录一次）而非崩溃。测试套件强制恰好存在这五个包且完整（键与占位符 parity）。
+- **首次启动检测**——首次启动从系统 locale 检测界面语言。不支持的系统语言（含葡萄牙语及其他未随附语言）回退英语；繁体中文 locale 同样回退英语，因为仅发布简体中文。
+- **确定性英语回退**——翻译位于 `src/main/resources/i18n/messages*.properties`；缺失键解析到英语基础包，到处缺失的键按原样返回（记录一次）而非崩溃。测试套件强制恰好存在这六个包且完整（键与占位符 parity）。
 - **不翻译**——日志输出、数据库值、优先级/历史代码与内部标识保持与 locale 无关的英语，以保证数据兼容。
 
 ## 迁移
@@ -196,7 +197,7 @@ TaskFlow 界面恰好支持五种语言：
 ## 开发
 
 - **格式**由 Spotless（Google Java Format，AOSP 风格）强制。提交前运行 `./gradlew spotlessApply`；`spotlessCheck` 违规会导致 CI 失败。
-- **测试**使用 JUnit 5 与 AssertJ：覆盖领域模型、服务、仓储、旧版迁移、国际化（包完整性、回退、语言检测）、计时器边界、schema 与事务行为、几何恢复与端到端流程。JaCoCo 强制最低 45% 行覆盖率。测试 headless 运行——无需显示器或 JavaFX toolkit。
+- **测试**使用 JUnit 6 与 AssertJ：覆盖领域模型、服务、仓储、旧版迁移、国际化（包完整性、回退、语言检测）、计时器边界、schema 与事务行为、几何恢复与端到端流程。JaCoCo 强制最低 45% 行覆盖率。测试 headless 运行——无需显示器或 JavaFX toolkit。
 
 ## 仓库管理
 

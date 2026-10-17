@@ -159,6 +159,16 @@ public class TaskService {
         }
 
         Task task = existingOpt.get();
+        if (task.isExpired()) {
+            // The timer already archived a COMPLETED entry when this task reached 00:00 and left
+            // the row in the active list. Archiving it again on "done" would duplicate history,
+            // so an exhausted task is simply removed (same rule as deleting an expired task).
+            taskRepository.deleteById(id);
+            timerService.invalidateSnapshot(id);
+            log.info("Removed exhausted task id={} without duplicating its completion", id);
+            return;
+        }
+
         HistoryItem historyItem = HistoryItem.fromTask(task, HistoryEventType.COMPLETED, true);
         taskRepository.archiveAndDelete(task, historyItem);
         timerService.invalidateSnapshot(id);

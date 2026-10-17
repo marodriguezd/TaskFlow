@@ -189,6 +189,26 @@ class LocaleFilesTest {
     }
 
     @Test
+    @DisplayName("Placeholder-free patterns never leak MessageFormat quote escapes")
+    void testNoQuoteEscapesInPlainPatterns() {
+        for (String tag : Languages.SUPPORTED) {
+            ResourceBundle bundle = Languages.EN.equals(tag) ? baseBundle() : localeBundle(tag);
+            for (String key : keysOf(bundle)) {
+                String value = bundle.getString(key);
+                // Only patterns containing a placeholder go through MessageFormat, which is the
+                // only place where '' is unescaped to a single quote.
+                if (!value.contains("{")) {
+                    assertThat(value)
+                            .as("value of '%s' in '%s' (no placeholders -> no escaping)", key, tag)
+                            .doesNotContain("''");
+                }
+            }
+        }
+        assertThat(localeBundle(Languages.FR).getString("tooltip.history"))
+                .isEqualTo("Voir l'historique des tâches");
+    }
+
+    @Test
     @DisplayName("Key missing from a locale bundle resolves to the English parent bundle")
     void testKeyLevelEnglishFallback() {
         // Test-only fixtures under src/test/resources: the German file intentionally lacks

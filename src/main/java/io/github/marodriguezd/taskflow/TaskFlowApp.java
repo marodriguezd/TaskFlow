@@ -30,6 +30,7 @@ public class TaskFlowApp extends Application {
     private DatabaseManager databaseManager;
     private TimerService timerService;
     private TaskService taskService;
+    private MainWindow mainWindow;
 
     @Override
     public void start(Stage primaryStage) {
@@ -75,7 +76,7 @@ public class TaskFlowApp extends Application {
 
             loadApplicationIcon(primaryStage);
 
-            MainWindow mainWindow =
+            mainWindow =
                     new MainWindow(
                             primaryStage,
                             taskService,
@@ -106,11 +107,17 @@ public class TaskFlowApp extends Application {
     @Override
     public void stop() {
         log.info("Stopping TaskFlow application and releasing database resources...");
-        if (timerService != null) {
-            timerService.shutdown();
+        // Order matters: pausing via the window frees the last timer snapshot, the task service
+        // then drains its persistence queue while the timer state is still valid, and only then
+        // are the scheduler and the database torn down.
+        if (mainWindow != null) {
+            mainWindow.shutdown();
         }
         if (taskService != null) {
             taskService.shutdown();
+        }
+        if (timerService != null) {
+            timerService.shutdown();
         }
         if (databaseManager != null) {
             databaseManager.close();

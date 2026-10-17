@@ -39,7 +39,15 @@ public class SqliteHistoryRepository implements HistoryRepository {
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                list.add(mapRow(rs));
+                try {
+                    list.add(mapRow(rs));
+                } catch (IllegalArgumentException e) {
+                    // Keep readable history available even if a single row is corrupt.
+                    log.error(
+                            "Skipping malformed history row (id={}): {}",
+                            rs.getLong("id"),
+                            e.getMessage());
+                }
             }
         } catch (SQLException e) {
             log.error("Error reading history from database", e);
@@ -62,7 +70,15 @@ public class SqliteHistoryRepository implements HistoryRepository {
             stmt.setLong(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapRow(rs));
+                    try {
+                        return Optional.of(mapRow(rs));
+                    } catch (IllegalArgumentException e) {
+                        log.error(
+                                "History item id {} is malformed and was ignored: {}",
+                                id,
+                                e.getMessage());
+                        return Optional.empty();
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -83,13 +99,7 @@ public class SqliteHistoryRepository implements HistoryRepository {
         try (Connection conn = databaseManager.getConnection();
                 PreparedStatement stmt =
                         conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, item.name());
-            stmt.setString(2, item.priority().name());
-            stmt.setInt(3, item.totalSeconds());
-            stmt.setInt(4, item.remainingSeconds());
-            stmt.setString(5, item.eventType().getCode());
-            stmt.setInt(6, item.completedManually() ? 1 : 0);
-            stmt.setString(7, item.eventAt().toString());
+            bindInsert(stmt, item);
 
             stmt.executeUpdate();
             try (ResultSet keys = stmt.getGeneratedKeys()) {
@@ -103,6 +113,39 @@ public class SqliteHistoryRepository implements HistoryRepository {
             log.error("Error inserting history item: {}", item, e);
             throw new PersistenceException("Could not insert history item", e);
         }
+    }
+
+    @Override
+    public void saveAll(List<HistoryItem> items) {
+        if (items.isEmpty()) {
+            return;
+        }
+        String sql =
+                """
+                INSERT INTO history (name, priority, total_seconds, remaining_seconds, event_type, completed_manually, event_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """;
+        databaseManager.inTransaction(
+                conn -> {
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        for (HistoryItem item : items) {
+                            bindInsert(stmt, item);
+                            stmt.addBatch();
+                        }
+                        stmt.executeBatch();
+                    }
+                    return null;
+                });
+    }
+
+    private void bindInsert(PreparedStatement stmt, HistoryItem item) throws SQLException {
+        stmt.setString(1, item.name());
+        stmt.setString(2, item.priority().name());
+        stmt.setInt(3, item.totalSeconds());
+        stmt.setInt(4, item.remainingSeconds());
+        stmt.setString(5, item.eventType().getCode());
+        stmt.setInt(6, item.completedManually() ? 1 : 0);
+        stmt.setString(7, item.eventAt().toString());
     }
 
     @Override
