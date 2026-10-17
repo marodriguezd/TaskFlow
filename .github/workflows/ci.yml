@@ -53,15 +53,22 @@ jobs:
 
       # Packaged-app verification: resource inventory plus a launch/exit smoke test that
       # requires a startup marker and a normal shutdown (a timeout is a failure guard only).
-      - name: Install Xvfb (Linux)
+      - name: Install Xvfb and GUI acceptance tools (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick
 
       - name: Verify and smoke-test the packaged app image (Linux)
         if: runner.os == 'Linux'
         run: |
           python3 tools/app_smoke_test.py --image build/dist/TaskFlow --mode verify
           xvfb-run -a python3 tools/app_smoke_test.py --image build/dist/TaskFlow --mode launch --timeout 120
+
+      # Drives the packaged application on its own private Xvfb display with a
+      # disposable profile. Covers CRUD, timers, history, theme/language/geometry
+      # persistence and the sound decision paths without a desktop or audio device.
+      - name: Automated packaged-app acceptance (Linux)
+        if: runner.os == 'Linux'
+        run: python3 tools/acceptance_check.py --image build/dist/TaskFlow --timeout 60
 
       - name: Build and smoke-test the Linux AppImage
         if: runner.os == 'Linux'

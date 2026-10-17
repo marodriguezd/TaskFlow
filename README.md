@@ -47,7 +47,7 @@ English · [Español](README_es.md) · [Deutsch](README_de.md) · [Français](RE
 | Packaging | `jpackage` with a bundled Java 21 runtime |
 | Logging | SLF4J + Logback |
 | Legacy migration | Jackson (JSON) |
-| Internationalization | Java `ResourceBundle` (UTF-8, 5 locales) |
+| Internationalization | Java `ResourceBundle` (UTF-8, 6 locales) |
 
 The CI pipeline builds, tests, formats-checks, and packages the application on Ubuntu, Windows, and macOS.
 
@@ -210,7 +210,7 @@ Legacy JSON has no stable record identifiers. Since schema version 2 the databas
 
 - **Formatting** is enforced with Spotless (Google Java Format, AOSP style). Run `./gradlew spotlessApply` before committing; CI fails on `spotlessCheck` violations.
 - **Tests** use JUnit 6 with AssertJ and cover the domain model, services, repositories, legacy migration and provenance, schema upgrades, internationalization (bundle completeness, fallback, language detection), timer edge cases, transaction behavior, geometry recovery, and an end-to-end application flow. JaCoCo enforces a 45% minimum line-coverage threshold. Unit and integration tests run headless — no display or JavaFX toolkit required.
-- **Packaged-app checks** run in CI on Ubuntu, Windows, and macOS: the jpackage image and its JAR resources (translations, themes, audio, JavaFX) are verified, then the packaged application is launched with an explicit smoke-test flag that requires the primary window to be showing and a normal shutdown. Linux uses Xvfb and also verifies the AppImage; macOS verifies a copy installed from the DMG; Windows verifies the MSI install/uninstall. These checks prove startup wiring and resource bundling, not audible output — physical audio and interactive GUI behavior still require the manual checks in [docs/MANUAL_ACCEPTANCE.md](docs/MANUAL_ACCEPTANCE.md).
+- **Packaged-app checks** run in CI on Ubuntu, Windows, and macOS: the jpackage image and its JAR resources (translations, themes, audio, JavaFX) are verified, then the packaged application is launched with an explicit smoke-test flag that requires the primary window to be showing and a normal shutdown. Linux uses Xvfb and also verifies the AppImage; macOS verifies a copy installed from the DMG; Windows verifies the MSI install/uninstall. These checks prove startup wiring and resource bundling, not audible output — physical audio and interactive GUI behavior still require the manual checks in [docs/MANUAL_ACCEPTANCE.md](docs/MANUAL_ACCEPTANCE.md). On Linux, `python3 tools/acceptance_check.py` additionally drives the packaged application on a private Xvfb display with a disposable profile: CRUD, timers, history, theme/language/geometry persistence, and the sound decision paths, without using your desktop, mouse, or audio device. It still does not prove audibility.
 
 ## Repository administration
 

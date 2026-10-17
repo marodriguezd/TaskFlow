@@ -199,7 +199,7 @@ TaskFlow 界面恰好支持六种语言：
 ## 开发
 
 - **格式**由 Spotless（Google Java Format，AOSP 风格）强制。提交前运行 `./gradlew spotlessApply`；`spotlessCheck` 违规会导致 CI 失败。
-- **测试**使用 JUnit 6 与 AssertJ：覆盖领域模型、服务、仓储、旧版迁移、国际化（包完整性、回退、语言检测）、计时器边界、schema 与事务行为、几何恢复与端到端流程。JaCoCo 强制最低 45% 行覆盖率。测试 headless 运行——无需显示器或 JavaFX toolkit。CI 还会校验打包镜像及其资源，并在三大平台启动/退出应用（Linux 使用 Xvfb）；不证明物理音频输出。
+- **测试**使用 JUnit 6 与 AssertJ：覆盖领域模型、服务、仓储、旧版迁移、国际化（包完整性、回退、语言检测）、计时器边界、schema 与事务行为、几何恢复与端到端流程。JaCoCo 强制最低 45% 行覆盖率。测试 headless 运行——无需显示器或 JavaFX toolkit。CI 还会校验打包镜像及其资源，并在三大平台启动/退出应用（Linux 使用 Xvfb）；不证明物理音频输出。在 Linux 上，`python3 tools/acceptance_check.py` 还会在私有 Xvfb 显示器和一次性配置中驱动打包应用，覆盖增删改查、计时器、历史、主题/语言/几何持久化以及声音决策路径，不使用你的桌面或音频设备。
 
 ## 仓库管理
 

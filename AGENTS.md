@@ -90,6 +90,7 @@ Packaging targets actually produced by the pipeline:
 ./gradlew build            # compile + test + assemble
 ./gradlew jpackageImage    # standalone app image (build/dist/TaskFlow)
 ./gradlew jpackagePackage  # native package for the current OS (msi / dmg / AppImage)
+python3 tools/acceptance_check.py  # Linux: packaged-app acceptance on a private Xvfb display
 ```
 
 Also present: `./gradlew releaseStamp` (writes `build/dist/RELEASE_VERSION`, normally run automatically) and `jpackageLinuxAppImage` (internal step of Linux packaging).
@@ -107,7 +108,7 @@ Note: Linux `jpackagePackage` needs `APPIMAGETOOL_SHA256` set (CI pins it in `re
   - i18n/languages → `LanguagesTest`, `MessagesBundleTest`, `LocaleFilesTest`, `LocaleManagerTest`, `PriorityLabelsTest` (bundle parity/bijection, fallback, detection, switching)
   - platform paths/OS logic → `PlatformServiceTest`
   - domain/formatting → `domain/*Test`, `util/*Test`
-  - packaging → verify with `jpackageImage`/`jpackagePackage` locally and `python3 tools/app_smoke_test.py` (resource inventory + launch/exit); CI runs it on all three OSes. Physical audio and interactive GUI checks are manual (`docs/MANUAL_ACCEPTANCE.md`). The release validator is `tools/release_check.py` (has strict positive/negative behavior — keep it that way).
+  - packaging → verify with `jpackageImage`/`jpackagePackage` locally and `python3 tools/app_smoke_test.py` (resource inventory + launch/exit); CI runs it on all three OSes. On Linux, `python3 tools/acceptance_check.py` drives the packaged app on a private Xvfb display with a disposable profile (CRUD, timers, history, theme/language/geometry persistence, sound decision paths) without touching the real desktop or audio device. Physical audibility and visual review remain manual (`docs/MANUAL_ACCEPTANCE.md`). The release validator is `tools/release_check.py` (has strict positive/negative behavior — keep it that way).
 
 ## 9. CI/CD and release rules
 

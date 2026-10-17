@@ -199,7 +199,7 @@ Dallo schema 2 il database conserva una provenienza durevole: `legacy_sources` r
 ## Sviluppo
 
 - **Formattazione** imposta con Spotless (Google Java Format, stile AOSP). Esegui `./gradlew spotlessApply` prima di committare; la CI fallisce su violazioni di `spotlessCheck`.
-- **Test** con JUnit 6 e AssertJ: coprono modello di dominio, servizi, repository, migrazione legacy, internazionalizzazione (completezza bundle, fallback, rilevamento lingua), casi limite dei timer, comportamento schema/transazioni, recupero geometria e un flusso end-to-end. JaCoCo esige una soglia minima del 45% di copertura righe. I test girano headless — senza display né toolkit JavaFX. La CI verifica anche l'immagine pacchettizzata e le sue risorse e avvia/chiude l'applicazione su tutte e tre le piattaforme (Xvfb su Linux); l'uscita audio fisica non è dimostrata.
+- **Test** con JUnit 6 e AssertJ: coprono modello di dominio, servizi, repository, migrazione legacy, internazionalizzazione (completezza bundle, fallback, rilevamento lingua), casi limite dei timer, comportamento schema/transazioni, recupero geometria e un flusso end-to-end. JaCoCo esige una soglia minima del 45% di copertura righe. I test girano headless — senza display né toolkit JavaFX. La CI verifica anche l'immagine pacchettizzata e le sue risorse e avvia/chiude l'applicazione su tutte e tre le piattaforme (Xvfb su Linux); l'uscita audio fisica non è dimostrata. Su Linux, `python3 tools/acceptance_check.py` guida anche l'applicazione pacchettizzata su un display Xvfb privato con un profilo usa-e-getta: CRUD, timer, cronologia, persistenza di tema/lingua/geometria e le decisioni sul suono, senza usare il desktop né il dispositivo audio.
 
 ## Amministrazione del repository
 
