@@ -17,19 +17,37 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Migrates legacy TaskFlow JSON files (Python/PyQt6 implementation) to SQLite. */
+/**
+ * Migrates legacy TaskFlow JSON files (Python/PyQt6 implementation) to SQLite.
+ *
+ * <p>Legacy task and history records have no stable identifier, so the same logical record can be
+ * seen more than once: the file may exist in both supported locations, a rename may have failed, or
+ * a backup may have been restored. Every discovered source is therefore imported and records are
+ * merged by content identity rather than by "the destination table is non-empty, skip this file". A
+ * candidate is skipped only while an identical row still exists in the destination table; identity
+ * counts are consumed as a multiset, so distinct records — including repeated identical entries
+ * within one file — are never collapsed.
+ *
+ * <p>Known ambiguity: a task created inside the Java application with exactly the same name,
+ * priority and durations as a legacy record is indistinguishable from that legacy record. In that
+ * case one legacy occurrence is treated as already present instead of being duplicated.
+ */
 public class LegacyDataMigrator {
 
     private static final Logger log = LoggerFactory.getLogger(LegacyDataMigrator.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private final Path dataDirectory;
+    private final Path legacyHomeDirectory;
     private final TaskRepository taskRepository;
     private final HistoryRepository historyRepository;
     private final PreferenceRepository preferenceRepository;
@@ -39,7 +57,23 @@ public class LegacyDataMigrator {
             TaskRepository taskRepository,
             HistoryRepository historyRepository,
             PreferenceRepository preferenceRepository) {
+        this(
+                dataDirectory,
+                Paths.get(System.getProperty("user.home")),
+                taskRepository,
+                historyRepository,
+                preferenceRepository);
+    }
+
+    /** Test seam so migration tests never read the developer's real home directory. */
+    LegacyDataMigrator(
+            Path dataDirectory,
+            Path legacyHomeDirectory,
+            TaskRepository taskRepository,
+            HistoryRepository historyRepository,
+            PreferenceRepository preferenceRepository) {
         this.dataDirectory = dataDirectory;
+        this.legacyHomeDirectory = legacyHomeDirectory;
         this.taskRepository = taskRepository;
         this.historyRepository = historyRepository;
         this.preferenceRepository = preferenceRepository;
@@ -58,10 +92,9 @@ public class LegacyDataMigrator {
     }
 
     private void migrateHomeRootLegacyFiles() {
-        String userHome = System.getProperty("user.home");
-        Path homeData = Paths.get(userHome, ".taskflow_data.json");
-        Path homeHistory = Paths.get(userHome, ".taskflow_history.json");
-        Path homeGeometry = Paths.get(userHome, ".taskflow_geometry.json");
+        Path homeData = legacyHomeDirectory.resolve(".taskflow_data.json");
+        Path homeHistory = legacyHomeDirectory.resolve(".taskflow_history.json");
+        Path homeGeometry = legacyHomeDirectory.resolve(".taskflow_geometry.json");
 
         if (Files.exists(homeData)) {
             migrateTasksFile(homeData.toFile());
@@ -95,16 +128,12 @@ public class LegacyDataMigrator {
     }
 
     private void migrateTasksFile(File file) {
-        if (taskRepository.count() > 0) {
-            log.info("Active tasks already exist in database; skipping import from {}", file);
-            renameToMigrated(file);
-            return;
-        }
-
         try {
             List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
+            Map<TaskIdentity, Integer> alreadyStored = existingTaskIdentities();
             List<Task> pending = new ArrayList<>();
             int skippedCount = 0;
+            int duplicateCount = 0;
             for (Map<String, Object> map : list) {
                 try {
                     // A missing/non-string name falls back to the legacy default, but an explicit
@@ -122,9 +151,17 @@ public class LegacyDataMigrator {
                     int totalSeconds = Math.max(1, getInt(map, "total_seconds", 1500));
                     int remaining = getInt(map, "remaining", totalSeconds);
 
-                    pending.add(
+                    Task task =
                             Task.create(name, priority, totalSeconds)
-                                    .withRemainingSeconds(remaining));
+                                    .withRemainingSeconds(remaining);
+                    TaskIdentity identity = TaskIdentity.of(task);
+                    int stored = alreadyStored.getOrDefault(identity, 0);
+                    if (stored > 0) {
+                        alreadyStored.put(identity, stored - 1);
+                        duplicateCount++;
+                        continue;
+                    }
+                    pending.add(task);
                 } catch (RuntimeException e) {
                     // Isolate malformed records: aborting here would leave the file unimported
                     // while the rows already inserted make every later startup skip it.
@@ -139,9 +176,10 @@ public class LegacyDataMigrator {
             // the next startup retries the file instead of skipping it as "already imported".
             taskRepository.saveAll(pending);
             log.info(
-                    "Migrated {} active tasks from legacy file {} ({} invalid records skipped)",
+                    "Migrated {} active tasks from legacy file {} ({} already present, {} invalid records skipped)",
                     pending.size(),
                     file,
+                    duplicateCount,
                     skippedCount);
             renameToMigrated(file);
         } catch (IOException | RuntimeException e) {
@@ -150,16 +188,12 @@ public class LegacyDataMigrator {
     }
 
     private void migrateHistoryFile(File file) {
-        if (historyRepository.count() > 0) {
-            log.info("History records already exist in database; skipping import from {}", file);
-            renameToMigrated(file);
-            return;
-        }
-
         try {
             List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
+            HistoryBaseline alreadyStored = HistoryBaseline.from(historyRepository.findAll());
             List<HistoryItem> pending = new ArrayList<>();
             int skippedCount = 0;
+            int duplicateCount = 0;
             for (Map<String, Object> map : list) {
                 try {
                     Object rawName = map.get("name");
@@ -180,9 +214,10 @@ public class LegacyDataMigrator {
                     if (dateStr == null) {
                         dateStr = getString(map, "completed_at", null);
                     }
+                    boolean hasEventAt = dateStr != null;
                     Instant eventAt = DateTimeUtil.parseLegacyOrDefault(dateStr, Instant.now());
 
-                    pending.add(
+                    HistoryItem item =
                             new HistoryItem(
                                     null,
                                     name,
@@ -191,7 +226,12 @@ public class LegacyDataMigrator {
                                     remaining,
                                     eventType,
                                     completedManually,
-                                    eventAt));
+                                    eventAt);
+                    if (alreadyStored.consume(item, hasEventAt)) {
+                        duplicateCount++;
+                        continue;
+                    }
+                    pending.add(item);
                 } catch (RuntimeException e) {
                     skippedCount++;
                     log.warn(
@@ -202,9 +242,10 @@ public class LegacyDataMigrator {
             }
             historyRepository.saveAll(pending);
             log.info(
-                    "Migrated {} history items from legacy file {} ({} invalid records skipped)",
+                    "Migrated {} history items from legacy file {} ({} already present, {} invalid records skipped)",
                     pending.size(),
                     file,
+                    duplicateCount,
                     skippedCount);
             renameToMigrated(file);
         } catch (IOException | RuntimeException e) {
@@ -253,6 +294,14 @@ public class LegacyDataMigrator {
         } catch (IOException | RuntimeException e) {
             log.warn("Failed to parse legacy settings file {}: {}", file, e.getMessage());
         }
+    }
+
+    private Map<TaskIdentity, Integer> existingTaskIdentities() {
+        Map<TaskIdentity, Integer> counts = new HashMap<>();
+        for (Task task : taskRepository.findAll()) {
+            counts.merge(TaskIdentity.of(task), 1, Integer::sum);
+        }
+        return counts;
     }
 
     /**
@@ -310,5 +359,76 @@ public class LegacyDataMigrator {
             }
         }
         return defaultValue;
+    }
+
+    /** Legacy tasks have no identifier; content is the only available identity. */
+    private record TaskIdentity(
+            String name, Priority priority, int totalSeconds, int remainingSeconds) {
+
+        static TaskIdentity of(Task task) {
+            return new TaskIdentity(
+                    task.name(), task.priority(), task.totalSeconds(), task.remainingSeconds());
+        }
+    }
+
+    /** History identity without the event time, used for records that carry no timestamp. */
+    private record HistoryIdentity(
+            String name,
+            Priority priority,
+            int totalSeconds,
+            int remainingSeconds,
+            HistoryEventType eventType,
+            boolean completedManually) {
+
+        static HistoryIdentity of(HistoryItem item) {
+            return new HistoryIdentity(
+                    item.name(),
+                    item.priority(),
+                    item.totalSeconds(),
+                    item.remainingSeconds(),
+                    item.eventType(),
+                    item.completedManually());
+        }
+    }
+
+    /**
+     * Consumable snapshot of the history rows that already exist. A record with an event timestamp
+     * only matches a row with the same timestamp; a record without one may match any row with the
+     * same content. Each existing row is consumed at most once, preserving duplicate entries.
+     */
+    private static final class HistoryBaseline {
+
+        private final Map<HistoryIdentity, Integer> counts = new HashMap<>();
+        private final Map<HistoryIdentity, Deque<Instant>> eventTimes = new HashMap<>();
+
+        static HistoryBaseline from(List<HistoryItem> items) {
+            HistoryBaseline baseline = new HistoryBaseline();
+            for (HistoryItem item : items) {
+                HistoryIdentity identity = HistoryIdentity.of(item);
+                baseline.counts.merge(identity, 1, Integer::sum);
+                baseline.eventTimes
+                        .computeIfAbsent(identity, key -> new ArrayDeque<>())
+                        .add(item.eventAt());
+            }
+            return baseline;
+        }
+
+        boolean consume(HistoryItem item, boolean hasEventAt) {
+            HistoryIdentity identity = HistoryIdentity.of(item);
+            int available = counts.getOrDefault(identity, 0);
+            if (available == 0) {
+                return false;
+            }
+            Deque<Instant> times = eventTimes.get(identity);
+            if (hasEventAt) {
+                if (times == null || !times.remove(item.eventAt())) {
+                    return false;
+                }
+            } else if (times != null && !times.isEmpty()) {
+                times.removeFirst();
+            }
+            counts.put(identity, available - 1);
+            return true;
+        }
     }
 }

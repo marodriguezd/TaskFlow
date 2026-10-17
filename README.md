@@ -192,7 +192,7 @@ If you used a previous version of TaskFlow that stored data as JSON, the applica
 - `taskflow_geometry.json` (window geometry)
 - `taskflow_settings.json` (theme and window preferences)
 
-Legacy files are looked up in the data directory and in the home directory root (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`). Each processed file is renamed with a `.migrated` suffix (e.g. `taskflow_data.json.migrated`) so it is imported only once; the original contents are preserved as a backup. Migration failures are logged and never prevent the application from starting.
+Legacy files are looked up in the data directory and in the home directory root (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`). Every discovered location is imported, even when another location already populated the database. Legacy records carry no stable identifiers, so tasks and history are merged by content (name, priority, durations, and — for history — the event time): records already present are skipped instead of duplicated, while distinct records from every source are kept. Each processed file is renamed with a `.migrated` suffix (e.g. `taskflow_data.json.migrated`), never overwriting an existing backup, so it is imported only once; the original contents are preserved as a backup. Migration failures are logged and never prevent the application from starting.
 
 ## Development
 
