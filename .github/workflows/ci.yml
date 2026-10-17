@@ -55,7 +55,7 @@ jobs:
       # requires a startup marker and a normal shutdown (a timeout is a failure guard only).
       - name: Install Xvfb and GUI acceptance tools (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick
+        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick x11-utils
 
       - name: Verify and smoke-test the packaged app image (Linux)
         if: runner.os == 'Linux'

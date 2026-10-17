@@ -11,7 +11,7 @@ installer data preservation.
   the packaged image. Linux also runs the AppImage; macOS copies the app out of the DMG;
   Windows installs, launches, and uninstalls the MSI.
 - **`python3 tools/acceptance_check.py`** (Linux; requires `Xvfb`, `xdotool`, ImageMagick
-  `import`) — drives the **packaged** application on a private Xvfb display with a
+  `import`, and `xprop` from `x11-utils`) — drives the **packaged** application on a private Xvfb display with a
   throw-away home/data directory and an ALSA `file` PCM, so the real desktop, mouse, audio
   device and default sink are never touched. It automates:
   - first launch, schema `user_version = 2`, bell provisioning and asset hash;

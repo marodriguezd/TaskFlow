@@ -21,9 +21,8 @@ Usage:
     python3 tools/acceptance_check.py [--image build/dist/TaskFlow]
                                       [--keep] [--timeout 40]
 
-Requires Linux with Xvfb, xdotool and ImageMagick's ``import`` (the same tools
-CI already installs for the launch smoke test). The script exits non-zero if any
-automated check fails.
+Requires Linux with Xvfb, xdotool, ImageMagick's ``import`` and ``xprop``
+(``x11-utils``). The script exits non-zero if any automated check fails.
 """
 
 from __future__ import annotations
@@ -87,15 +86,18 @@ class Acceptance:
         self.log(f"{'PASS' if passed else 'FAIL'}  {name}" + (f" — {detail}" if detail else ""))
 
     def run(self, args: list[str], env: dict[str, str] | None = None, timeout: int = 20) -> str:
-        proc = subprocess.run(
-            args,
-            env=env or self.env(),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            errors="replace",
-            timeout=timeout,
-        )
+        try:
+            proc = subprocess.run(
+                args,
+                env=env or self.env(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                errors="replace",
+                timeout=timeout,
+            )
+        except FileNotFoundError as error:
+            raise Failure(f"required tool is missing: {args[0]}") from error
         if proc.returncode != 0:
             raise Failure(f"{' '.join(args)} failed ({proc.returncode}):\n{proc.stdout}")
         return proc.stdout
@@ -654,7 +656,7 @@ def main() -> int:
     if not (args.image / LAUNCHER_REL).is_file():
         print(f"not a packaged application image: {args.image}", file=sys.stderr)
         return 2
-    for tool in ("Xvfb", "xdotool", "import"):
+    for tool in ("Xvfb", "xdotool", "import", "xprop"):
         if shutil.which(tool) is None:
             print(f"required tool is missing: {tool}", file=sys.stderr)
             return 2
