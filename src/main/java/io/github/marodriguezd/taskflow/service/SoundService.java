@@ -171,9 +171,13 @@ public class SoundService {
     }
 
     private boolean isPlayable(Path soundPath) {
-        if (!Files.exists(soundPath)
-                || soundPath.toString().toLowerCase(Locale.ROOT).endsWith(".wav")) {
+        String name = soundPath.toString().toLowerCase(Locale.ROOT);
+        if (!Files.exists(soundPath) || name.endsWith(".wav")) {
             return true;
+        }
+        if (name.endsWith(".mp3") && !looksLikeMpegAudio(soundPath)) {
+            log.warn("{} does not contain a recognizable MPEG audio frame", soundPath);
+            return false;
         }
         long modified;
         try {
@@ -199,6 +203,46 @@ public class SoundService {
         probedSoundModified = modified;
         probedSoundPlayable = playable;
         return playable;
+    }
+
+    /**
+     * Cheap structural check for MPEG audio (including ID3v2-tagged files).
+     *
+     * <p>Creating a {@code MediaPlayer} can succeed for bytes that are not audio at all, with the
+     * failure only surfacing later on JavaFX's clip thread. Scanning for an MPEG frame sync word
+     * makes corrupt or unrelated files fall back deterministically instead of going silent.
+     */
+    private static boolean looksLikeMpegAudio(Path soundPath) {
+        final int probeSize = 8192;
+        byte[] head;
+        try (InputStream in = Files.newInputStream(soundPath)) {
+            head = in.readNBytes(probeSize);
+        } catch (Exception e) {
+            return true; // let the player try; an unreadable file is handled by the beep fallback
+        }
+        return containsMpegFrame(head);
+    }
+
+    static boolean containsMpegFrame(byte[] data) {
+        int offset = 0;
+        if (data.length >= 10 && data[0] == 'I' && data[1] == 'D' && data[2] == '3') {
+            int size =
+                    ((data[6] & 0x7f) << 21)
+                            | ((data[7] & 0x7f) << 14)
+                            | ((data[8] & 0x7f) << 7)
+                            | (data[9] & 0x7f);
+            offset = 10 + size;
+        }
+        if (offset >= data.length) {
+            // The tag extends past the probe window: the frame may still be valid.
+            return true;
+        }
+        for (int index = offset; index + 1 < data.length; index++) {
+            if ((data[index] & 0xFF) == 0xFF && (data[index + 1] & 0xE0) == 0xE0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Materialises the bundled WAV fallback once, outside the user data directory. */

@@ -81,6 +81,32 @@ class SoundServiceTest {
     }
 
     @Test
+    @DisplayName("MPEG frame detection rejects garbage but accepts tagged and raw frames")
+    void mpegFrameDetection() {
+        assertThat(SoundService.containsMpegFrame("not an mp3".getBytes(StandardCharsets.UTF_8)))
+                .isFalse();
+        assertThat(SoundService.containsMpegFrame(new byte[] {(byte) 0xFF, (byte) 0xFB, 0x10}))
+                .isTrue();
+
+        byte[] tagged = new byte[20];
+        tagged[0] = 'I';
+        tagged[1] = 'D';
+        tagged[2] = '3';
+        // Zero-length ID3v2 tag, followed by a frame sync at offset 10.
+        tagged[10] = (byte) 0xFF;
+        tagged[11] = (byte) 0xFB;
+        assertThat(SoundService.containsMpegFrame(tagged)).isTrue();
+
+        // A tag that extends beyond the probed window cannot be judged as corrupt.
+        byte[] largeTag = new byte[20];
+        largeTag[0] = 'I';
+        largeTag[1] = 'D';
+        largeTag[2] = '3';
+        largeTag[9] = 0x7f;
+        assertThat(SoundService.containsMpegFrame(largeTag)).isTrue();
+    }
+
+    @Test
     @DisplayName("The bundled WAV fallback is a valid PCM file for backends without MP3 support")
     void bundledWaveFallbackIsValid() throws IOException {
         try (InputStream in = getClass().getResourceAsStream("/assets/bell.wav")) {
