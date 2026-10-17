@@ -8,6 +8,7 @@ per-platform data directory, and launches the *packaged* application with its
 ``--smoke-test`` seam. It then reopens the database and asserts that:
 
 * startup completed normally (marker written, exit code 0, no error lines);
+* ``PRAGMA integrity_check`` reports ``ok``;
 * ``PRAGMA user_version`` is 2 and the provenance structures exist;
 * every v1 task/history row and every non-geometry preference is byte-identical;
 * pre-existing rows keep NULL provenance (origins are never invented);
@@ -138,6 +139,10 @@ def verify_upgrade(database: Path, output: str) -> list[str]:
 
 def check_database(connection: sqlite3.Connection) -> list[str]:
     failures: list[str] = []
+    integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+    if integrity != "ok":
+        failures.append(f"PRAGMA integrity_check failed: {integrity}")
+
     version = connection.execute("PRAGMA user_version").fetchone()[0]
     if version != 2:
         failures.append(f"schema user_version is {version}, expected 2")
@@ -260,6 +265,7 @@ def main() -> int:
             return 1
 
         print("PASS  v1 -> v2 upgrade through the packaged startup path")
+        print("PASS  database integrity check passed")
         print("PASS  tasks, history and preferences preserved")
         print("PASS  provenance structures added; pre-v2 rows keep NULL provenance")
         return 0

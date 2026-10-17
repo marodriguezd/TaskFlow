@@ -38,13 +38,13 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 from pathlib import Path
 
 from isolated_audio import AudioIsolationError, IsolatedAudio, wav_peak
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LAUNCHER_REL = Path("bin") / "TaskFlow"
-SOURCE_BELL = REPO_ROOT / "src" / "main" / "resources" / "assets" / "bell.mp3"
 LANGUAGES = ["en", "es", "de", "fr", "it", "zh-Hans"]
 
 # Scene layout constants (UIConstants.DEFAULT_WIDTH/HEIGHT and the fixed header,
@@ -77,6 +77,7 @@ class Acceptance:
         self.audio: IsolatedAudio | None = None
         self.checks: list[tuple[str, bool, str]] = []
         self.log_path = self.root / "app.log"
+        self._packaged_bell: Path | None = None
 
     # ------------------------------------------------------------------ infra
     def log(self, message: str) -> None:
@@ -145,6 +146,29 @@ class Acceptance:
                 time.sleep(0.1)
             xvfb.kill()
         raise Failure("could not start a private Xvfb display")
+
+    def packaged_bell(self) -> Path:
+        """Extract the ``bell.mp3`` that ships inside the packaged application JAR.
+
+        The audio checks must inspect the bytes that are actually distributed, not
+        the repository source asset: a truncated or corrupt packaged resource has to
+        fail here even though the working-tree copy is intact.
+        """
+        if self._packaged_bell is not None:
+            return self._packaged_bell
+        app_dir = self.image / "lib" / "app"
+        jars = sorted(app_dir.glob("taskflow-*.jar"))
+        if len(jars) != 1:
+            raise Failure(f"expected exactly one taskflow JAR in {app_dir}, found {len(jars)}")
+        try:
+            with zipfile.ZipFile(jars[0]) as archive:
+                data = archive.read("assets/bell.mp3")
+        except (KeyError, zipfile.BadZipFile) as error:
+            raise Failure(f"the packaged JAR has no readable assets/bell.mp3: {error}") from error
+        target = self.root / "packaged-bell.mp3"
+        target.write_bytes(data)
+        self._packaged_bell = target
+        return target
 
     def db(self) -> sqlite3.Connection:
         return sqlite3.connect(self.xdg / "TaskFlow" / "taskflow.db", timeout=5)
@@ -366,11 +390,12 @@ class Acceptance:
         self.check("schema user_version is 2", version == 2, str(version))
         bell = self.xdg / "TaskFlow" / "bell.mp3"
         self.check("default bell is provisioned", bell.is_file() and bell.stat().st_size > 1000)
-        if SOURCE_BELL.is_file() and bell.is_file():
+        packaged = self.packaged_bell()
+        if bell.is_file():
             same = hashlib.sha256(bell.read_bytes()).digest() == hashlib.sha256(
-                SOURCE_BELL.read_bytes()
+                packaged.read_bytes()
             ).digest()
-            self.check("provisioned bell matches the bundled asset", same)
+            self.check("provisioned bell matches the packaged asset", same)
 
     def check_add_and_timers(self) -> None:
         self.add_task("Acceptance task")
@@ -512,20 +537,21 @@ class Acceptance:
         """Decode the packaged bell (no playback) and require non-silent PCM."""
         decoded = self.root / "bell-decoded.wav"
         try:
+            source = self.packaged_bell()
             self.run(
                 ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                 "-i", str(SOURCE_BELL), str(decoded)],
+                 "-i", str(source), str(decoded)],
                 env=os.environ.copy(),
                 timeout=30,
             )
             peak = wav_peak(decoded)
             self.check(
-                "bell.mp3 asset decodes to non-silent audio",
+                "packaged bell.mp3 decodes to non-silent audio",
                 peak > 300,
-                f"peak {peak}/32767",
+                f"peak {peak}/32767 from {len(source.read_bytes())} packaged bytes",
             )
         except (Failure, OSError) as error:
-            self.check("bell.mp3 asset decodes to non-silent audio", False, str(error))
+            self.check("packaged bell.mp3 decodes to non-silent audio", False, str(error))
 
     def play_completion(self, hold: float = 2.5) -> int:
         """Complete the first task and return the peak captured by the ALSA device."""

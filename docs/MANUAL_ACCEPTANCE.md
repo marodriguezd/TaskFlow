@@ -31,16 +31,18 @@ before every launch and deletes it afterwards.
 
 It automates (34 checks):
 
-- first launch, schema `user_version = 2`, bell provisioning and asset hash;
+- first launch, schema `user_version = 2`, bell provisioning and a hash match against
+  the `bell.mp3` embedded in the packaged JAR;
 - add, edit, single-active-timer autopause, manual complete, delete and restore;
 - theme, always-on-top, all six languages, and geometry persistence across restarts;
 - **captured audio** — with sound enabled, completing a timer must write non-silent
-  samples to the private device (observed peaks ≈ 2500/32767); with sound disabled it must
-  write no samples at all; a corrupt `bell.mp3` must not crash the app, must still archive
-  the task and must ring through the bundled WAV fallback; deleting `bell.mp3` must
-  re-provision it and produce samples again;
-- decoding the packaged `bell.mp3` to PCM and requiring a non-silent peak (independent of
-  playback).
+  samples to the private device (observed peak 5110/32767 through the MP3 path on hosts
+  that decode MP3, 2555/32767 through the WAV fallback on hosts that do not); with sound
+  disabled it must write no samples at all; a corrupt `bell.mp3` must not crash the app,
+  must still archive the task and must ring through the bundled WAV fallback; deleting
+  `bell.mp3` must re-provision it and produce samples again;
+- decoding the `bell.mp3` embedded in the packaged JAR to PCM and requiring a non-silent
+  peak (independent of playback), so a truncated packaged asset fails the check.
 
 Playback goes through JavaFX: WAV is decoded by the pure-Java platform, MP3 by the
 GStreamer backend when the host supports it. On hosts whose FFmpeg is newer than the
@@ -58,6 +60,7 @@ that the rendered UI looks correct. Those remain manual (sections 3 and 4).
 with tasks, history and preferences, launches the packaged app with a disposable profile,
 and verifies after a clean exit:
 
+- `PRAGMA integrity_check` reports `ok`;
 - `PRAGMA user_version = 2`, `legacy_sources` and the provenance columns/indexes exist;
 - every task, history row, theme, always-on-top, language, sound and opacity preference is
   unchanged (geometry stays present and valid; the app may re-save it);
@@ -84,10 +87,13 @@ profile is read or modified.
 
 ## 2. What CI does not cover
 
-- Windows/macOS upgrade from a v1 database through the packaged app: the check exists and
-  runs on those platforms, but only Linux and the unit tests are exercised locally.
+CI runs the packaged-image checks (including the v1 → v2 upgrade and data preservation)
+for the MSI, the `.app` copied from the DMG, and the AppImage on their native runners.
+What no automated job covers:
+
 - Code signing and notarization: no certificates are configured, so packages are unsigned.
 - Physical audio output through speakers or headphones.
+- Interactive visual quality (see sections 3 and 4).
 
 ## 3. Physical audio (human)
 
