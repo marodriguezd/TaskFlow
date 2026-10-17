@@ -140,7 +140,7 @@ TaskFlow läuft unter Windows, Linux und macOS. Die GitHub-Actions-Workflows (`.
 ### Releases
 
 > [!NOTE]
-> **Aktuell: [TaskFlow v1.2.3](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.3)** — fügt einen einstellbaren Liquid-Glass-Intensitätsregler hinzu und macht modale Dialoghintergründe zu 98 % opak für maximale Lesbarkeit. Native Pakete bündeln eine vollständige Java-21-Laufzeit für Windows (`.msi`), Linux (`.AppImage`) und macOS (`.dmg`, Apple Silicon), mit SHA-256-Prüfsummen zur Verifizierung jedes Downloads.
+> **Aktuell: [TaskFlow v1.2.4](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.4)** — absichert den Import alter Daten mit transaktioneller Herkunft, gleicht Verlaufseinträge zeitzoneunabhängig ab und fällt bei fehlender MP3-Dekodierung auf die mitgelieferte `bell.wav` zurück. Native Pakete bündeln eine vollständige Java-21-Laufzeit für Windows (`.msi`), Linux (`.AppImage`) und macOS (`.dmg`, Apple Silicon), mit SHA-256-Prüfsummen zur Verifizierung jedes Downloads.
 
 Offizielle Releases werden automatisch auf der [GitHub-Releases-Seite](https://github.com/marodriguezd/TaskFlow/releases) veröffentlicht, wenn ein `vMAJOR.MINOR.PATCH`-Tag gepusht wird (z. B. `v1.0.0`). Die Pipeline:
 
