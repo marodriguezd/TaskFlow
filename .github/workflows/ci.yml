@@ -55,7 +55,7 @@ jobs:
       # requires a startup marker and a normal shutdown (a timeout is a failure guard only).
       - name: Install Xvfb and GUI acceptance tools (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick x11-utils
+        run: sudo apt-get update && sudo apt-get install -y xvfb xdotool imagemagick x11-utils ffmpeg
 
       - name: Verify and smoke-test the packaged app image (Linux)
         if: runner.os == 'Linux'
@@ -64,11 +64,27 @@ jobs:
           xvfb-run -a python3 tools/app_smoke_test.py --image build/dist/TaskFlow --mode launch --timeout 120
 
       # Drives the packaged application on its own private Xvfb display with a
-      # disposable profile. Covers CRUD, timers, history, theme/language/geometry
-      # persistence and the sound decision paths without a desktop or audio device.
+      # disposable profile and a private ALSA file PCM. Covers CRUD, timers,
+      # history, theme/language/geometry persistence, and the enabled/disabled/
+      # corrupt/missing sound paths by inspecting captured samples.
       - name: Automated packaged-app acceptance (Linux)
         if: runner.os == 'Linux'
         run: python3 tools/acceptance_check.py --image build/dist/TaskFlow --timeout 60
+
+      # Boots the packaged app against a genuine v1 database built from the shared
+      # src/test/resources/schema-v1.sql fixture and verifies the v2 upgrade,
+      # data preservation and NULL provenance through the real startup path.
+      - name: Verify packaged schema v1 -> v2 upgrade (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python3 tools/upgrade_check.py --image build/dist/TaskFlow --timeout 120
+
+      - name: Verify packaged schema v1 -> v2 upgrade (macOS)
+        if: runner.os == 'macOS'
+        run: python3 tools/upgrade_check.py --image build/dist/TaskFlow.app --timeout 120
+
+      - name: Verify packaged schema v1 -> v2 upgrade (Windows)
+        if: runner.os == 'Windows'
+        run: python tools/upgrade_check.py --image build/dist/TaskFlow --timeout 120
 
       - name: Build and smoke-test the Linux AppImage
         if: runner.os == 'Linux'
@@ -78,6 +94,19 @@ jobs:
           ./gradlew --no-daemon jpackagePackage
           xvfb-run -a python3 tools/app_smoke_test.py \
             --appimage build/dist/TaskFlow-1.2.3-x86_64.AppImage --mode all --timeout 180
+
+      # User data must live outside the AppImage and survive deleting it.
+      - name: Verify AppImage removal preserves user data (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          APPIMAGE=build/dist/TaskFlow-1.2.3-x86_64.AppImage
+          WORK="$(mktemp -d)"
+          (cd "$WORK" && "$GITHUB_WORKSPACE/$APPIMAGE" --appimage-extract >/dev/null)
+          xvfb-run -a python3 tools/data_preservation_check.py prepare \
+            --image "$WORK/squashfs-root/usr/bin" --workdir "$WORK/profile" --timeout 120
+          rm -f "$APPIMAGE"
+          test ! -e "$APPIMAGE"
+          python3 tools/data_preservation_check.py verify --workdir "$WORK/profile"
 
       - name: Verify and smoke-test the packaged app bundle (macOS)
         if: runner.os == 'macOS'
@@ -99,6 +128,13 @@ jobs:
           ditto "$MOUNT/TaskFlow.app" build/dist/InstalledTaskFlow.app
           hdiutil detach "$MOUNT" -force -quiet
           python3 tools/app_smoke_test.py --image build/dist/InstalledTaskFlow.app --mode launch --timeout 120
+          # User data must live outside the bundle and survive removing the app.
+          WORK="$(mktemp -d)"
+          python3 tools/data_preservation_check.py prepare \
+            --image build/dist/InstalledTaskFlow.app --workdir "$WORK/profile" --timeout 120
+          rm -rf build/dist/InstalledTaskFlow.app
+          test ! -e build/dist/InstalledTaskFlow.app
+          python3 tools/data_preservation_check.py verify --workdir "$WORK/profile"
 
       - name: Verify and smoke-test the packaged app image (Windows)
         if: runner.os == 'Windows'
@@ -115,8 +151,15 @@ jobs:
           $launcher = Join-Path $env:ProgramFiles 'TaskFlow\TaskFlow.exe'
           if (-not (Test-Path $launcher)) { throw "Installed launcher missing: $launcher" }
           python tools/app_smoke_test.py --image (Split-Path $launcher) --mode all --timeout 120
+          # User data must live in %APPDATA%, outside Program Files, and survive the uninstall.
+          $work = Join-Path $env:RUNNER_TEMP 'taskflow-preservation'
+          if (Test-Path $work) { Remove-Item -Recurse -Force $work }
+          New-Item -ItemType Directory -Path $work | Out-Null
+          python tools/data_preservation_check.py prepare `
+            --image (Split-Path $launcher) --workdir $work --timeout 120
           Start-Process msiexec.exe -Wait -ArgumentList "/x `"$msi`" /qn /norestart"
           if (Test-Path $launcher) { throw "Uninstall left the application behind" }
+          python tools/data_preservation_check.py verify --workdir $work
 
       - name: Upload native application image
         # actions/upload-artifact v7.0.2

@@ -32,7 +32,7 @@ Un gestor de tareas de escritorio ligero y multiplataforma con temporizadores de
 - **Modo siempre visible** — fijado de ventana conmutable
 - **Geometría persistente** — la posición y el tamaño de la ventana se recuerdan entre sesiones
 - **Migración de datos heredados** — importación automática y única de datos JSON de versiones anteriores
-- **Aviso sonoro** — una campana opcional suena al completar un temporizador (reemplazable por el usuario)
+- **Aviso sonoro** — una campana opcional suena al completar un temporizador (reemplazable por el usuario; incluye una copia WAV que mantiene el aviso cuando el backend multimedia del sistema no puede decodificar MP3)
 
 ## Tecnología
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** es la única capa que toca SQLite, expuesta mediante interfaces de repositorio.
 - **`service.PlatformService`** aísla todo el comportamiento específico del sistema operativo (directorios de datos, convenciones de ventana, estado por defecto de siempre visible).
 
-Los recursos viven en `src/main/resources`: los temas CSS (`css/base.css`, `css/light.css`, `css/dark.css`), los bundles de traducción (`i18n/messages*.properties`), los iconos (`assets/`), el sonido de aviso por defecto (`assets/bell.mp3`) y la configuración de Logback.
+Los recursos viven en `src/main/resources`: los temas CSS (`css/base.css`, `css/light.css`, `css/dark.css`), los bundles de traducción (`i18n/messages*.properties`), los iconos (`assets/`), el sonido de aviso por defecto (`assets/bell.mp3` y la reserva `assets/bell.wav` para backends sin soporte MP3) y la configuración de Logback.
 
 ## Primeros pasos
 
@@ -199,7 +199,7 @@ Desde el esquema 2 la base de datos conserva procedencia duradera: `legacy_sourc
 ## Desarrollo
 
 - **Formato** impuesto con Spotless (Google Java Format, estilo AOSP). Ejecuta `./gradlew spotlessApply` antes de commitear; CI falla ante violaciones de `spotlessCheck`.
-- **Pruebas** con JUnit 6 y AssertJ: cubren el modelo de dominio, servicios, repositorios, migración heredada, internacionalización (completitud de bundles, reserva, detección de idioma), casos borde de temporizadores, comportamiento de esquema y transacciones, recuperación de geometría y un flujo end-to-end. JaCoCo exige un umbral mínimo del 45% de cobertura de líneas. Las pruebas corren headless — sin pantalla ni toolkit JavaFX. CI también verifica la imagen empaquetada y sus recursos, y arranca/cierra la aplicación en las tres plataformas (Xvfb en Linux); no demuestra salida de audio física. En Linux, `python3 tools/acceptance_check.py` también ejecuta la aplicación empaquetada en un Xvfb privado con un perfil desechable para probar CRUD, temporizadores, historial, persistencia de tema/idioma/geometría y las rutas de decisión del sonido, sin usar tu escritorio ni tu dispositivo de audio.
+- **Pruebas** con JUnit 6 y AssertJ: cubren el modelo de dominio, servicios, repositorios, migración heredada, internacionalización (completitud de bundles, reserva, detección de idioma), casos borde de temporizadores, comportamiento de esquema y transacciones, recuperación de geometría y un flujo end-to-end. JaCoCo exige un umbral mínimo del 45% de cobertura de líneas. Las pruebas corren headless — sin pantalla ni toolkit JavaFX. CI verifica la imagen empaquetada y sus recursos y arranca/cierra la aplicación en las tres plataformas (Xvfb en Linux). `python3 tools/upgrade_check.py` arranca la app empaquetada con una base v1 real (fixture `src/test/resources/schema-v1.sql`) y comprueba la actualización a v2, la conservación de datos y la procedencia NULL. `python3 tools/data_preservation_check.py` registra la base, `bell.mp3` y una tarea centinela, elimina el paquete instalado (desinstalación MSI, `.app` copiada, AppImage) y verifica que los datos sobreviven intactos. En Linux, `python3 tools/acceptance_check.py` ejecuta la app empaquetada en un Xvfb privado, con perfil desechable y un PCM ALSA de fichero privado: CRUD, temporizadores, historial, persistencia de tema/idioma/geometría y las rutas de sonido activado/desactivado/corrupto/ausente, exigiendo **muestras capturadas no silenciosas** al reproducir y silencio con el sonido desactivado, sin usar tu escritorio, ratón ni tarjeta de sonido. La audibilidad física y la calidad visual siguen requiriendo las comprobaciones manuales.
 
 ## Administración del repositorio
 

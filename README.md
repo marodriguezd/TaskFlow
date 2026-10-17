@@ -32,7 +32,7 @@ English · [Español](README_es.md) · [Deutsch](README_de.md) · [Français](RE
 - **Always-on-top mode** — toggleable window pinning
 - **Window geometry persistence** — window position and size are remembered between sessions
 - **Legacy data migration** — automatic one-time import of JSON data from previous versions
-- **Audio notification** — an optional bell chime plays when a timer completes (user-replaceable)
+- **Audio notification** — an optional bell chime plays when a timer completes (user-replaceable; a bundled WAV copy keeps the chime working when the host media backend cannot decode MP3)
 
 ## Technology
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** is the only layer that touches SQLite, exposed through repository interfaces.
 - **`service.PlatformService`** isolates all operating-system-specific behavior (data directories, windowing conventions, default always-on-top state).
 
-Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/light.css`, `css/dark.css`), the translation bundles (`i18n/messages*.properties`), application icons (`assets/`), the default notification sound (`assets/bell.mp3`), and the Logback configuration.
+Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/light.css`, `css/dark.css`), the translation bundles (`i18n/messages*.properties`), application icons (`assets/`), the default notification sound (`assets/bell.mp3` plus the `assets/bell.wav` fallback for media backends without MP3 support), and the Logback configuration.
 
 ## Getting Started
 
@@ -210,7 +210,7 @@ Legacy JSON has no stable record identifiers. Since schema version 2 the databas
 
 - **Formatting** is enforced with Spotless (Google Java Format, AOSP style). Run `./gradlew spotlessApply` before committing; CI fails on `spotlessCheck` violations.
 - **Tests** use JUnit 6 with AssertJ and cover the domain model, services, repositories, legacy migration and provenance, schema upgrades, internationalization (bundle completeness, fallback, language detection), timer edge cases, transaction behavior, geometry recovery, and an end-to-end application flow. JaCoCo enforces a 45% minimum line-coverage threshold. Unit and integration tests run headless — no display or JavaFX toolkit required.
-- **Packaged-app checks** run in CI on Ubuntu, Windows, and macOS: the jpackage image and its JAR resources (translations, themes, audio, JavaFX) are verified, then the packaged application is launched with an explicit smoke-test flag that requires the primary window to be showing and a normal shutdown. Linux uses Xvfb and also verifies the AppImage; macOS verifies a copy installed from the DMG; Windows verifies the MSI install/uninstall. These checks prove startup wiring and resource bundling, not audible output — physical audio and interactive GUI behavior still require the manual checks in [docs/MANUAL_ACCEPTANCE.md](docs/MANUAL_ACCEPTANCE.md). On Linux, `python3 tools/acceptance_check.py` additionally drives the packaged application on a private Xvfb display with a disposable profile: CRUD, timers, history, theme/language/geometry persistence, and the sound decision paths, without using your desktop, mouse, or audio device. It still does not prove audibility.
+- **Packaged-app checks** run in CI on Ubuntu, Windows, and macOS: the jpackage image and its JAR resources (translations, themes, audio, JavaFX) are verified, then the packaged application is launched with an explicit smoke-test flag that requires the primary window to be showing and a normal shutdown. Linux uses Xvfb and also verifies the AppImage; macOS verifies a copy installed from the DMG; Windows verifies the MSI install/uninstall. `python3 tools/upgrade_check.py` boots the packaged app against a genuine v1 database built from `src/test/resources/schema-v1.sql` and verifies the v2 upgrade, data preservation and NULL provenance. `python3 tools/data_preservation_check.py` records the database, `bell.mp3` and a sentinel task in a disposable profile, removes the installed package (MSI uninstall, copied `.app`, AppImage), and verifies the data survived unchanged. `python3 tools/acceptance_check.py` (Linux) drives the packaged application on a private Xvfb display with a disposable profile and a private ALSA file PCM: CRUD, timers, history, theme/language/geometry persistence, and the enabled/disabled/corrupt/missing sound paths, asserting **non-silent captured samples** for playback and silence when sound is disabled, without using your desktop, mouse, or sound card. Physical audibility and interactive GUI quality still require the manual checks in [docs/MANUAL_ACCEPTANCE.md](docs/MANUAL_ACCEPTANCE.md).
 
 ## Repository administration
 

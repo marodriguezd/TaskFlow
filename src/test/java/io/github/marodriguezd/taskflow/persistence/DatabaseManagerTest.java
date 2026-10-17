@@ -8,6 +8,8 @@ import io.github.marodriguezd.taskflow.domain.Priority;
 import io.github.marodriguezd.taskflow.domain.Task;
 import io.github.marodriguezd.taskflow.domain.ThemeMode;
 import io.github.marodriguezd.taskflow.domain.UserPreferences;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -124,26 +126,26 @@ class DatabaseManagerTest {
                 .hasMessageContaining("newer than supported");
     }
 
+    /**
+     * Builds a genuine v1 database from the shared {@code schema-v1.sql} fixture, which {@code
+     * tools/upgrade_check.py} also uses so the in-process and packaged startup upgrades cannot
+     * drift apart.
+     */
     private void createVersionOneDatabase(String url) throws Exception {
+        String script;
+        try (InputStream in = getClass().getResourceAsStream("/schema-v1.sql")) {
+            assertThat(in).as("classpath resource schema-v1.sql").isNotNull();
+            script = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        script = script.replaceAll("(?m)^\\s*--.*$", "");
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
-            statement.executeUpdate(
-                    "CREATE TABLE tasks ("
-                            + "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
-                            + "priority TEXT NOT NULL, total_seconds INTEGER NOT NULL, "
-                            + "remaining_seconds INTEGER NOT NULL, created_at TEXT NOT NULL, "
-                            + "updated_at TEXT NOT NULL)");
-            statement.executeUpdate("CREATE INDEX idx_tasks_priority ON tasks(priority)");
-            statement.executeUpdate(
-                    "CREATE TABLE history ("
-                            + "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, "
-                            + "priority TEXT NOT NULL, total_seconds INTEGER NOT NULL, "
-                            + "remaining_seconds INTEGER NOT NULL, event_type TEXT NOT NULL, "
-                            + "completed_manually INTEGER NOT NULL, event_at TEXT NOT NULL)");
-            statement.executeUpdate("CREATE INDEX idx_history_event_at ON history(event_at DESC)");
-            statement.executeUpdate(
-                    "CREATE TABLE preferences (pref_key TEXT PRIMARY KEY, "
-                            + "pref_value TEXT NOT NULL)");
+            for (String sql : script.split(";")) {
+                String trimmed = sql.strip();
+                if (!trimmed.isEmpty()) {
+                    statement.execute(trimmed);
+                }
+            }
             statement.executeUpdate(
                     "INSERT INTO tasks(name, priority, total_seconds, remaining_seconds, "
                             + "created_at, updated_at) VALUES "

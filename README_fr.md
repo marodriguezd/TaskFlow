@@ -32,7 +32,7 @@ Un gestionnaire de tâches de bureau léger et multiplateforme avec minuteurs de
 - **Mode toujours visible** — épinglage de fenêtre commutable
 - **Géométrie persistante** — la position et la taille de la fenêtre sont mémorisées entre sessions
 - **Migration des données héritées** — import automatique unique des données JSON des versions précédentes
-- **Notification sonore** — une cloche optionnelle retentit à la fin d'un minuteur (remplaçable)
+- **Notification sonore** — une cloche optionnelle retentit à la fin d'un minuteur (remplaçable ; une copie WAV intégrée maintient la sonnerie lorsque le backend multimédia du système ne sait pas décoder le MP3)
 
 ## Technologie
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** est la seule couche qui touche SQLite, exposée via des interfaces de dépôt.
 - **`service.PlatformService`** isole tout comportement spécifique au système d'exploitation (répertoires de données, conventions de fenêtrage, état d'épinglage par défaut).
 
-Les ressources vivent dans `src/main/resources` : les thèmes CSS (`css/base.css`, `css/light.css`, `css/dark.css`), les bundles de traduction (`i18n/messages*.properties`), les icônes (`assets/`), le son de notification par défaut (`assets/bell.mp3`) et la configuration Logback.
+Les ressources vivent dans `src/main/resources` : les thèmes CSS (`css/base.css`, `css/light.css`, `css/dark.css`), les bundles de traduction (`i18n/messages*.properties`), les icônes (`assets/`), le son de notification par défaut (`assets/bell.mp3` et la copie de secours `assets/bell.wav` pour les backends sans support MP3) et la configuration Logback.
 
 ## Démarrage
 
@@ -199,7 +199,7 @@ Depuis le schéma 2, la base conserve une provenance durable : `legacy_sources` 
 ## Développement
 
 - **Formatage** imposé avec Spotless (Google Java Format, style AOSP). Exécutez `./gradlew spotlessApply` avant de commiter ; la CI échoue sur violations de `spotlessCheck`.
-- **Tests** avec JUnit 6 et AssertJ : couvrent le modèle de domaine, les services, les dépôts, la migration héritée, l'internationalisation (complétude des bundles, repli, détection de langue), les cas limites des minuteurs, le comportement schéma/transactions, la récupération de géométrie et un flux applicatif de bout en bout. JaCoCo exige un seuil minimum de 45 % de couverture de lignes. Les tests tournent headless — sans écran ni toolkit JavaFX. La CI vérifie aussi l'image empaquetée et ses ressources, et démarre/arrête l'application sur les trois plateformes (Xvfb sous Linux) ; la sortie audio physique n'est pas prouvée. Sous Linux, `python3 tools/acceptance_check.py` pilote aussi l'application empaquetée sur un affichage Xvfb privé avec un profil jetable : CRUD, minuteurs, historique, persistance du thème/de la langue/géométrie et décisions de son, sans utiliser votre bureau ni votre périphérique audio.
+- **Tests** avec JUnit 6 et AssertJ : couvrent le modèle de domaine, les services, les dépôts, la migration héritée, l'internationalisation (complétude des bundles, repli, détection de langue), les cas limites des minuteurs, le comportement schéma/transactions, la récupération de géométrie et un flux applicatif de bout en bout. JaCoCo exige un seuil minimum de 45 % de couverture de lignes. Les tests tournent headless — sans écran ni toolkit JavaFX. La CI vérifie l'image empaquetée et ses ressources et démarre/arrête l'application sur les trois plateformes (Xvfb sous Linux). `python3 tools/upgrade_check.py` démarre l'application empaquetée avec une vraie base v1 (fixture `src/test/resources/schema-v1.sql`) et vérifie la mise à niveau v2, la conservation des données et la provenance NULL. `python3 tools/data_preservation_check.py` enregistre la base, `bell.mp3` et une tâche sentinelle, supprime le paquet installé (désinstallation MSI, `.app` copiée, AppImage) et vérifie que les données survivent intactes. Sous Linux, `python3 tools/acceptance_check.py` pilote l'application empaquetée sur un affichage Xvfb privé, avec profil jetable et un PCM ALSA fichier privé : CRUD, minuteurs, historique, persistance du thème/de la langue/géométrie et les chemins son activé/désactivé/corrompu/absent, en exigeant des **échantillons capturés non silencieux** à la lecture et le silence lorsque le son est désactivé, sans utiliser votre bureau, votre souris ni votre carte son. L'audibilité physique et la qualité visuelle restent des vérifications manuelles.
 
 ## Administration du dépôt
 

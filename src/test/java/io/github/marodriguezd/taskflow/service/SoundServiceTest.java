@@ -8,6 +8,7 @@ import io.github.marodriguezd.taskflow.persistence.DatabaseManager;
 import io.github.marodriguezd.taskflow.persistence.SqlitePreferenceRepository;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -76,6 +77,18 @@ class SoundServiceTest {
             assertThat(bytes.length).isGreaterThan(1_000);
             // MP3 frames start with 0xFF, or an ID3 tag starts with "ID3".
             assertThat((bytes[0] & 0xFF) == 0xFF || (bytes[0] == 'I' && bytes[1] == 'D')).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("The bundled WAV fallback is a valid PCM file for backends without MP3 support")
+    void bundledWaveFallbackIsValid() throws IOException {
+        try (InputStream in = getClass().getResourceAsStream("/assets/bell.wav")) {
+            assertThat(in).as("bundled /assets/bell.wav").isNotNull();
+            byte[] bytes = in.readAllBytes();
+            assertThat(bytes.length).isGreaterThan(1_000);
+            assertThat(new String(bytes, 0, 4, StandardCharsets.US_ASCII)).isEqualTo("RIFF");
+            assertThat(new String(bytes, 8, 4, StandardCharsets.US_ASCII)).isEqualTo("WAVE");
         }
     }
 

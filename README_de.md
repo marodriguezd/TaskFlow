@@ -32,7 +32,7 @@ Ein schlanker, plattformübergreifender Desktop-Taskmanager mit Timern im Pomodo
 - **Immer-im-Vordergrund-Modus** — umschaltbares Fenster-Anheften
 - **Fenstergeometrie-Speicherung** — Fensterposition und -größe bleiben zwischen Sitzungen erhalten
 - **Legacy-Datenmigration** — automatischer einmaliger Import von JSON-Daten aus früheren Versionen
-- **Audio-Benachrichtigung** — beim Abschluss eines Timers ertönt optional ein Glockenton (austauschbar)
+- **Audio-Benachrichtigung** — beim Abschluss eines Timers ertönt optional ein Glockenton (austauschbar; eine mitgelieferte WAV-Kopie hält den Ton am Laufen, wenn das Medien-Backend des Systems kein MP3 dekodieren kann)
 
 ## Technologie
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** ist die einzige Schicht, die SQLite berührt, offengelegt über Repository-Interfaces.
 - **`service.PlatformService`** isoliert sämtliches betriebssystemspezifisches Verhalten (Datenverzeichnisse, Fensterkonventionen, Standard-Anheftstatus).
 
-Ressourcen liegen unter `src/main/resources`: die CSS-Designs (`css/base.css`, `css/light.css`, `css/dark.css`), die Übersetzungsbundles (`i18n/messages*.properties`), Anwendungssymbole (`assets/`), der Standard-Benachrichtigungston (`assets/bell.mp3`) und die Logback-Konfiguration.
+Ressourcen liegen unter `src/main/resources`: die CSS-Designs (`css/base.css`, `css/light.css`, `css/dark.css`), die Übersetzungsbundles (`i18n/messages*.properties`), Anwendungssymbole (`assets/`), der Standard-Benachrichtigungston (`assets/bell.mp3` plus `assets/bell.wav` als Ausweichdatei für Medien-Backends ohne MP3-Unterstützung) und die Logback-Konfiguration.
 
 ## Erste Schritte
 
@@ -199,7 +199,7 @@ Seit Schema 2 speichert die Datenbank dauerhafte Herkunft: `legacy_sources` erfa
 ## Entwicklung
 
 - **Formatierung** wird mit Spotless (Google Java Format, AOSP-Stil) erzwungen. Vor dem Committen `./gradlew spotlessApply` ausführen; CI scheitert bei `spotlessCheck`-Verstößen.
-- **Tests** nutzen JUnit 6 mit AssertJ und decken Domänenmodell, Services, Repositories, Legacy-Migration, Internationalisierung (Bundle-Vollständigkeit, Fallback, Spracherkennung), Timer-Randfälle, Schema- und Transaktionsverhalten, Geometrie-Wiederherstellung und einen End-to-End-Anwendungsfluss ab. JaCoCo erzwingt eine Mindest-Zeilenabdeckung von 45 %. Tests laufen headless — kein Display oder JavaFX-Toolkit erforderlich. CI prüft außerdem das gepackte Abbild und seine Ressourcen und startet/beendet die Anwendung auf allen drei Plattformen (Xvfb unter Linux); physische Audioausgabe wird nicht nachgewiesen. Unter Linux treibt `python3 tools/acceptance_check.py` zusätzlich die gepackte Anwendung auf einem privaten Xvfb-Display mit einem Wegwerfprofil an: CRUD, Timer, Verlauf, Persistenz von Theme/Sprache/Geometrie und die Sound-Entscheidungspfade, ohne Desktop oder Audiogerät zu verwenden.
+- **Tests** nutzen JUnit 6 mit AssertJ und decken Domänenmodell, Services, Repositories, Legacy-Migration, Internationalisierung (Bundle-Vollständigkeit, Fallback, Spracherkennung), Timer-Randfälle, Schema- und Transaktionsverhalten, Geometrie-Wiederherstellung und einen End-to-End-Anwendungsfluss ab. JaCoCo erzwingt eine Mindest-Zeilenabdeckung von 45 %. Tests laufen headless — kein Display oder JavaFX-Toolkit erforderlich. CI prüft das gepackte Abbild und seine Ressourcen und startet/beendet die Anwendung auf allen drei Plattformen (Xvfb unter Linux). `python3 tools/upgrade_check.py` startet die gepackte App mit einer echten v1-Datenbank (Fixture `src/test/resources/schema-v1.sql`) und prüft Upgrade auf v2, Datenerhalt und NULL-Provenienz. `python3 tools/data_preservation_check.py` erfasst Datenbank, `bell.mp3` und eine Sentinel-Aufgabe, entfernt das installierte Paket (MSI-Deinstallation, kopierte `.app`, AppImage) und prüft, dass die Daten unverändert überleben. Unter Linux treibt `python3 tools/acceptance_check.py` die gepackte Anwendung auf einem privaten Xvfb-Display mit Wegwerfprofil und einem privaten ALSA-Datei-PCM an: CRUD, Timer, Verlauf, Persistenz von Theme/Sprache/Geometrie sowie die Pfade Ton an/aus/korrupt/fehlend, mit **nicht stummen aufgezeichneten Samples** bei Wiedergabe und Stille bei deaktiviertem Ton — ohne Desktop, Maus oder Soundkarte zu verwenden. Physische Hörbarkeit und visuelle Qualität erfordern weiterhin manuelle Prüfungen.
 
 ## Repository-Administration
 

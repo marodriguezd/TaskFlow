@@ -2,14 +2,14 @@
 """Automated, isolated acceptance checks for a packaged TaskFlow build.
 
 The checks run on a private Xvfb display with a throw-away home/data directory and
-an ALSA ``file`` plugin as the default PCM. That means:
+a private ALSA file PCM (see ``tools/isolated_audio.py``) that records playback to
+a raw sample file. That means:
 
-* the real desktop, keyboard, mouse, audio device and default sink are never used;
-* playback is routed to a private ALSA ``file`` PCM, so sound can never reach the
-  user's speakers. JavaFX media cannot create a player on that headless device
-  (the same limitation CI has), therefore the sound assertions cover the
-  SoundService decision paths, application resilience and the packaged asset —
-  not audible playback;
+* the real desktop, keyboard, mouse, sound card and default sink are never used;
+* the process can only open the generated file PCM, and PulseAudio/PipeWire are
+  pointed at non-existent private paths, so audio cannot reach the speakers;
+* the completed-sound checks inspect the captured samples, not log lines:
+  enabled sound must produce non-silent samples, disabled sound must stay silent;
 * physical audibility and visual quality still need a human. The script prints
   exactly which checks are automated and which are not.
 
@@ -21,8 +21,9 @@ Usage:
     python3 tools/acceptance_check.py [--image build/dist/TaskFlow]
                                       [--keep] [--timeout 40]
 
-Requires Linux with Xvfb, xdotool, ImageMagick's ``import`` and ``xprop``
-(``x11-utils``). The script exits non-zero if any automated check fails.
+Requires Linux with Xvfb, xdotool, ImageMagick's ``import``, ``xprop``
+(``x11-utils``), ``ffmpeg`` and the ALSA ``file``/``null`` PCM plugins (part of
+alsa-lib). The script exits non-zero if any automated check fails.
 """
 
 from __future__ import annotations
@@ -37,8 +38,9 @@ import subprocess
 import sys
 import tempfile
 import time
-import wave
 from pathlib import Path
+
+from isolated_audio import AudioIsolationError, IsolatedAudio, wav_peak
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LAUNCHER_REL = Path("bin") / "TaskFlow"
@@ -72,8 +74,7 @@ class Acceptance:
         self.xvfb = None
         self.app = None
         self.window = None
-        self.audio_index = 0
-        self.audio_raw = None
+        self.audio: IsolatedAudio | None = None
         self.checks: list[tuple[str, bool, str]] = []
         self.log_path = self.root / "app.log"
 
@@ -102,8 +103,8 @@ class Acceptance:
             raise Failure(f"{' '.join(args)} failed ({proc.returncode}):\n{proc.stdout}")
         return proc.stdout
 
-    def env(self, raw: Path | None = None) -> dict[str, str]:
-        env = os.environ.copy()
+    def env(self) -> dict[str, str]:
+        env = dict(self.audio.env()) if self.audio is not None else os.environ.copy()
         env.update(
             {
                 "DISPLAY": self.display or ":0",
@@ -112,19 +113,7 @@ class Acceptance:
                 "JAVA_TOOL_OPTIONS": f"-Duser.home={self.home}",
             }
         )
-        if raw is not None:
-            env["ALSA_CONFIG_PATH"] = str(self.asound_conf(raw))
         return env
-
-    def asound_conf(self, raw: Path) -> Path:
-        path = self.root / f"asound-{self.audio_index}.conf"
-        path.write_text(
-            "pcm.null { type null }\n"
-            'pcm.!default { type file; slave.pcm "null"; '
-            f'file "{raw}"; format "raw" }}\n',
-            encoding="utf-8",
-        )
-        return path
 
     def start_display(self) -> None:
         for number in range(90, 130):
@@ -215,16 +204,16 @@ class Acceptance:
         return clean
 
     def launch(self) -> None:
-        self.audio_index += 1
-        self.audio_raw = self.root / f"alsa-{self.audio_index}.raw"
-        if self.audio_raw.exists():
-            self.audio_raw.unlink()
+        assert self.audio is not None
+        # Cheap pre-flight: never start the application unless the private graph
+        # still contains only the null sink.
+        self.audio.assert_isolated()
         with self.log_path.open("a", encoding="utf-8") as log:
-            log.write(f"\n===== launch {self.audio_index} =====\n")
+            log.write(f"\n===== launch =====\n")
             log.flush()
             self.app = subprocess.Popen(
                 [str(self.launcher)],
-                env=self.env(self.audio_raw),
+                env=self.env(),
                 stdout=log,
                 stderr=subprocess.STDOUT,
             )
@@ -404,7 +393,15 @@ class Acceptance:
 
         self.click_edit(0)
         self.fill_dialog(minutes=3)
-        edited = self.query("SELECT total_seconds, remaining_seconds FROM tasks ORDER BY id")[0]
+        # The dialog closes before the persistence write lands; poll instead of
+        # assuming the row is updated by the time the click returns.
+        deadline = time.time() + 10
+        edited = (0, 0)
+        while time.time() < deadline:
+            edited = self.query("SELECT total_seconds, remaining_seconds FROM tasks ORDER BY id")[0]
+            if edited[0] == 180:
+                break
+            time.sleep(0.2)
         self.check("editing a task updates its duration", edited[0] == 180, str(edited))
 
     def check_history(self) -> None:
@@ -504,18 +501,6 @@ class Acceptance:
             ("true" if enabled else "false",),
         )
 
-    def play_and_wait(self) -> None:
-        before = self.query("SELECT COUNT(*) FROM history")[0][0]
-        self.click_play(0)
-        deadline = time.time() + 15
-        while time.time() < deadline:
-            after = self.query("SELECT COUNT(*) FROM history")[0][0]
-            if after > before:
-                time.sleep(1.0)
-                return
-            time.sleep(0.3)
-        raise Failure("timer did not complete during the audio check")
-
     def played_sound_count(self) -> int:
         try:
             text = self.log_path.read_text(encoding="utf-8", errors="replace")
@@ -525,9 +510,6 @@ class Acceptance:
 
     def check_bell_asset(self) -> None:
         """Decode the packaged bell (no playback) and require non-silent PCM."""
-        if shutil.which("ffmpeg") is None:
-            self.check("bell.mp3 asset decodes to non-silent audio", True, "ffmpeg unavailable; skipped")
-            return
         decoded = self.root / "bell-decoded.wav"
         try:
             self.run(
@@ -536,74 +518,108 @@ class Acceptance:
                 env=os.environ.copy(),
                 timeout=30,
             )
-            with wave.open(str(decoded)) as audio:
-                frames = audio.readframes(audio.getnframes())
-            peak = max((abs(int.from_bytes(frames[i:i + 2], "little", signed=True))
-                        for i in range(0, len(frames) - 1, 2)), default=0)
+            peak = wav_peak(decoded)
             self.check(
                 "bell.mp3 asset decodes to non-silent audio",
                 peak > 300,
                 f"peak {peak}/32767",
             )
-        except (Failure, wave.Error, OSError) as error:
+        except (Failure, OSError) as error:
             self.check("bell.mp3 asset decodes to non-silent audio", False, str(error))
 
+    def play_completion(self, hold: float = 2.5) -> int:
+        """Complete the first task and return the peak captured by the ALSA device."""
+        assert self.audio is not None
+        before = self.query("SELECT COUNT(*) FROM history")[0][0]
+        self.click_play(0)
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            if self.query("SELECT COUNT(*) FROM history")[0][0] > before:
+                break
+            time.sleep(0.2)
+        else:
+            raise Failure("timer did not complete during the audio check")
+        # Let the short notification finish writing to the isolated PCM file.
+        time.sleep(hold)
+        return self.audio.capture.peak()
+
     def check_audio(self) -> None:
-        # These checks run with a private ALSA file PCM. JavaFX media cannot
-        # create a player on that device (the same headless limitation CI has),
-        # so the assertions cover the SoundService dispatch decision and the
-        # application's resilience. Physical audibility remains a manual check.
+        # Every assertion below inspects the samples written by the isolated ALSA
+        # file PCM. A log line or a history row alone is never proof of output.
+        assert self.audio is not None
         self.check_bell_asset()
 
-        # Enabled: a completion attempts playback and still archives history.
+        # Enabled: the completion must reach the isolated device with sound.
         self.prepare_audio_task(enabled=True)
+        self.audio.begin_capture()
         before = self.played_sound_count()
         self.launch()
-        self.play_and_wait()
-        time.sleep(1)
+        peak = self.play_completion()
         self.check(
             "enabled completion sound is dispatched",
             self.played_sound_count() > before,
             f"{before} -> {self.played_sound_count()}",
         )
+        self.check(
+            "enabled completion produces non-silent captured samples",
+            peak > 100,
+            f"peak {peak}/32767 from {self.audio.capture.path.name}",
+        )
 
-        # Disabled: no playback is dispatched at all.
+        # Disabled: no playback at all, therefore no captured samples.
         self.prepare_audio_task(enabled=False)
+        self.audio.begin_capture()
         before = self.played_sound_count()
         self.launch()
-        self.play_and_wait()
-        time.sleep(1)
+        peak = self.play_completion()
         self.check(
             "disabled sound dispatches no playback",
             self.played_sound_count() == before,
             f"{before} -> {self.played_sound_count()}",
         )
+        self.check(
+            "disabled sound captures no samples",
+            peak == 0 and self.audio.capture.frames() == 0,
+            f"peak {peak}/32767, {self.audio.capture.frames()} frames",
+        )
 
-        # Corrupt user sound: the application must survive and still archive.
+        # Corrupt user sound: the application must survive, archive the task and
+        # still ring through the bundled fallback (never crash or go silent).
         self.prepare_audio_task(enabled=True)
         (self.xdg / "TaskFlow" / "bell.mp3").write_bytes(b"not an mp3")
+        self.audio.begin_capture()
         self.launch()
-        self.play_and_wait()
-        time.sleep(1)
+        peak = self.play_completion()
         alive = self.app is not None and self.app.poll() is None
         archived = len(self.query("SELECT id FROM history")) >= 1
         self.check("corrupt bell.mp3 does not crash the application", alive and archived)
+        self.check(
+            "corrupt bell.mp3 falls back to non-silent bundled audio",
+            peak > 100,
+            f"peak {peak}/32767",
+        )
 
-        # Missing user sound: the default is provisioned again on startup.
+        # Missing user sound: the default is provisioned again on startup and
+        # its completion must produce captured samples.
         self.stop_app()
         (self.xdg / "TaskFlow" / "bell.mp3").unlink()
         task = self.query("SELECT id FROM tasks ORDER BY id LIMIT 1")
         self.execute("UPDATE tasks SET remaining_seconds=2 WHERE id=?", (task[0][0],))
+        self.audio.begin_capture()
         self.launch()
         bell = self.xdg / "TaskFlow" / "bell.mp3"
         reprovisioned = bell.is_file() and bell.stat().st_size > 1000
         self.check("deleted bell.mp3 is provisioned again on restart", reprovisioned)
         before = self.played_sound_count()
-        self.play_and_wait()
-        time.sleep(1)
+        peak = self.play_completion()
         self.check(
             "re-provisioned bell is dispatched on completion",
             reprovisioned and self.played_sound_count() > before,
+        )
+        self.check(
+            "re-provisioned bell produces non-silent captured samples",
+            peak > 100,
+            f"peak {peak}/32767",
         )
 
     def run_all(self) -> None:
@@ -611,6 +627,11 @@ class Acceptance:
         self.log(f"isolated root: {self.root}")
         self.start_display()
         self.log(f"private display: {self.display}")
+        try:
+            self.audio = IsolatedAudio(self.root).start()
+        except AudioIsolationError as error:
+            raise Failure(f"could not prepare the isolated audio device: {error}") from error
+        self.log(f"private audio device: {self.audio.capture.config}")
         self.launch()
         self.check_first_launch()
         self.check_add_and_timers()
@@ -624,6 +645,9 @@ class Acceptance:
 
     def close(self) -> None:
         self.stop_app()
+        if self.audio is not None:
+            self.audio.close()
+            self.audio = None
         if self.xvfb is not None:
             self.xvfb.terminate()
             try:
@@ -642,7 +666,10 @@ class Acceptance:
             self.log("failed: " + ", ".join(failed))
             self.log("application log: " + str(self.log_path))
             return 1
-        self.log("Physical audibility and interactive visual review are NOT automated.")
+        self.log(
+            "Samples were captured from the isolated ALSA device. Physical audibility "
+            "(speakers/headphones) and interactive visual review are NOT automated."
+        )
         return 0
 
 
@@ -656,7 +683,7 @@ def main() -> int:
     if not (args.image / LAUNCHER_REL).is_file():
         print(f"not a packaged application image: {args.image}", file=sys.stderr)
         return 2
-    for tool in ("Xvfb", "xdotool", "import", "xprop"):
+    for tool in ("Xvfb", "xdotool", "import", "xprop", "ffmpeg"):
         if shutil.which(tool) is None:
             print(f"required tool is missing: {tool}", file=sys.stderr)
             return 2

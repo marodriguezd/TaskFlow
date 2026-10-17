@@ -32,7 +32,7 @@ Un task manager desktop leggero e multipiattaforma con timer in stile Pomodoro, 
 - **Modalità sempre in primo piano** — fissaggio finestra commutabile
 - **Geometria persistente** — posizione e dimensione della finestra ricordate tra le sessioni
 - **Migrazione dati legacy** — importazione automatica una tantum dei dati JSON delle versioni precedenti
-- **Avviso sonoro** — una campana opzionale suona al completamento di un timer (sostituibile)
+- **Avviso sonoro** — una campana opzionale suona al completamento di un timer (sostituibile; una copia WAV inclusa mantiene il suono quando il backend multimediale di sistema non decodifica MP3)
 
 ## Tecnologia
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** è l'unico livello che tocca SQLite, esposto tramite interfacce repository.
 - **`service.PlatformService`** isola tutto il comportamento specifico del sistema operativo (directory dati, convenzioni finestra, stato di default del fissaggio).
 
-Le risorse vivono in `src/main/resources`: i temi CSS (`css/base.css`, `css/light.css`, `css/dark.css`), i bundle di traduzione (`i18n/messages*.properties`), le icone (`assets/`), il suono di notifica predefinito (`assets/bell.mp3`) e la configurazione Logback.
+Le risorse vivono in `src/main/resources`: i temi CSS (`css/base.css`, `css/light.css`, `css/dark.css`), i bundle di traduzione (`i18n/messages*.properties`), le icone (`assets/`), il suono di notifica predefinito (`assets/bell.mp3` più la copia `assets/bell.wav` per i backend senza supporto MP3) e la configurazione Logback.
 
 ## Primi passi
 
@@ -199,7 +199,7 @@ Dallo schema 2 il database conserva una provenienza durevole: `legacy_sources` r
 ## Sviluppo
 
 - **Formattazione** imposta con Spotless (Google Java Format, stile AOSP). Esegui `./gradlew spotlessApply` prima di committare; la CI fallisce su violazioni di `spotlessCheck`.
-- **Test** con JUnit 6 e AssertJ: coprono modello di dominio, servizi, repository, migrazione legacy, internazionalizzazione (completezza bundle, fallback, rilevamento lingua), casi limite dei timer, comportamento schema/transazioni, recupero geometria e un flusso end-to-end. JaCoCo esige una soglia minima del 45% di copertura righe. I test girano headless — senza display né toolkit JavaFX. La CI verifica anche l'immagine pacchettizzata e le sue risorse e avvia/chiude l'applicazione su tutte e tre le piattaforme (Xvfb su Linux); l'uscita audio fisica non è dimostrata. Su Linux, `python3 tools/acceptance_check.py` guida anche l'applicazione pacchettizzata su un display Xvfb privato con un profilo usa-e-getta: CRUD, timer, cronologia, persistenza di tema/lingua/geometria e le decisioni sul suono, senza usare il desktop né il dispositivo audio.
+- **Test** con JUnit 6 e AssertJ: coprono modello di dominio, servizi, repository, migrazione legacy, internazionalizzazione (completezza bundle, fallback, rilevamento lingua), casi limite dei timer, comportamento schema/transazioni, recupero geometria e un flusso end-to-end. JaCoCo esige una soglia minima del 45% di copertura righe. I test girano headless — senza display né toolkit JavaFX. La CI verifica l'immagine pacchettizzata e le sue risorse e avvia/chiude l'applicazione su tutte e tre le piattaforme (Xvfb su Linux). `python3 tools/upgrade_check.py` avvia l'app pacchettizzata con un database v1 reale (fixture `src/test/resources/schema-v1.sql`) e verifica l'aggiornamento a v2, la conservazione dei dati e la provenienza NULL. `python3 tools/data_preservation_check.py` registra database, `bell.mp3` e un'attività sentinella, rimuove il pacchetto installato (disinstallazione MSI, `.app` copiata, AppImage) e verifica che i dati sopravvivano intatti. Su Linux, `python3 tools/acceptance_check.py` guida l'applicazione pacchettizzata su un display Xvfb privato, con profilo usa-e-getta e un PCM ALSA su file privato: CRUD, timer, cronologia, persistenza di tema/lingua/geometria e i percorsi suono attivo/disattivo/corrotto/assente, richiedendo **campioni catturati non silenziosi** durante la riproduzione e silenzio con audio disattivato, senza usare desktop, mouse o scheda audio. L'udibilità fisica e la qualità visiva restano verifiche manuali.
 
 ## Amministrazione del repository
 

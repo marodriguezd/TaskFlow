@@ -37,6 +37,7 @@ REQUIRED_JAR_ENTRIES = [
     "css/light.css",
     "css/dark.css",
     "assets/bell.mp3",
+    "assets/bell.wav",
     "assets/TaskFlow.png",
     "io/github/marodriguezd/taskflow/TaskFlowLauncher.class",
     "io/github/marodriguezd/taskflow/TaskFlowApp.class",
@@ -126,6 +127,48 @@ def launch_image(image: Path, timeout: int) -> None:
     launch_and_wait(launcher, timeout)
 
 
+def run_packaged_smoke(command: Path, env: dict[str, str], marker: Path, timeout: int) -> str:
+    """Run the packaged app with ``--smoke-test`` and return its combined output.
+
+    A missing marker, a non-zero exit or a timeout is a failure. The caller owns
+    ``env`` and ``marker`` so other checks can reuse the same isolated profile.
+    """
+    process = subprocess.Popen(
+        [str(command), f"--smoke-test={marker}"],
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        errors="replace",
+    )
+    try:
+        output, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        output, _ = process.communicate()
+        raise SmokeFailure(
+            f"packaged application did not exit within {timeout}s; last output:\n"
+            + tail(output)
+        )
+
+    if process.returncode != 0:
+        raise SmokeFailure(
+            f"packaged application exited with code {process.returncode}; output:\n"
+            + tail(output)
+        )
+    if not marker.is_file():
+        raise SmokeFailure(
+            "packaged application exited without writing the startup marker; output:\n"
+            + tail(output)
+        )
+    content = marker.read_text(encoding="utf-8").strip()
+    if content != "started":
+        raise SmokeFailure(f"unexpected startup marker content: {content!r}")
+    print("Launch/exit smoke test passed")
+    print(f"  marker: {content}")
+    return output or ""
+
+
 def launch_and_wait(command: Path, timeout: int, extra_env: dict[str, str] | None = None) -> None:
     with tempfile.TemporaryDirectory(prefix="taskflow-smoke-") as temp:
         temp_dir = Path(temp)
@@ -147,39 +190,7 @@ def launch_and_wait(command: Path, timeout: int, extra_env: dict[str, str] | Non
         if extra_env:
             env.update(extra_env)
 
-        process = subprocess.Popen(
-            [str(command), f"--smoke-test={marker}"],
-            env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            errors="replace",
-        )
-        try:
-            output, _ = process.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            output, _ = process.communicate()
-            raise SmokeFailure(
-                f"packaged application did not exit within {timeout}s; last output:\n"
-                + tail(output)
-            )
-
-        if process.returncode != 0:
-            raise SmokeFailure(
-                f"packaged application exited with code {process.returncode}; output:\n"
-                + tail(output)
-            )
-        if not marker.is_file():
-            raise SmokeFailure(
-                "packaged application exited without writing the startup marker; output:\n"
-                + tail(output)
-            )
-        content = marker.read_text(encoding="utf-8").strip()
-        if content != "started":
-            raise SmokeFailure(f"unexpected startup marker content: {content!r}")
-        print("Launch/exit smoke test passed")
-        print(f"  marker: {content}")
+        output = run_packaged_smoke(command, env, marker, timeout)
         print(tail(output))
 
 
