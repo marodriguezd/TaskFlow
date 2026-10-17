@@ -107,7 +107,7 @@ Note: Linux `jpackagePackage` needs `APPIMAGETOOL_SHA256` set (CI pins it in `re
   - i18n/languages → `LanguagesTest`, `MessagesBundleTest`, `LocaleFilesTest`, `LocaleManagerTest`, `PriorityLabelsTest` (bundle parity/bijection, fallback, detection, switching)
   - platform paths/OS logic → `PlatformServiceTest`
   - domain/formatting → `domain/*Test`, `util/*Test`
-  - packaging → verify with `jpackageImage`/`jpackagePackage` locally; the release validator is `tools/release_check.py` (has strict positive/negative behavior — keep it that way)
+  - packaging → verify with `jpackageImage`/`jpackagePackage` locally and `python3 tools/app_smoke_test.py` (resource inventory + launch/exit); CI runs it on all three OSes. Physical audio and interactive GUI checks are manual (`docs/MANUAL_ACCEPTANCE.md`). The release validator is `tools/release_check.py` (has strict positive/negative behavior — keep it that way).
 
 ## 9. CI/CD and release rules
 
