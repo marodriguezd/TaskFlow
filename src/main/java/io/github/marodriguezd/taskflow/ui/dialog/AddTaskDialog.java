@@ -140,6 +140,9 @@ public class AddTaskDialog {
                 });
 
         stage.setScene(scene);
+        // Dialogs are recreated on every open; without this the theme manager would keep every
+        // closed dialog's scene (and its whole graph) reachable for the lifetime of the app.
+        stage.setOnHidden(e -> themeManager.unregisterScene(scene));
     }
 
     protected void handleConfirm() {

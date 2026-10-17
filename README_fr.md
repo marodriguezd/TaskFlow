@@ -26,7 +26,7 @@ Un gestionnaire de tâches de bureau léger et multiplateforme avec minuteurs de
 - **Invariant minuteur unique** — démarrer un minuteur met automatiquement en pause tout autre minuteur en cours (pause auto)
 - **Suivi de progression** — barre de progression visuelle de la session active
 - **Historique et restauration** — les tâches terminées et supprimées sont journalisées dans un historique avec possibilité de les restaurer
-- **Internationalisation** — interface en 5 langues (English, Español, Deutsch, Italiano, 中文简体) avec bascule en direct, détection de la langue du système au premier lancement et anglais comme repli déterministe
+- **Internationalisation** — interface en 6 langues (English, Español, Deutsch, Français, Italiano, 中文简体) avec bascule en direct, détection de la langue du système au premier lancement et anglais comme repli déterministe
 - **Persistance SQLite** — toutes les tâches, l'historique et les préférences sont stockés localement dans une base SQLite
 - **Bascule de thème** — thèmes clair et sombre avec style Apple Liquid Glass et translucidité native des fenêtres
 - **Mode toujours visible** — épinglage de fenêtre commutable
@@ -42,12 +42,12 @@ Un gestionnaire de tâches de bureau léger et multiplateforme avec minuteurs de
 | Boîte à outils UI | JavaFX 21 |
 | Build | Gradle (Kotlin DSL, wrapper inclus) |
 | Persistance | SQLite via JDBC (`sqlite-jdbc`) |
-| Tests | JUnit 5, AssertJ, JaCoCo (minimum 45 % de couverture de lignes) |
+| Tests | JUnit 6, AssertJ, JaCoCo (minimum 45 % de couverture de lignes) |
 | Style de code | Spotless avec Google Java Format |
 | Empaquetage | `jpackage` avec runtime Java 21 embarqué |
 | Journalisation | SLF4J + Logback |
 | Migration héritée | Jackson (JSON) |
-| Internationalisation | `ResourceBundle` Java (UTF-8, 5 locales) |
+| Internationalisation | `ResourceBundle` Java (UTF-8, 6 locales) |
 
 Le pipeline CI compile, teste, vérifie le formatage et empaquette l'application sur Ubuntu, Windows et macOS.
 
@@ -166,20 +166,21 @@ Si un répertoire hérité `~/.TaskFlow` existe déjà, il est conservé comme r
 
 ## Langue
 
-L'interface TaskFlow existe en exactement cinq langues :
+L'interface TaskFlow existe en exactement six langues :
 
 | Langue | Étiquette |
 | --- | --- |
 | Anglais | `en` |
 | Espagnol | `es` |
 | Allemand | `de` |
+| Français | `fr` |
 | Italien | `it` |
 | Chinois simplifié | `zh-Hans` |
 
 - **Bascule en direct** — choisissez une langue depuis le bouton globe dans l'en-tête ; toute l'UI (y compris l'état ouvert comme le badge de tâches et les infobulles) est re-rendue aussitôt, sans redémarrage.
 - **Persistant par utilisateur** — le choix est stocké dans la table `preferences` (clé `language`) comme étiquette BCP 47 indépendante de la locale. Les bases existantes de 1.0.0 n'ont besoin d'aucune migration : la clé est simplement ajoutée à la première sauvegarde.
-- **Détection au premier lancement** — au premier lancement la langue est détectée depuis la locale du système. Les langues non supportées (dont français et portugais) retombent à l'anglais ; les locales de chinois traditionnel retombent aussi à l'anglais, seul le chinois simplifié étant livré.
-- **Anglais comme repli déterministe** — les traductions vivent dans `src/main/resources/i18n/messages*.properties` ; toute clé manquante résout vers le bundle anglais de base, et une clé manquante partout est retournée telle quelle (journalisée une fois) au lieu de planter. La suite de tests exige que ces cinq bundles existent exactement et soient complets (parité des clés et des placeholders).
+- **Détection au premier lancement** — au premier lancement la langue est détectée depuis la locale du système. Les langues non supportées (dont le portugais et toute langue non livrée) retombent à l'anglais ; les locales de chinois traditionnel retombent aussi à l'anglais, seul le chinois simplifié étant livré.
+- **Anglais comme repli déterministe** — les traductions vivent dans `src/main/resources/i18n/messages*.properties` ; toute clé manquante résout vers le bundle anglais de base, et une clé manquante partout est retournée telle quelle (journalisée une fois) au lieu de planter. La suite de tests exige que ces six bundles existent exactement et soient complets (parité des clés et des placeholders).
 - **Non traduit** — les logs, les valeurs de base, les codes de priorité/historique et les identifiants internes restent en anglais indépendant de la locale pour compatibilité des données.
 
 ## Migration
@@ -196,7 +197,7 @@ Les fichiers hérités sont cherchés dans le répertoire de données et à la r
 ## Développement
 
 - **Formatage** imposé avec Spotless (Google Java Format, style AOSP). Exécutez `./gradlew spotlessApply` avant de commiter ; la CI échoue sur violations de `spotlessCheck`.
-- **Tests** avec JUnit 5 et AssertJ : couvrent le modèle de domaine, les services, les dépôts, la migration héritée, l'internationalisation (complétude des bundles, repli, détection de langue), les cas limites des minuteurs, le comportement schéma/transactions, la récupération de géométrie et un flux applicatif de bout en bout. JaCoCo exige un seuil minimum de 45 % de couverture de lignes. Les tests tournent headless — sans écran ni toolkit JavaFX.
+- **Tests** avec JUnit 6 et AssertJ : couvrent le modèle de domaine, les services, les dépôts, la migration héritée, l'internationalisation (complétude des bundles, repli, détection de langue), les cas limites des minuteurs, le comportement schéma/transactions, la récupération de géométrie et un flux applicatif de bout en bout. JaCoCo exige un seuil minimum de 45 % de couverture de lignes. Les tests tournent headless — sans écran ni toolkit JavaFX.
 
 ## Administration du dépôt
 

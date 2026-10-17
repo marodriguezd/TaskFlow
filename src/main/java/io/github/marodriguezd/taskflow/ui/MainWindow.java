@@ -79,6 +79,7 @@ public class MainWindow {
     private ScheduledFuture<?> pendingGeometrySave;
     private long geometrySaveGeneration;
 
+    private boolean closed = false;
     private boolean isResizing = false;
     private int resizeMode = 0; // bitmask: 1=left, 2=right, 4=top, 8=bottom
     private double resizeStartScreenX;
@@ -435,7 +436,7 @@ public class MainWindow {
     }
 
     private synchronized void saveGeometry() {
-        if (!stage.isShowing() || stage.isIconified()) {
+        if (closed || !stage.isShowing() || stage.isIconified()) {
             return;
         }
         WindowGeometry geometry =
@@ -583,12 +584,26 @@ public class MainWindow {
                 });
     }
 
-    private void closeApplication() {
+    /**
+     * Releases window-owned resources exactly once. Called on window close and again from {@code
+     * TaskFlowApp.stop()} (macOS quit does not fire a close request), so it must be idempotent.
+     * Pausing the timer here lets the service drain the final remaining-time write while the
+     * database is still open.
+     */
+    public void shutdown() {
+        if (closed) {
+            return;
+        }
+        closed = true;
         flushGeometry();
         geometrySaver.shutdown();
         timerService.pause();
+    }
+
+    private void closeApplication() {
         // Normal JavaFX shutdown: the toolkit invokes TaskFlowApp.stop(), which releases the
         // database. A racing System.exit(0) would kill the JVM before stop() gets to run.
+        shutdown();
         Platform.exit();
     }
 

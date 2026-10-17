@@ -112,6 +112,8 @@ public class HistoryDialog {
                 });
 
         stage.setScene(scene);
+        // Release the registered scene when the dialog closes; history is opened repeatedly.
+        stage.setOnHidden(e -> themeManager.unregisterScene(scene));
     }
 
     private VBox createHistoryItemRow(HistoryItem item) {

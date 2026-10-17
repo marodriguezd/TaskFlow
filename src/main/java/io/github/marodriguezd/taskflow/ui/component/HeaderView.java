@@ -56,31 +56,38 @@ public class HeaderView extends HBox {
         countBadge.setVisible(false);
         countBadge.managedProperty().bind(countBadge.visibleProperty());
 
+        // Icon-only controls need an accessible name for screen readers; tooltips alone are not
+        // exposed as the accessible text.
         pinButton = new ToggleButton();
         pinButton.getStyleClass().add("icon-button");
         pinButton.setGraphic(Icons.pin(13));
         pinButton.setSelected(initialAlwaysOnTop);
         pinButton.setTooltip(new Tooltip(Messages.get("tooltip.pin")));
+        pinButton.setAccessibleText(Messages.get("tooltip.pin"));
 
         historyButton = new Button();
         historyButton.getStyleClass().add("icon-button");
         historyButton.setGraphic(Icons.history(13));
         historyButton.setTooltip(new Tooltip(Messages.get("tooltip.history")));
+        historyButton.setAccessibleText(Messages.get("tooltip.history"));
 
         themeButton = new Button();
         themeButton.getStyleClass().add("icon-button");
         themeButton.setGraphic(initialTheme == ThemeMode.DARK ? Icons.sun(13) : Icons.moon(13));
         themeButton.setTooltip(new Tooltip(Messages.get("tooltip.theme")));
+        themeButton.setAccessibleText(Messages.get("tooltip.theme"));
 
         languageButton = new Button();
         languageButton.getStyleClass().add("icon-button");
         languageButton.setGraphic(Icons.globe(13));
         languageButton.setTooltip(new Tooltip(Messages.get("tooltip.language")));
+        languageButton.setAccessibleText(Messages.get("tooltip.language"));
 
         infoButton = new Button();
         infoButton.getStyleClass().add("icon-button");
         infoButton.setGraphic(Icons.info(13));
         infoButton.setTooltip(new Tooltip(Messages.get("tooltip.about")));
+        infoButton.setAccessibleText(Messages.get("tooltip.about"));
 
         getChildren()
                 .addAll(
@@ -98,6 +105,7 @@ public class HeaderView extends HBox {
             closeButton = new Button();
             closeButton.getStyleClass().addAll("icon-button", "close-button");
             closeButton.setGraphic(Icons.close(10));
+            closeButton.setAccessibleText(Messages.get("about.close"));
             getChildren().add(closeButton);
         } else {
             closeButton = null;
@@ -119,10 +127,18 @@ public class HeaderView extends HBox {
     /** Re-applies every localized text after a runtime language switch. */
     public void refreshTexts() {
         pinButton.setTooltip(new Tooltip(Messages.get("tooltip.pin")));
+        pinButton.setAccessibleText(Messages.get("tooltip.pin"));
         historyButton.setTooltip(new Tooltip(Messages.get("tooltip.history")));
+        historyButton.setAccessibleText(Messages.get("tooltip.history"));
         themeButton.setTooltip(new Tooltip(Messages.get("tooltip.theme")));
+        themeButton.setAccessibleText(Messages.get("tooltip.theme"));
         languageButton.setTooltip(new Tooltip(Messages.get("tooltip.language")));
+        languageButton.setAccessibleText(Messages.get("tooltip.language"));
         infoButton.setTooltip(new Tooltip(Messages.get("tooltip.about")));
+        infoButton.setAccessibleText(Messages.get("tooltip.about"));
+        if (closeButton != null) {
+            closeButton.setAccessibleText(Messages.get("about.close"));
+        }
         if (lastTaskCount > 0) {
             countBadge.setText(Messages.count("header.tasks", lastTaskCount));
         }

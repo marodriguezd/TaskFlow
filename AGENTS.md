@@ -13,12 +13,12 @@ User data is local-only: SQLite database plus a replaceable notification sound. 
 Verified dependencies/tools (from `build.gradle.kts`):
 
 - Java 21 (Gradle toolchain), JavaFX 21.0.12 (OpenJFX Gradle plugin; controls, fxml, media, graphics)
-- Gradle 9.8.0 via wrapper (`./gradlew`), Kotlin DSL (`build.gradle.kts`)
+- Gradle 9.8.1 via wrapper (`./gradlew`), Kotlin DSL (`build.gradle.kts`)
 - SQLite via `org.xerial:sqlite-jdbc` (WAL mode)
 - Jackson (`jackson-databind`, `jackson-datatype-jsr310`) — legacy JSON migration
 - SLF4J + Logback (`src/main/resources/logback.xml`)
-- JUnit 5 + AssertJ (tests)
-- Spotless 8.10.3 with Google Java Format 1.36.1, **AOSP style** (4-space indent)
+- JUnit 6 + AssertJ (tests)
+- Spotless 8.10.4 with Google Java Format 1.36.1, **AOSP style** (4-space indent)
 - `jpackage` (JDK 21) for native packaging
 - `appimagetool` (SHA-256-pinned, fetched by `tools/build-appimage.sh`) for the Linux AppImage
 
@@ -50,8 +50,8 @@ Changes must preserve these (tests pin them: `TimerServiceTest`, `TaskServiceTes
 - Timer state uses absolute monotonic elapsed time; persistence writes run on a dedicated background executor. On expiry the task archives a `COMPLETED` history item transactionally and its remaining time is set to `0` (the task stays in the active list at 00:00).
 - Editing a task stops its timer; remaining time scales proportionally to the new duration (an already-expired task resets to the full new duration). Duration is validated to 1–999 minutes; names must be non-empty (`ValidationException`).
 - **History semantics:** manual completion → `COMPLETED` + `completed_manually=true`, task deleted; delete → `DELETED` archive (skipped when the task is already expired); restoring a history item creates a new task **and removes the history row** (move semantics). Completed/deleted tasks are archived, never silently lost.
-- **Preferences persist:** theme (`DARK` default), always-on-top, sound-enabled, UI language, and window geometry (saved on move/resize/close, restored on start).
-- **Language (i18n):** exactly five UI languages are supported — `en`, `es`, `de`, `it`, `zh-Hans` (French and Portuguese are deliberately NOT supported; the set is pinned by `LocaleFilesTest`, which fails on any stray bundle file). The language is persisted as a locale-independent BCP 47 tag under the `language` preference key; blank = never chosen → first-run detection from the OS locale (unsupported OS locales, incl. `fr`/`pt`, and Traditional Chinese → English). Runtime switching must update the live UI without restart (modals are closed during a switch). Translatable UI text lives only in `src/main/resources/i18n/messages*.properties`; the English base bundle is the deterministic fallback for missing keys. **Never translate:** log messages, SQL, preference keys, enum names/codes, package/class names, `ValidationException`/`PersistenceException` messages, or legacy-migrator data defaults (they become user data). `Priority` labels are localized only at render time (`ui.i18n.PriorityLabels`); parsing (`Priority.fromDisplayName`, English + legacy Spanish labels) and storage (`HIGH`/`MEDIUM`/`LOW` enum names) stay locale-independent.
+- **Preferences persist:** theme (`DARK` default), always-on-top, sound-enabled, UI language, glass opacity, and window geometry (saved on move/resize/close, restored on start).
+- **Language (i18n):** exactly six UI languages are supported — `en`, `es`, `de`, `fr`, `it`, `zh-Hans` (Portuguese is deliberately NOT supported; the set is pinned by `LocaleFilesTest`, which fails on any stray bundle file). The language is persisted as a locale-independent BCP 47 tag under the `language` preference key; blank = never chosen → first-run detection from the OS locale (unsupported OS locales, incl. `pt`, and Traditional Chinese → English). Runtime switching must update the live UI without restart (modals are closed during a switch). Translatable UI text lives only in `src/main/resources/i18n/messages*.properties`; the English base bundle is the deterministic fallback for missing keys. **Never translate:** log messages, SQL, preference keys, enum names/codes, package/class names, `ValidationException`/`PersistenceException` messages, or legacy-migrator data defaults (they become user data). `Priority` labels are localized only at render time (`ui.i18n.PriorityLabels`); parsing (`Priority.fromDisplayName`, English + legacy Spanish labels) and storage (`HIGH`/`MEDIUM`/`LOW` enum names) stay locale-independent.
 - **Theme:** `ThemeManager` stacks `css/base.css` + `css/light.css`/`css/dark.css` over every registered `Scene`; switching must update all registered scenes live.
 - **Legacy migration:** runs once at startup, non-fatal on any error (startup must never be blocked), skips import when the target tables already contain rows, and renames processed files to `*.migrated` as a backup — originals are never deleted or overwritten. Legacy Spanish priority labels (`alta`/`media`/`baja`) still parse via `Priority.fromDisplayName`.
 - **User data preservation:** never delete or rewrite the user's database or legacy files as a side effect of refactoring.
@@ -62,7 +62,7 @@ Changes must preserve these (tests pin them: `TimerServiceTest`, `TaskServiceTes
   - Windows `%APPDATA%\TaskFlow`, macOS `~/Library/Application Support/TaskFlow`, Linux `$XDG_DATA_HOME/TaskFlow` falling back to `~/.TaskFlow`; an existing legacy `~/.TaskFlow` directory wins for continuity.
   - The data directory also holds the user-replaceable `bell.mp3`.
 - **Schema ownership:** only `DatabaseManager.initializeSchema()` creates schema — tables `tasks`, `history`, `preferences` (+ indexes `idx_tasks_priority`, `idx_history_event_at`). SQLite `PRAGMA user_version` is explicitly versioned (current baseline 1; existing schema is unchanged). Connections use `PRAGMA foreign_keys=ON`, WAL journal, `busy_timeout=3000`. `DatabaseManager.inMemory()` exists for tests.
-- **Preference keys (introduced in 1.1.0):** `theme`, `always_on_top`, `sound_enabled`, `language` (BCP 47 tag; `""` = unset → first-run OS detection), `geo_x`/`geo_y`/`geo_width`/`geo_height`. Adding a key is additive-only — no schema change is needed for the key/value table. `LegacyDataMigrator.migrateSettingsFile` must preserve `language`/`sound_enabled` (it only overwrites `theme`/`always_on_top`).
+- **Preference keys (introduced in 1.1.0):** `theme`, `always_on_top`, `sound_enabled`, `language` (BCP 47 tag; `""` = unset → first-run OS detection), `glass_opacity` (0.40–1.00, added in 1.2.3), `geo_x`/`geo_y`/`geo_width`/`geo_height`. Adding a key is additive-only — no schema change is needed for the key/value table. `LegacyDataMigrator.migrateSettingsFile` must preserve `language`/`sound_enabled` (it only overwrites `theme`/`always_on_top`).
 - **Repositories** are the only read/write path: `SqliteTaskRepository`, `SqliteHistoryRepository`, `SqlitePreferenceRepository`.
 - **Migration behavior:** `LegacyDataMigrator` imports legacy JSON from the data directory and home root (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`), then renames each processed file with a `.migrated` suffix so it imports exactly once; contents are preserved as a backup.
 - **Changing the schema safely:** keep `CREATE TABLE IF NOT EXISTS` idempotent for fresh installs; existing installs need an explicit, additive migration step (SQLite cannot alter columns in place) — handle new columns with defaults, add/adjust tests in `src/test/.../persistence/`, and never rename or drop existing columns. Schema changes are release-worthy behavior changes: update README/RELEASE_NOTES if user-visible.
@@ -78,7 +78,7 @@ Packaging targets actually produced by the pipeline:
 | macOS Apple Silicon | `TaskFlow-<version>.dmg` (built on ARM64 runners) |
 
 - **Do not claim Intel or universal macOS builds.** Windows is x64 only.
-- Runtime OS differences are isolated in `PlatformService` (data dirs, `getDefaultAlwaysOnTop()` = non-Windows, `usesFramelessWindow()` = Linux) and in `build.gradle.kts` packaging flags (`--win-shortcut/--win-menu` on Windows, AppImage assembly on Linux). Keep new OS conditionals in those two places.
+- Runtime OS differences are isolated in `PlatformService` (data dirs, `getDefaultAlwaysOnTop()` = non-Windows, `usesFramelessWindow()` = true on every platform since the Liquid Glass panel) and in `build.gradle.kts` packaging flags (`--win-shortcut/--win-menu` on Windows, AppImage assembly on Linux). Keep new OS conditionals in those two places.
 
 ## 7. Build and development commands
 

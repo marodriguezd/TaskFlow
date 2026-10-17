@@ -79,6 +79,28 @@ class SqliteHistoryRepositoryTest {
     }
 
     @Test
+    @DisplayName("A corrupt history row is skipped instead of breaking the whole list")
+    void corruptRowDoesNotBreakListing() throws Exception {
+        HistoryItem healthy = repository.save(item("Healthy", Priority.HIGH, Instant.now()));
+        long corruptId;
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "INSERT INTO history (name, priority, total_seconds, remaining_seconds, event_type, completed_manually, event_at) "
+                            + "VALUES ('   ', 'HIGH', 600, 0, 'completed', 0, 'not-a-timestamp')");
+            try (var keys = statement.executeQuery("SELECT last_insert_rowid()")) {
+                assertThat(keys.next()).isTrue();
+                corruptId = keys.getLong(1);
+            }
+        }
+
+        List<HistoryItem> all = repository.findAll();
+        assertThat(all).extracting(HistoryItem::name).containsExactly("Healthy");
+        assertThat(repository.findById(healthy.id())).isPresent();
+        assertThat(repository.findById(corruptId)).isEmpty();
+    }
+
+    @Test
     @DisplayName("History count propagates database errors instead of returning zero")
     void propagatesCountFailure() throws Exception {
         try (var connection = databaseManager.getConnection();

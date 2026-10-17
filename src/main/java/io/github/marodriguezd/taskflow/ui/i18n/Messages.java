@@ -90,7 +90,7 @@ public final class Messages {
     /**
      * Returns a pluralized message for {@code baseKey}, selecting {@code baseKey.one} when {@code
      * count == 1} and {@code baseKey.other} otherwise (0 and large values use {@code .other} in all
-     * five supported languages; Simplified Chinese ships identical forms). The count is passed as a
+     * six supported languages; Simplified Chinese ships identical forms). The count is passed as a
      * pre-formatted string so no locale grouping is applied.
      */
     public static String count(String baseKey, int count) {

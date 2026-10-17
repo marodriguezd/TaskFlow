@@ -253,6 +253,34 @@ class TaskServiceTest {
     }
 
     @Test
+    @DisplayName("Completing an exhausted task manually never duplicates its timer history")
+    void testManualCompletionOfExhaustedTaskDoesNotDuplicateHistory() {
+        Task task = taskService.createTask("Already fired", Priority.HIGH, 5);
+        // The timer already archived this completion and left the row at 00:00.
+        taskRepository.archiveCompletion(
+                task, HistoryItem.fromTask(task, HistoryEventType.COMPLETED, false));
+        assertThat(taskRepository.findById(task.id()).orElseThrow().remainingSeconds()).isZero();
+
+        taskService.completeTaskManually(task.id());
+
+        assertThat(taskService.getAllTasks()).isEmpty();
+        assertThat(taskService.getHistory()).hasSize(1);
+        assertThat(taskService.getHistory().getFirst().completedManually()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Deleting an exhausted task does not add a DELETED history entry")
+    void testDeleteExhaustedTaskSkipsHistory() {
+        Task task = taskService.createTask("Exhausted delete", Priority.LOW, 5);
+        taskRepository.updateRemainingSeconds(task.id(), 0);
+
+        taskService.deleteTask(task.id(), true);
+
+        assertThat(taskService.getAllTasks()).isEmpty();
+        assertThat(taskService.getHistory()).isEmpty();
+    }
+
+    @Test
     @DisplayName("Restoring task from history moves it back to active tasks")
     void testRestoreTaskFromHistory() {
         Task task = taskService.createTask("To restore", Priority.LOW, 15);

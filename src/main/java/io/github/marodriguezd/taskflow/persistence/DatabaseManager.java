@@ -94,11 +94,13 @@ public class DatabaseManager implements AutoCloseable {
     private void configurePragmas(Connection conn) throws SQLException {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("PRAGMA foreign_keys = ON;");
+            // Set the busy timeout before any statement that can take a write lock, so a
+            // concurrent connection waits instead of failing the whole operation.
+            stmt.execute("PRAGMA busy_timeout = 3000;");
             if (!jdbcUrl.contains("mode=memory")) {
                 stmt.execute("PRAGMA journal_mode = WAL;");
                 stmt.execute("PRAGMA synchronous = NORMAL;");
             }
-            stmt.execute("PRAGMA busy_timeout = 3000;");
         }
     }
 

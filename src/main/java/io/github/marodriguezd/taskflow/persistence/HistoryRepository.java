@@ -13,6 +13,9 @@ public interface HistoryRepository {
 
     HistoryItem save(HistoryItem item);
 
+    /** Imports all history items in a single transaction, used by legacy migration. */
+    void saveAll(List<HistoryItem> items);
+
     void deleteById(long id);
 
     void clearAll();

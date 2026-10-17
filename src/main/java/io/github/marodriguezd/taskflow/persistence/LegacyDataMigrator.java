@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -102,25 +103,48 @@ public class LegacyDataMigrator {
 
         try {
             List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
-            int migratedCount = 0;
+            List<Task> pending = new ArrayList<>();
+            int skippedCount = 0;
             for (Map<String, Object> map : list) {
-                String name = (String) map.getOrDefault("name", "Task");
-                if (name == null || name.isBlank()) {
-                    continue;
-                }
-                String priorityStr = (String) map.getOrDefault("priority", "Media");
-                Priority priority = Priority.fromDisplayName(priorityStr);
-                int totalSeconds = getInt(map, "total_seconds", 1500);
-                int remaining = getInt(map, "remaining", totalSeconds);
+                try {
+                    // A missing/non-string name falls back to the legacy default, but an explicit
+                    // blank name is unusable and is skipped (matching the pre-2.0 importer).
+                    Object rawName = map.get("name");
+                    String name = rawName instanceof String text ? text.trim() : "Task";
+                    if (name.isEmpty()) {
+                        skippedCount++;
+                        continue;
+                    }
+                    Priority priority =
+                            Priority.fromDisplayName(getString(map, "priority", "Media"));
+                    // Durations <= 0 would be rejected by the domain; keep the task instead of
+                    // dropping it so a single bad field never loses a user's task.
+                    int totalSeconds = Math.max(1, getInt(map, "total_seconds", 1500));
+                    int remaining = getInt(map, "remaining", totalSeconds);
 
-                Task task =
-                        Task.create(name, priority, totalSeconds).withRemainingSeconds(remaining);
-                taskRepository.save(task);
-                migratedCount++;
+                    pending.add(
+                            Task.create(name, priority, totalSeconds)
+                                    .withRemainingSeconds(remaining));
+                } catch (RuntimeException e) {
+                    // Isolate malformed records: aborting here would leave the file unimported
+                    // while the rows already inserted make every later startup skip it.
+                    skippedCount++;
+                    log.warn(
+                            "Skipping malformed legacy task record in {}: {}",
+                            file,
+                            e.getMessage());
+                }
             }
-            log.info("Migrated {} active tasks from legacy file {}", migratedCount, file);
+            // One transaction for the whole file: an interrupted import leaves no rows behind, so
+            // the next startup retries the file instead of skipping it as "already imported".
+            taskRepository.saveAll(pending);
+            log.info(
+                    "Migrated {} active tasks from legacy file {} ({} invalid records skipped)",
+                    pending.size(),
+                    file,
+                    skippedCount);
             renameToMigrated(file);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             log.warn("Failed to parse legacy tasks file {}: {}", file, e.getMessage());
         }
     }
@@ -134,39 +158,56 @@ public class LegacyDataMigrator {
 
         try {
             List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
-            int migratedCount = 0;
+            List<HistoryItem> pending = new ArrayList<>();
+            int skippedCount = 0;
             for (Map<String, Object> map : list) {
-                String name = (String) map.getOrDefault("name", "Completed task");
-                if (name == null || name.isBlank()) {
-                    continue;
+                try {
+                    Object rawName = map.get("name");
+                    String name = rawName instanceof String text ? text.trim() : "Completed task";
+                    if (name.isEmpty()) {
+                        skippedCount++;
+                        continue;
+                    }
+                    Priority priority =
+                            Priority.fromDisplayName(getString(map, "priority", "Media"));
+                    int totalSeconds = getInt(map, "total_seconds", 1500);
+                    int remaining = getInt(map, "remaining", 0);
+                    HistoryEventType eventType =
+                            HistoryEventType.fromCode(getString(map, "history_event", "completed"));
+                    boolean completedManually = getBoolean(map.get("completed_manually"));
+
+                    String dateStr = getString(map, "event_at", null);
+                    if (dateStr == null) {
+                        dateStr = getString(map, "completed_at", null);
+                    }
+                    Instant eventAt = DateTimeUtil.parseLegacyOrDefault(dateStr, Instant.now());
+
+                    pending.add(
+                            new HistoryItem(
+                                    null,
+                                    name,
+                                    priority,
+                                    totalSeconds,
+                                    remaining,
+                                    eventType,
+                                    completedManually,
+                                    eventAt));
+                } catch (RuntimeException e) {
+                    skippedCount++;
+                    log.warn(
+                            "Skipping malformed legacy history record in {}: {}",
+                            file,
+                            e.getMessage());
                 }
-                String priorityStr = (String) map.getOrDefault("priority", "Media");
-                Priority priority = Priority.fromDisplayName(priorityStr);
-                int totalSeconds = getInt(map, "total_seconds", 1500);
-                int remaining = getInt(map, "remaining", 0);
-                String eventCode = (String) map.getOrDefault("history_event", "completed");
-                HistoryEventType eventType = HistoryEventType.fromCode(eventCode);
-                boolean completedManually = Boolean.TRUE.equals(map.get("completed_manually"));
-
-                String dateStr = (String) map.getOrDefault("event_at", map.get("completed_at"));
-                Instant eventAt = DateTimeUtil.parseLegacyOrDefault(dateStr, Instant.now());
-
-                HistoryItem item =
-                        new HistoryItem(
-                                null,
-                                name,
-                                priority,
-                                totalSeconds,
-                                remaining,
-                                eventType,
-                                completedManually,
-                                eventAt);
-                historyRepository.save(item);
-                migratedCount++;
             }
-            log.info("Migrated {} history items from legacy file {}", migratedCount, file);
+            historyRepository.saveAll(pending);
+            log.info(
+                    "Migrated {} history items from legacy file {} ({} invalid records skipped)",
+                    pending.size(),
+                    file,
+                    skippedCount);
             renameToMigrated(file);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             log.warn("Failed to parse legacy history file {}: {}", file, e.getMessage());
         }
     }
@@ -181,9 +222,12 @@ public class LegacyDataMigrator {
                 double height = node.get("height").asDouble(560);
                 preferenceRepository.saveGeometry(new WindowGeometry(x, y, width, height));
                 log.info("Migrated legacy window geometry: [{}, {}, {}, {}]", x, y, width, height);
+            } else {
+                log.warn(
+                        "Legacy geometry file {} has no x/y/width/height; nothing to import", file);
             }
             renameToMigrated(file);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             log.warn("Failed to parse legacy geometry file {}: {}", file, e.getMessage());
         }
     }
@@ -206,23 +250,52 @@ public class LegacyDataMigrator {
                     existing.withTheme(theme).withAlwaysOnTop(alwaysOnTop));
             log.info("Migrated legacy user settings: theme={}, alwaysOnTop={}", theme, alwaysOnTop);
             renameToMigrated(file);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             log.warn("Failed to parse legacy settings file {}: {}", file, e.getMessage());
         }
     }
 
+    /**
+     * Moves a processed file aside so it imports exactly once. Never overwrites an existing backup:
+     * if {@code *.migrated} is already there (a restored backup, or a previous rename that could
+     * not move the source) a numbered suffix is used. Leaving the source in place would instead
+     * re-import it on every startup and silently overwrite newer preferences.
+     */
     private void renameToMigrated(File file) {
+        Path source = file.toPath();
         try {
-            File backup = new File(file.getAbsolutePath() + ".migrated");
-            if (!backup.exists()) {
-                boolean renamed = file.renameTo(backup);
-                if (renamed) {
-                    log.debug("Renamed {} to {}", file, backup);
-                }
+            Path target = source.resolveSibling(source.getFileName() + ".migrated");
+            int suffix = 1;
+            while (Files.exists(target)) {
+                target = source.resolveSibling(source.getFileName() + ".migrated." + suffix);
+                suffix++;
             }
-        } catch (Exception e) {
+            Files.move(source, target);
+            log.debug("Renamed {} to {}", source, target);
+        } catch (IOException e) {
             log.warn("Could not rename migrated file {}: {}", file, e.getMessage());
         }
+    }
+
+    private String getString(Map<String, Object> map, String key, String defaultValue) {
+        Object value = map.get(key);
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return defaultValue;
+    }
+
+    private boolean getBoolean(Object value) {
+        if (value instanceof Boolean flag) {
+            return flag;
+        }
+        if (value instanceof String text) {
+            return "true".equalsIgnoreCase(text.trim()) || "1".equals(text.trim());
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        return false;
     }
 
     private int getInt(Map<String, Object> map, String key, int defaultValue) {

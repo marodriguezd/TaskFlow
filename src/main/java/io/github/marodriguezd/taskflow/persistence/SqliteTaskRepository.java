@@ -49,7 +49,15 @@ public class SqliteTaskRepository implements TaskRepository, TaskLifecycleReposi
                 PreparedStatement stmt = conn.prepareStatement(sql);
                 ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                list.add(mapRow(rs));
+                try {
+                    list.add(mapRow(rs));
+                } catch (IllegalArgumentException e) {
+                    // One corrupt row must not make every task unreadable at startup.
+                    log.error(
+                            "Skipping malformed task row (id={}): {}",
+                            rs.getLong("id"),
+                            e.getMessage());
+                }
             }
         } catch (SQLException e) {
             log.error("Error reading tasks from database", e);
@@ -72,7 +80,13 @@ public class SqliteTaskRepository implements TaskRepository, TaskLifecycleReposi
             stmt.setLong(1, id);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapRow(rs));
+                    try {
+                        return Optional.of(mapRow(rs));
+                    } catch (IllegalArgumentException e) {
+                        log.error(
+                                "Task id {} is malformed and was ignored: {}", id, e.getMessage());
+                        return Optional.empty();
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -101,12 +115,7 @@ public class SqliteTaskRepository implements TaskRepository, TaskLifecycleReposi
         try (Connection conn = databaseManager.getConnection();
                 PreparedStatement stmt =
                         conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, task.name());
-            stmt.setString(2, task.priority().name());
-            stmt.setInt(3, task.totalSeconds());
-            stmt.setInt(4, task.remainingSeconds());
-            stmt.setString(5, task.createdAt().toString());
-            stmt.setString(6, task.updatedAt().toString());
+            bindInsert(stmt, task);
 
             stmt.executeUpdate();
             try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
@@ -121,6 +130,38 @@ public class SqliteTaskRepository implements TaskRepository, TaskLifecycleReposi
             log.error("Error inserting task: {}", task, e);
             throw new PersistenceException("Could not insert task", e);
         }
+    }
+
+    @Override
+    public void saveAll(List<Task> tasks) {
+        if (tasks.isEmpty()) {
+            return;
+        }
+        String sql =
+                """
+                INSERT INTO tasks (name, priority, total_seconds, remaining_seconds, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """;
+        databaseManager.inTransaction(
+                conn -> {
+                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                        for (Task task : tasks) {
+                            bindInsert(stmt, task);
+                            stmt.addBatch();
+                        }
+                        stmt.executeBatch();
+                    }
+                    return null;
+                });
+    }
+
+    private void bindInsert(PreparedStatement stmt, Task task) throws SQLException {
+        stmt.setString(1, task.name());
+        stmt.setString(2, task.priority().name());
+        stmt.setInt(3, task.totalSeconds());
+        stmt.setInt(4, task.remainingSeconds());
+        stmt.setString(5, task.createdAt().toString());
+        stmt.setString(6, task.updatedAt().toString());
     }
 
     private Task update(Task task) {
@@ -196,12 +237,22 @@ public class SqliteTaskRepository implements TaskRepository, TaskLifecycleReposi
     public void archiveAndDelete(Task task, HistoryItem historyItem) {
         databaseManager.inTransaction(
                 conn -> {
-                    insertHistory(conn, historyItem);
+                    // Delete first: the row count proves the task still existed. Archiving a row
+                    // that a concurrent completion/delete already removed would create a phantom
+                    // history entry, and the DELETE keeps the history insert rollback-safe.
+                    int deleted;
                     try (PreparedStatement stmt =
                             conn.prepareStatement("DELETE FROM tasks WHERE id = ?")) {
                         stmt.setLong(1, task.id());
-                        stmt.executeUpdate();
+                        deleted = stmt.executeUpdate();
                     }
+                    if (deleted == 0) {
+                        log.warn(
+                                "Skipping history archive for task id={} because it no longer exists",
+                                task.id());
+                        return null;
+                    }
+                    insertHistory(conn, historyItem);
                     return null;
                 });
     }
@@ -210,14 +261,23 @@ public class SqliteTaskRepository implements TaskRepository, TaskLifecycleReposi
     public void archiveCompletion(Task task, HistoryItem historyItem) {
         databaseManager.inTransaction(
                 conn -> {
-                    insertHistory(conn, historyItem);
+                    int updated;
                     try (PreparedStatement stmt =
                             conn.prepareStatement(
                                     "UPDATE tasks SET remaining_seconds = 0, updated_at = ? WHERE id = ?")) {
                         stmt.setString(1, Instant.now().toString());
                         stmt.setLong(2, task.id());
-                        stmt.executeUpdate();
+                        updated = stmt.executeUpdate();
                     }
+                    if (updated == 0) {
+                        // The task was completed manually or deleted while this completion was
+                        // queued; it already has its history entry (or was intentionally removed).
+                        log.warn(
+                                "Skipping completion history for task id={} because it no longer exists",
+                                task.id());
+                        return null;
+                    }
+                    insertHistory(conn, historyItem);
                     return null;
                 });
     }

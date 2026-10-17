@@ -71,6 +71,7 @@ public class TaskCardView extends HBox {
         editButton.setMaxSize(22, 22);
         editButton.setGraphic(Icons.edit(11));
         editButton.setTooltip(new Tooltip(Messages.get("tooltip.edit")));
+        editButton.setAccessibleText(Messages.get("tooltip.edit"));
         editButton.getStyleClass().addAll("icon-button", "card-action-button", "card-edit-button");
         editButton.setOnAction(
                 e -> {
@@ -84,6 +85,7 @@ public class TaskCardView extends HBox {
         deleteButton.setMaxSize(22, 22);
         deleteButton.setGraphic(Icons.close(10));
         deleteButton.setTooltip(new Tooltip(Messages.get("tooltip.delete")));
+        deleteButton.setAccessibleText(Messages.get("tooltip.delete"));
         deleteButton
                 .getStyleClass()
                 .addAll("icon-button", "card-action-button", "card-delete-button");
@@ -108,6 +110,7 @@ public class TaskCardView extends HBox {
         doneButton.setMinSize(24, 24);
         doneButton.setMaxSize(24, 24);
         doneButton.setTooltip(new Tooltip(Messages.get("tooltip.done")));
+        doneButton.setAccessibleText(Messages.get("tooltip.done"));
         doneButton
                 .getStyleClass()
                 .addAll("complete-button", "priority-" + pri.name().toLowerCase());
