@@ -59,15 +59,19 @@ V1_PREFERENCES = {
 EXACT_PREFERENCES = ("theme", "always_on_top", "language", "sound_enabled", "glass_opacity")
 GEOMETRY_PREFERENCES = ("geo_x", "geo_y", "geo_width", "geo_height")
 
-# Known benign teardown noise, never a reason to fail the upgrade check.
-#
-# JavaFX 21 on macOS can raise this from its InvokeLaterDispatcher after
-# ``Platform.exit()`` while the native glass thread is already shutting down. The
-# process still exits 0 and the startup marker is written, so it is a JavaFX
-# shutdown race, not an application error. Every other exception line still fails.
+# Known benign JavaFX shutdown noise. These exact messages are ignored only on
+# macOS and only when they occur after the application's own shutdown log.
+# run_packaged_smoke has already required a startup marker and exit code 0, and
+# the caller still verifies the upgraded database and all preserved records.
 BENIGN_OUTPUT_MARKERS = (
     'Exception in thread "InvokeLaterDispatcher" java.lang.RuntimeException: '
     "Main Java thread is detached.",
+    'Exception in thread "JavaFX Application Thread" java.lang.NullPointerException: '
+    'Cannot invoke "com.sun.glass.ui.Application.staticScreen_getScreens()" because '
+    'the return value of "com.sun.glass.ui.Application.GetApplication()" is null',
+)
+SHUTDOWN_OUTPUT_MARKER = (
+    "Stopping TaskFlow application and releasing database resources..."
 )
 
 
@@ -129,8 +133,22 @@ def verify_upgrade(database: Path, output: str) -> list[str]:
     finally:
         connection.close()
 
-    for line in output.splitlines():
-        if any(marker in line for marker in BENIGN_OUTPUT_MARKERS):
+    output_lines = output.splitlines()
+    shutdown_indices = [
+        index
+        for index, line in enumerate(output_lines)
+        if SHUTDOWN_OUTPUT_MARKER in line
+    ]
+    shutdown_index = max(shutdown_indices, default=-1)
+
+    for index, line in enumerate(output_lines):
+        known_teardown_noise = (
+            sys.platform == "darwin"
+            and shutdown_index >= 0
+            and index > shutdown_index
+            and any(marker in line for marker in BENIGN_OUTPUT_MARKERS)
+        )
+        if known_teardown_noise:
             continue
         if " ERROR " in line or line.startswith("ERROR") or "Exception in thread" in line:
             failures.append(f"error in application output: {line.strip()}")
