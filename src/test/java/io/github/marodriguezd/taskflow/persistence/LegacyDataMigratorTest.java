@@ -315,7 +315,168 @@ class LegacyDataMigratorTest {
 
         migrator.migrateIfNecessary();
 
-        assertThat(historyRepository.count()).isEqualTo(3);
+        List<HistoryItem> stored = historyRepository.findAll();
+        assertThat(stored).hasSize(3);
+        // One fallback instant is computed per file and shared by every record in it. It is only a
+        // stored display value, never an exact match identity.
+        Instant fallbackEventAt = stored.getFirst().eventAt();
+        assertThat(stored).extracting(HistoryItem::eventAt).containsOnly(fallbackEventAt);
+
+        // Restored source: three existing rows are consumed by content identity, one per record.
+        Files.copy(
+                dataDir.resolve("taskflow_history.json.migrated"),
+                dataDir.resolve("taskflow_history.json"));
+        migrator.migrateIfNecessary();
+
+        List<HistoryItem> afterRetry = historyRepository.findAll();
+        assertThat(afterRetry).hasSize(3);
+        assertThat(afterRetry).extracting(HistoryItem::eventAt).containsOnly(fallbackEventAt);
+    }
+
+    @Test
+    @DisplayName("A malformed history record does not abort the rest of the file")
+    void testMalformedHistoryRecordDoesNotAbortImport() throws IOException {
+        // The second element is null (unusable) and the third has a blank name. Aborting on the
+        // first bad record would lose the records after it, and because rows already exist the
+        // next startup would skip the file entirely.
+        String legacyHistory =
+                """
+                [
+                  {"name": "First", "priority": "Media", "total_seconds": 900,
+                   "remaining": 0, "history_event": "completed",
+                   "completed_manually": false, "event_at": "10:00  —  01/10/26"},
+                  null,
+                  {"name": "   ", "priority": "Media", "total_seconds": 900,
+                   "remaining": 0, "history_event": "completed",
+                   "completed_manually": false, "event_at": "12:00  —  01/10/26"},
+                  {"name": "Last", "priority": "Media", "total_seconds": 900,
+                   "remaining": 0, "history_event": "completed",
+                   "completed_manually": false, "event_at": "11:00  —  01/10/26"}
+                ]
+                """;
+        Files.writeString(dataDir.resolve("taskflow_history.json"), legacyHistory);
+
+        migrator.migrateIfNecessary();
+
+        List<HistoryItem> stored = historyRepository.findAll();
+        assertThat(stored).extracting(HistoryItem::name).containsExactlyInAnyOrder("First", "Last");
+        assertThat(stored)
+                .filteredOn(item -> item.name().equals("First"))
+                .extracting(HistoryItem::eventAt)
+                .containsExactly(legacyInstant("10:00  —  01/10/26"));
+        assertThat(stored)
+                .filteredOn(item -> item.name().equals("Last"))
+                .extracting(HistoryItem::eventAt)
+                .containsExactly(legacyInstant("11:00  —  01/10/26"));
+        // Valid records are imported and the file is still backed up as processed.
+        assertThat(Files.exists(dataDir.resolve("taskflow_history.json"))).isFalse();
+        assertThat(Files.exists(dataDir.resolve("taskflow_history.json.migrated"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("A failed history import rolls back and is retried exactly once")
+    void testFailedHistoryImportRollsBackAndRetries() throws Exception {
+        String legacyHistory =
+                """
+                [
+                  {"name": "A", "priority": "Media", "total_seconds": 900, "remaining": 0,
+                   "history_event": "completed", "completed_manually": false,
+                   "event_at": "10:00  —  01/10/26"},
+                  {"name": "B", "priority": "Media", "total_seconds": 900, "remaining": 0,
+                   "history_event": "completed", "completed_manually": false,
+                   "event_at": "11:00  —  01/10/26"}
+                ]
+                """;
+        Files.writeString(dataDir.resolve("taskflow_history.json"), legacyHistory);
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE TRIGGER fail_second_history BEFORE INSERT ON history "
+                            + "WHEN NEW.name = 'B' "
+                            + "BEGIN SELECT RAISE(ABORT, 'simulated import failure'); END");
+        }
+
+        migrator.migrateIfNecessary();
+
+        // The whole file is one transaction: nothing imported and the source is left for a retry.
+        assertThat(historyRepository.count()).isZero();
+        assertThat(Files.exists(dataDir.resolve("taskflow_history.json"))).isTrue();
+        assertThat(Files.exists(dataDir.resolve("taskflow_history.json.migrated"))).isFalse();
+
+        try (var connection = databaseManager.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute("DROP TRIGGER fail_second_history");
+        }
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.findAll())
+                .extracting(HistoryItem::name)
+                .containsExactlyInAnyOrder("A", "B");
+        assertThat(Files.exists(dataDir.resolve("taskflow_history.json"))).isFalse();
+        assertThat(Files.exists(dataDir.resolve("taskflow_history.json.migrated"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("A valid completed_at is used when event_at is unparsable")
+    void testInvalidPrimaryTimestampFallsBackToCompletedAt() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(
+                        historyJsonWithFields(
+                                "Fallback", "not-a-timestamp", "09:30  —  01/10/26")));
+
+        migrator.migrateIfNecessary();
+
+        Instant expected = legacyInstant("09:30  —  01/10/26");
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(expected);
+
+        // The fallback timestamp is a reliable identity, so a restored source is not re-imported.
+        Files.copy(
+                dataDir.resolve("taskflow_history.json.migrated"),
+                dataDir.resolve("taskflow_history.json"));
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(expected);
+    }
+
+    @Test
+    @DisplayName("Two unparsable timestamps fall back to content identity on retry")
+    void testBothTimestampFieldsInvalidRetryDoesNotDuplicate() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(historyJsonWithFields("No date", "not-a-timestamp", "also-bad")));
+
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(1);
+        Instant firstImportEvent = historyRepository.findAll().getFirst().eventAt();
+
+        Files.copy(
+                dataDir.resolve("taskflow_history.json.migrated"),
+                dataDir.resolve("taskflow_history.json"));
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(firstImportEvent);
+    }
+
+    @Test
+    @DisplayName("event_at wins over completed_at when both parse")
+    void testValidEventAtTakesPrecedenceOverCompletedAt() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(
+                        historyJsonWithFields(
+                                "Both dates", "10:00  —  01/10/26", "09:00  —  01/10/26")));
+
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt())
+                .isEqualTo(legacyInstant("10:00  —  01/10/26"))
+                .isNotEqualTo(legacyInstant("09:00  —  01/10/26"));
     }
 
     @Test
@@ -601,12 +762,19 @@ class LegacyDataMigratorTest {
     }
 
     private static String historyJson(String name, String eventAt) {
-        String dateField = eventAt == null ? "" : ",\"event_at\":\"" + eventAt + "\"";
+        return historyJsonWithFields(name, eventAt, null);
+    }
+
+    private static String historyJsonWithFields(String name, String eventAt, String completedAt) {
+        String eventField = eventAt == null ? "" : ",\"event_at\":\"" + eventAt + "\"";
+        String completedField =
+                completedAt == null ? "" : ",\"completed_at\":\"" + completedAt + "\"";
         return "{\"name\":\""
                 + name
                 + "\",\"priority\":\"Media\",\"total_seconds\":900,\"remaining\":0"
                 + ",\"history_event\":\"completed\",\"completed_manually\":false"
-                + dateField
+                + eventField
+                + completedField
                 + "}";
     }
 }

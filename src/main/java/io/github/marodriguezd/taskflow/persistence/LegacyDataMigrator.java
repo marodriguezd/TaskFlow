@@ -36,9 +36,14 @@ import org.slf4j.LoggerFactory;
  * counts are consumed as a multiset, so distinct records — including repeated identical entries
  * within one file — are never collapsed.
  *
- * <p>Known ambiguity: a task created inside the Java application with exactly the same name,
- * priority and durations as a legacy record is indistinguishable from that legacy record. In that
- * case one legacy occurrence is treated as already present instead of being duplicated.
+ * <p>Known ambiguity: legacy records carry no stable identifier, so a record can be
+ * indistinguishable from one that is already stored. Tasks are identified by name, priority and
+ * both durations; history adds the event type, the manual-completion flag and — only when the
+ * legacy timestamp actually parses — the exact event time. A record created inside the Java
+ * application whose fields match all of those cannot be told apart from the legacy record; in that
+ * case one legacy occurrence is treated as already present instead of being duplicated. Distinct
+ * records that differ only in fields the identity does not cover, or that have no parsable
+ * timestamp, cannot always be distinguished.
  */
 public class LegacyDataMigrator {
 
@@ -209,13 +214,16 @@ public class LegacyDataMigrator {
                             HistoryEventType.fromCode(getString(map, "history_event", "completed"));
                     boolean completedManually = getBoolean(map.get("completed_manually"));
 
-                    String dateStr = getString(map, "event_at", null);
-                    if (dateStr == null) {
-                        dateStr = getString(map, "completed_at", null);
+                    // Prefer event_at, but a non-empty unparsable value must not hide a usable
+                    // completed_at: older files used either field, and both may be present.
+                    Optional<Instant> sourceEventAt =
+                            DateTimeUtil.parseLegacy(getString(map, "event_at", null));
+                    if (sourceEventAt.isEmpty()) {
+                        sourceEventAt =
+                                DateTimeUtil.parseLegacy(getString(map, "completed_at", null));
                     }
                     // Missing, blank, and unparsable timestamps are all unreliable: they get a
                     // display fallback but must not be treated as exact identities.
-                    Optional<Instant> sourceEventAt = DateTimeUtil.parseLegacy(dateStr);
 
                     HistoryItem item =
                             new HistoryItem(
