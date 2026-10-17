@@ -1,3 +1,32 @@
+# TaskFlow v1.2.4 — Legacy Import & Sound Reliability Patch
+
+TaskFlow 1.2.4 improves legacy-data import safety, time-zone-independent history matching, and completion-sound fallback. It also strengthens packaged-app checks and verifies user data survives package removal.
+
+## Highlights
+
+- **Transactional legacy provenance:** Records each processed source by SHA-256 and commits its ledger entry and imported rows together. Repeated imports are skipped while repeated records within one source retain their multiplicity.
+- **Stable history identity:** Matches legacy history by canonical local timestamps across time-zone changes without rewriting stored event times. Pre-v2 rows retain unknown provenance; if an old source backup is restored, the first provenance-aware import can add a duplicate rather than risk suppressing a legitimate record.
+- **Reliable completion audio:** Validates the user-configurable `bell.mp3` and falls back to bundled `bell.wav` when MP3 decoding fails. The application does not overwrite the user's custom sound.
+- **Verified upgrades and removal:** Runs the packaged app against a populated v1 database, checks SQLite integrity and preserved records/preferences, and verifies that data survives AppImage deletion, copied-app removal, and MSI uninstall.
+
+## Native packages with bundled Java
+
+Packages bundle Java 21, so a separate Java installation is not required.
+
+| Platform | Package |
+| --- | --- |
+| Windows (x64) | `TaskFlow-1.2.4.msi` |
+| Linux (x86_64) | `TaskFlow-1.2.4-x86_64.AppImage` |
+| macOS (Apple Silicon) | `TaskFlow-1.2.4.dmg` |
+
+Verify downloads with `sha256sum -c checksums.txt`.
+
+## Upgrading from 1.2.3
+
+Install the new package over the previous version. The schema upgrade is additive, and automated checks verify that tasks, history, preferences, and user data are preserved.
+
+---
+
 # TaskFlow v1.2.3 — Liquid Glass Intensity & Dialog Legibility Patch
 
 TaskFlow 1.2.3 adds an adjustable Liquid Glass intensity slider to fine-tune window translucency and makes modal dialog backgrounds 98% opaque, ensuring crisp text legibility over any desktop wallpaper.

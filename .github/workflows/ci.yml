@@ -92,14 +92,23 @@ jobs:
           APPIMAGETOOL_SHA256: 95cbe7cce9717fce90c484e34052ee7c7f1d7635b33c12525b4776826a7d29b6
         run: |
           ./gradlew --no-daemon jpackagePackage
+          APPIMAGE="$(find build/dist -maxdepth 1 -type f -name 'TaskFlow-*-x86_64.AppImage' -print -quit)"
+          if [[ -z "$APPIMAGE" ]]; then
+            echo "::error::Linux AppImage was not produced"
+            exit 1
+          fi
           xvfb-run -a python3 tools/app_smoke_test.py \
-            --appimage build/dist/TaskFlow-1.2.3-x86_64.AppImage --mode all --timeout 180
+            --appimage "$APPIMAGE" --mode all --timeout 180
 
       # User data must live outside the AppImage and survive deleting it.
       - name: Verify AppImage removal preserves user data (Linux)
         if: runner.os == 'Linux'
         run: |
-          APPIMAGE=build/dist/TaskFlow-1.2.3-x86_64.AppImage
+          APPIMAGE="$(find build/dist -maxdepth 1 -type f -name 'TaskFlow-*-x86_64.AppImage' -print -quit)"
+          if [[ -z "$APPIMAGE" ]]; then
+            echo "::error::Linux AppImage was not produced"
+            exit 1
+          fi
           WORK="$(mktemp -d)"
           (cd "$WORK" && "$GITHUB_WORKSPACE/$APPIMAGE" --appimage-extract >/dev/null)
           xvfb-run -a python3 tools/data_preservation_check.py prepare \
@@ -116,7 +125,11 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           ./gradlew --no-daemon jpackagePackage
-          DMG="build/dist/TaskFlow-1.2.3.dmg"
+          DMG="$(find build/dist -maxdepth 1 -type f -name 'TaskFlow-*.dmg' -print -quit)"
+          if [[ -z "$DMG" ]]; then
+            echo "::error::macOS DMG was not produced"
+            exit 1
+          fi
           ls -la build/dist
           hdiutil verify "$DMG"
           MOUNT="$(mktemp -d)"
