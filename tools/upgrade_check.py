@@ -58,6 +58,17 @@ V1_PREFERENCES = {
 EXACT_PREFERENCES = ("theme", "always_on_top", "language", "sound_enabled", "glass_opacity")
 GEOMETRY_PREFERENCES = ("geo_x", "geo_y", "geo_width", "geo_height")
 
+# Known benign teardown noise, never a reason to fail the upgrade check.
+#
+# JavaFX 21 on macOS can raise this from its InvokeLaterDispatcher after
+# ``Platform.exit()`` while the native glass thread is already shutting down. The
+# process still exits 0 and the startup marker is written, so it is a JavaFX
+# shutdown race, not an application error. Every other exception line still fails.
+BENIGN_OUTPUT_MARKERS = (
+    'Exception in thread "InvokeLaterDispatcher" java.lang.RuntimeException: '
+    "Main Java thread is detached.",
+)
+
 
 class UpgradeFailure(RuntimeError):
     pass
@@ -109,93 +120,105 @@ def verify_upgrade(database: Path, output: str) -> list[str]:
     failures: list[str] = []
     connection = sqlite3.connect(database)
     try:
-        version = connection.execute("PRAGMA user_version").fetchone()[0]
-        if version != 2:
-            failures.append(f"schema user_version is {version}, expected 2")
-
-        tables = {
-            row[0]
-            for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        }
-        if "legacy_sources" not in tables:
-            failures.append("legacy_sources table is missing")
-
-        indexes = {
-            row[0]
-            for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")
-        }
-        for index in (
-            "idx_tasks_priority",
-            "idx_history_event_at",
-            "idx_tasks_legacy_signature",
-            "idx_history_legacy_signature",
-        ):
-            if index not in indexes:
-                failures.append(f"index {index} is missing")
-
-        for table, columns in (
-            ("tasks", ("legacy_source_id", "legacy_signature")),
-            ("history", ("legacy_source_id", "legacy_signature", "legacy_source_timestamp")),
-        ):
-            present = {
-                row[1] for row in connection.execute(f"PRAGMA table_info({table})")
-            }
-            for column in columns:
-                if column not in present:
-                    failures.append(f"{table}.{column} is missing")
-
-        tasks = list(
-            connection.execute(
-                "SELECT name, priority, total_seconds, remaining_seconds, created_at, "
-                "updated_at FROM tasks ORDER BY id"
-            )
-        )
-        if tasks != V1_TASKS:
-            failures.append(f"v1 tasks changed: {tasks}")
-        history = list(
-            connection.execute(
-                "SELECT name, priority, total_seconds, remaining_seconds, event_type, "
-                "completed_manually, event_at FROM history ORDER BY id"
-            )
-        )
-        if history != V1_HISTORY:
-            failures.append(f"v1 history changed: {history}")
-
-        preferences = dict(connection.execute("SELECT pref_key, pref_value FROM preferences"))
-        for key in EXACT_PREFERENCES:
-            if preferences.get(key) != V1_PREFERENCES[key]:
-                failures.append(
-                    f"preference {key} is {preferences.get(key)!r}, "
-                    f"expected {V1_PREFERENCES[key]!r}"
-                )
-        for key in GEOMETRY_PREFERENCES:
-            value = preferences.get(key)
-            try:
-                float(value)
-            except (TypeError, ValueError):
-                failures.append(f"geometry preference {key} is not numeric: {value!r}")
-        if "geo_width" in preferences and float(preferences["geo_width"]) < 300:
-            failures.append(f"saved window width is invalid: {preferences['geo_width']}")
-        if "geo_height" in preferences and float(preferences["geo_height"]) < 420:
-            failures.append(f"saved window height is invalid: {preferences['geo_height']}")
-
-        # Origin is unknown for rows written before provenance existed: never invent it.
-        for table in ("tasks", "history"):
-            labelled = connection.execute(
-                f"SELECT COUNT(*) FROM {table} WHERE legacy_source_id IS NOT NULL "
-                "OR legacy_signature IS NOT NULL"
-            ).fetchone()[0]
-            if labelled:
-                failures.append(f"{table} rows were falsely labelled as legacy-imported")
-        sources = connection.execute("SELECT COUNT(*) FROM legacy_sources").fetchone()[0]
-        if sources:
-            failures.append(f"unexpected legacy_sources rows: {sources}")
+        try:
+            failures.extend(check_database(connection))
+        except sqlite3.Error as error:
+            # A broken or un-upgraded database is a failure to report, not a crash.
+            failures.append(f"database checks could not complete: {error}")
     finally:
         connection.close()
 
     for line in output.splitlines():
+        if any(marker in line for marker in BENIGN_OUTPUT_MARKERS):
+            continue
         if " ERROR " in line or line.startswith("ERROR") or "Exception in thread" in line:
             failures.append(f"error in application output: {line.strip()}")
+    return failures
+
+
+def check_database(connection: sqlite3.Connection) -> list[str]:
+    failures: list[str] = []
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+    if version != 2:
+        failures.append(f"schema user_version is {version}, expected 2")
+
+    tables = {
+        row[0]
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    }
+    if "legacy_sources" not in tables:
+        failures.append("legacy_sources table is missing")
+
+    indexes = {
+        row[0]
+        for row in connection.execute("SELECT name FROM sqlite_master WHERE type='index'")
+    }
+    for index in (
+        "idx_tasks_priority",
+        "idx_history_event_at",
+        "idx_tasks_legacy_signature",
+        "idx_history_legacy_signature",
+    ):
+        if index not in indexes:
+            failures.append(f"index {index} is missing")
+
+    for table, columns in (
+        ("tasks", ("legacy_source_id", "legacy_signature")),
+        ("history", ("legacy_source_id", "legacy_signature", "legacy_source_timestamp")),
+    ):
+        present = {
+            row[1] for row in connection.execute(f"PRAGMA table_info({table})")
+        }
+        for column in columns:
+            if column not in present:
+                failures.append(f"{table}.{column} is missing")
+
+    tasks = list(
+        connection.execute(
+            "SELECT name, priority, total_seconds, remaining_seconds, created_at, "
+            "updated_at FROM tasks ORDER BY id"
+        )
+    )
+    if tasks != V1_TASKS:
+        failures.append(f"v1 tasks changed: {tasks}")
+    history = list(
+        connection.execute(
+            "SELECT name, priority, total_seconds, remaining_seconds, event_type, "
+            "completed_manually, event_at FROM history ORDER BY id"
+        )
+    )
+    if history != V1_HISTORY:
+        failures.append(f"v1 history changed: {history}")
+
+    preferences = dict(connection.execute("SELECT pref_key, pref_value FROM preferences"))
+    for key in EXACT_PREFERENCES:
+        if preferences.get(key) != V1_PREFERENCES[key]:
+            failures.append(
+                f"preference {key} is {preferences.get(key)!r}, "
+                f"expected {V1_PREFERENCES[key]!r}"
+            )
+    for key in GEOMETRY_PREFERENCES:
+        value = preferences.get(key)
+        try:
+            float(value)
+        except (TypeError, ValueError):
+            failures.append(f"geometry preference {key} is not numeric: {value!r}")
+    if "geo_width" in preferences and float(preferences["geo_width"]) < 300:
+        failures.append(f"saved window width is invalid: {preferences['geo_width']}")
+    if "geo_height" in preferences and float(preferences["geo_height"]) < 420:
+        failures.append(f"saved window height is invalid: {preferences['geo_height']}")
+
+    # Origin is unknown for rows written before provenance existed: never invent it.
+    for table in ("tasks", "history"):
+        labelled = connection.execute(
+            f"SELECT COUNT(*) FROM {table} WHERE legacy_source_id IS NOT NULL "
+            "OR legacy_signature IS NOT NULL"
+        ).fetchone()[0]
+        if labelled:
+            failures.append(f"{table} rows were falsely labelled as legacy-imported")
+    sources = connection.execute("SELECT COUNT(*) FROM legacy_sources").fetchone()[0]
+    if sources:
+        failures.append(f"unexpected legacy_sources rows: {sources}")
     return failures
 
 
