@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 
 /** Utility for formatting and parsing dates across the application. */
 public final class DateTimeUtil {
@@ -30,16 +31,24 @@ public final class DateTimeUtil {
         return format(Instant.now());
     }
 
-    /** Attempts to parse a legacy string representation or returns now if unparseable. */
-    public static Instant parseLegacyOrDefault(String dateStr, Instant defaultInstant) {
+    /**
+     * Attempts to parse a legacy timestamp, returning empty for missing, blank, or unparseable
+     * values. Callers that need a value can fall back to {@link #parseLegacyOrDefault}.
+     */
+    public static Optional<Instant> parseLegacy(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) {
-            return defaultInstant;
+            return Optional.empty();
         }
         try {
             LocalDateTime ldt = LocalDateTime.parse(dateStr.trim(), DISPLAY_FORMATTER);
-            return ldt.atZone(ZoneId.systemDefault()).toInstant();
+            return Optional.of(ldt.atZone(ZoneId.systemDefault()).toInstant());
         } catch (Exception e) {
-            return defaultInstant;
+            return Optional.empty();
         }
+    }
+
+    /** Attempts to parse a legacy string representation or returns the supplied default. */
+    public static Instant parseLegacyOrDefault(String dateStr, Instant defaultInstant) {
+        return parseLegacy(dateStr).orElse(defaultInstant);
     }
 }

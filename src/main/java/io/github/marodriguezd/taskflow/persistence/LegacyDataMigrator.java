@@ -17,12 +17,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -190,10 +189,10 @@ public class LegacyDataMigrator {
     private void migrateHistoryFile(File file) {
         try {
             List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
-            HistoryBaseline alreadyStored = HistoryBaseline.from(historyRepository.findAll());
-            List<HistoryItem> pending = new ArrayList<>();
+            List<ParsedHistory> parsed = new ArrayList<>();
             int skippedCount = 0;
-            int duplicateCount = 0;
+            // One fallback for the whole file; it is only a stored value, never a match identity.
+            Instant fallbackEventAt = Instant.now();
             for (Map<String, Object> map : list) {
                 try {
                     Object rawName = map.get("name");
@@ -214,8 +213,9 @@ public class LegacyDataMigrator {
                     if (dateStr == null) {
                         dateStr = getString(map, "completed_at", null);
                     }
-                    boolean hasEventAt = dateStr != null;
-                    Instant eventAt = DateTimeUtil.parseLegacyOrDefault(dateStr, Instant.now());
+                    // Missing, blank, and unparsable timestamps are all unreliable: they get a
+                    // display fallback but must not be treated as exact identities.
+                    Optional<Instant> sourceEventAt = DateTimeUtil.parseLegacy(dateStr);
 
                     HistoryItem item =
                             new HistoryItem(
@@ -226,12 +226,8 @@ public class LegacyDataMigrator {
                                     remaining,
                                     eventType,
                                     completedManually,
-                                    eventAt);
-                    if (alreadyStored.consume(item, hasEventAt)) {
-                        duplicateCount++;
-                        continue;
-                    }
-                    pending.add(item);
+                                    sourceEventAt.orElse(fallbackEventAt));
+                    parsed.add(new ParsedHistory(item, sourceEventAt.isPresent()));
                 } catch (RuntimeException e) {
                     skippedCount++;
                     log.warn(
@@ -240,6 +236,29 @@ public class LegacyDataMigrator {
                             e.getMessage());
                 }
             }
+
+            // Reserve exact timestamp matches first: an untimestamped record earlier in the file
+            // must not consume a row needed by a timestamped record that follows it.
+            HistoryBaseline alreadyStored = HistoryBaseline.from(historyRepository.findAll());
+            List<ParsedHistory> unmatched = new ArrayList<>();
+            int duplicateCount = 0;
+            for (ParsedHistory record : parsed) {
+                if (record.hasReliableTimestamp() && alreadyStored.consumeExact(record.item())) {
+                    duplicateCount++;
+                } else {
+                    unmatched.add(record);
+                }
+            }
+            List<HistoryItem> pending = new ArrayList<>();
+            for (ParsedHistory record : unmatched) {
+                if (!record.hasReliableTimestamp()
+                        && alreadyStored.consumeByContent(record.item())) {
+                    duplicateCount++;
+                } else {
+                    pending.add(record.item());
+                }
+            }
+
             historyRepository.saveAll(pending);
             log.info(
                     "Migrated {} history items from legacy file {} ({} already present, {} invalid records skipped)",
@@ -391,43 +410,55 @@ public class LegacyDataMigrator {
         }
     }
 
+    /** A parsed history record plus whether its source timestamp could actually be parsed. */
+    private record ParsedHistory(HistoryItem item, boolean hasReliableTimestamp) {}
+
+    /** Exact identity of an existing history row, including its event time. */
+    private record HistoryExactKey(HistoryIdentity identity, Instant eventAt) {}
+
     /**
-     * Consumable snapshot of the history rows that already exist. A record with an event timestamp
-     * only matches a row with the same timestamp; a record without one may match any row with the
-     * same content. Each existing row is consumed at most once, preserving duplicate entries.
+     * Consumable snapshot of the history rows that already exist. Exact timestamp matches are
+     * consumed in a first pass, so untimestamped records can only use the content fallback
+     * afterwards; the outcome therefore does not depend on the order of records in the source file.
+     * Each existing row is consumed at most once, preserving duplicate entries.
      */
     private static final class HistoryBaseline {
 
-        private final Map<HistoryIdentity, Integer> counts = new HashMap<>();
-        private final Map<HistoryIdentity, Deque<Instant>> eventTimes = new HashMap<>();
+        private final Map<HistoryExactKey, Integer> exactCounts = new HashMap<>();
+        private final Map<HistoryIdentity, Integer> contentCounts = new HashMap<>();
 
         static HistoryBaseline from(List<HistoryItem> items) {
             HistoryBaseline baseline = new HistoryBaseline();
             for (HistoryItem item : items) {
                 HistoryIdentity identity = HistoryIdentity.of(item);
-                baseline.counts.merge(identity, 1, Integer::sum);
-                baseline.eventTimes
-                        .computeIfAbsent(identity, key -> new ArrayDeque<>())
-                        .add(item.eventAt());
+                baseline.contentCounts.merge(identity, 1, Integer::sum);
+                baseline.exactCounts.merge(
+                        new HistoryExactKey(identity, item.eventAt()), 1, Integer::sum);
             }
             return baseline;
         }
 
-        boolean consume(HistoryItem item, boolean hasEventAt) {
+        boolean consumeExact(HistoryItem item) {
             HistoryIdentity identity = HistoryIdentity.of(item);
-            int available = counts.getOrDefault(identity, 0);
+            HistoryExactKey key = new HistoryExactKey(identity, item.eventAt());
+            int available = exactCounts.getOrDefault(key, 0);
             if (available == 0) {
                 return false;
             }
-            Deque<Instant> times = eventTimes.get(identity);
-            if (hasEventAt) {
-                if (times == null || !times.remove(item.eventAt())) {
-                    return false;
-                }
-            } else if (times != null && !times.isEmpty()) {
-                times.removeFirst();
+            exactCounts.put(key, available - 1);
+            // The exact row is also one of the content matches, so an untimestamped record later
+            // in the file must not reuse it.
+            contentCounts.computeIfPresent(identity, (ignored, count) -> count - 1);
+            return true;
+        }
+
+        boolean consumeByContent(HistoryItem item) {
+            HistoryIdentity identity = HistoryIdentity.of(item);
+            int available = contentCounts.getOrDefault(identity, 0);
+            if (available == 0) {
+                return false;
             }
-            counts.put(identity, available - 1);
+            contentCounts.put(identity, available - 1);
             return true;
         }
     }

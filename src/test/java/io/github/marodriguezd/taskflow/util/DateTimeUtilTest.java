@@ -3,6 +3,7 @@ package io.github.marodriguezd.taskflow.util;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +18,16 @@ class DateTimeUtilTest {
 
         Instant parsed = DateTimeUtil.parseLegacyOrDefault(formatted, Instant.EPOCH);
         assertThat(parsed).isNotEqualTo(Instant.EPOCH);
+    }
+
+    @Test
+    @DisplayName("Distinguishes parsed legacy dates from missing or invalid ones")
+    void testParseLegacyDistinguishesReliableTimestamps() {
+        Instant now = Instant.ofEpochSecond(1_700_000_000L).truncatedTo(ChronoUnit.MINUTES);
+        assertThat(DateTimeUtil.parseLegacy(DateTimeUtil.format(now))).contains(now);
+        assertThat(DateTimeUtil.parseLegacy("invalid-date-string")).isEmpty();
+        assertThat(DateTimeUtil.parseLegacy(null)).isEmpty();
+        assertThat(DateTimeUtil.parseLegacy("  ")).isEmpty();
     }
 
     @Test

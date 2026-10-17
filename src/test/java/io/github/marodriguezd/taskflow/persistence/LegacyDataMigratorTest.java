@@ -247,6 +247,78 @@ class LegacyDataMigratorTest {
     }
 
     @Test
+    @DisplayName(
+            "An untimestamped record listed first cannot consume a later exact timestamp match")
+    void testUntimestampedRecordDoesNotStealExactMatchWhenListedFirst() throws IOException {
+        assertOrderIndependentTimestampMatching(
+                historyJson("Shared completion", null),
+                historyJson("Shared completion", "10:00  —  01/10/26"));
+    }
+
+    @Test
+    @DisplayName("Timestamped-first ordering produces the same history rows")
+    void testTimestampedRecordFirstMatchesExactRow() throws IOException {
+        assertOrderIndependentTimestampMatching(
+                historyJson("Shared completion", "10:00  —  01/10/26"),
+                historyJson("Shared completion", null));
+    }
+
+    @Test
+    @DisplayName("Timestamped records with identical content but different times stay distinct")
+    void testTimestampedDuplicatesWithDifferentTimesRemainDistinct() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(
+                        historyJson("Repeated", "10:00  —  01/10/26"),
+                        historyJson("Repeated", "13:00  —  01/10/26")));
+
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(2);
+        assertThat(historyRepository.findAll())
+                .extracting(HistoryItem::eventAt)
+                .containsExactlyInAnyOrder(
+                        legacyInstant("10:00  —  01/10/26"), legacyInstant("13:00  —  01/10/26"));
+    }
+
+    @Test
+    @DisplayName("An unparsable timestamp falls back to content matching on retry")
+    void testInvalidTimestampRetryDoesNotDuplicate() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(historyJson("Invalid date", "not-a-timestamp")));
+
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(1);
+        Instant firstImportEvent = historyRepository.findAll().getFirst().eventAt();
+
+        // Restored backup: the source reappears after a successful import.
+        Files.copy(
+                dataDir.resolve("taskflow_history.json.migrated"),
+                dataDir.resolve("taskflow_history.json"));
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(firstImportEvent);
+    }
+
+    @Test
+    @DisplayName("Multiple identical untimestamped records keep their multiplicity")
+    void testIdenticalUntimestampedRecordsKeepMultiplicity() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(
+                        historyJson("Twin", null),
+                        historyJson("Twin", null),
+                        historyJson("Twin", null)));
+
+        migrator.migrateIfNecessary();
+
+        assertThat(historyRepository.count()).isEqualTo(3);
+    }
+
+    @Test
     @DisplayName("Identical repeated entries inside one file are preserved")
     void testIdenticalEntriesWithinOneFileArePreserved() throws IOException {
         Files.writeString(
@@ -483,6 +555,35 @@ class LegacyDataMigratorTest {
         migrator.migrateIfNecessary();
         assertThat(taskRepository.count()).isEqualTo(0);
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json"))).isTrue();
+    }
+
+    private void assertOrderIndependentTimestampMatching(String first, String second)
+            throws IOException {
+        Instant existingEvent = legacyInstant("10:00  —  01/10/26");
+        historyRepository.save(
+                new HistoryItem(
+                        null,
+                        "Shared completion",
+                        Priority.MEDIUM,
+                        900,
+                        0,
+                        HistoryEventType.COMPLETED,
+                        false,
+                        existingEvent));
+
+        Files.writeString(dataDir.resolve("taskflow_history.json"), arrayOf(first, second));
+        migrator.migrateIfNecessary();
+
+        // One existing row is consumed by the timestamped record, whichever order they appear
+        // in; the untimestamped record is then a genuinely additional entry.
+        List<HistoryItem> stored = historyRepository.findAll();
+        assertThat(stored).hasSize(2);
+        assertThat(stored).filteredOn(item -> item.eventAt().equals(existingEvent)).hasSize(1);
+        assertThat(stored).filteredOn(item -> !item.eventAt().equals(existingEvent)).hasSize(1);
+    }
+
+    private static Instant legacyInstant(String text) {
+        return DateTimeUtil.parseLegacyOrDefault(text, Instant.EPOCH);
     }
 
     private static String arrayOf(String... records) {
