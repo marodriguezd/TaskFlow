@@ -82,9 +82,13 @@ jobs:
           ./gradlew --no-daemon jpackagePackage
           DMG="build/dist/TaskFlow-1.2.3.dmg"
           ls -la build/dist
-          MOUNT="$(mktemp -d)"
-          # The jpackage DMG carries the GPL license file; -agree accepts it non-interactively.
-          hdiutil attach "$DMG" -mountpoint "$MOUNT" -nobrowse -noautoopen -agree
+          hdiutil verify "$DMG"
+          ATTACH_OUTPUT="$(hdiutil attach "$DMG" -nobrowse -noautoopen -readonly -plist)" || {
+            echo "hdiutil attach failed: $ATTACH_OUTPUT" >&2
+            exit 1
+          }
+          MOUNT="$(printf '%s' "$ATTACH_OUTPUT" | python3 -c 'import plistlib, sys; data = plistlib.load(sys.stdin.buffer); print(next(e["mount-point"] for e in data["system-entities"] if "mount-point" in e))')"
+          echo "Mounted at $MOUNT"
           trap 'hdiutil detach "$MOUNT" -force -quiet >/dev/null 2>&1 || true' EXIT
           rm -rf build/dist/InstalledTaskFlow.app
           ditto "$MOUNT/TaskFlow.app" build/dist/InstalledTaskFlow.app
