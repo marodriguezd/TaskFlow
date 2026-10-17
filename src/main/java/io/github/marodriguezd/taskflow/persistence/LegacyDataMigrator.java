@@ -10,40 +10,58 @@ import io.github.marodriguezd.taskflow.domain.Task;
 import io.github.marodriguezd.taskflow.domain.ThemeMode;
 import io.github.marodriguezd.taskflow.domain.UserPreferences;
 import io.github.marodriguezd.taskflow.domain.WindowGeometry;
+import io.github.marodriguezd.taskflow.persistence.LegacyImportRepository.ImportBatch;
+import io.github.marodriguezd.taskflow.persistence.LegacyImportRepository.ImportOutcome;
+import io.github.marodriguezd.taskflow.persistence.LegacyImportRepository.LegacyHistoryCandidate;
+import io.github.marodriguezd.taskflow.persistence.LegacyImportRepository.LegacyTaskCandidate;
 import io.github.marodriguezd.taskflow.util.DateTimeUtil;
+import io.github.marodriguezd.taskflow.util.LegacyTimestamp;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Migrates legacy TaskFlow JSON files (Python/PyQt6 implementation) to SQLite.
  *
- * <p>Legacy task and history records have no stable identifier, so the same logical record can be
- * seen more than once: the file may exist in both supported locations, a rename may have failed, or
- * a backup may have been restored. Every discovered source is therefore imported and records are
- * merged by content identity rather than by "the destination table is non-empty, skip this file". A
- * candidate is skipped only while an identical row still exists in the destination table; identity
- * counts are consumed as a multiset, so distinct records — including repeated identical entries
- * within one file — are never collapsed.
+ * <p>Every discovered source is imported; a non-empty destination table is never a reason to skip a
+ * file. Identity is durable rather than inferred from the current table contents:
  *
- * <p>Known ambiguity: legacy records carry no stable identifier, so a record can be
- * indistinguishable from one that is already stored. Tasks are identified by name, priority and
- * both durations; history adds the event type, the manual-completion flag and — only when the
- * legacy timestamp actually parses — the exact event time. A record created inside the Java
- * application whose fields match all of those cannot be told apart from the legacy record; in that
- * case one legacy occurrence is treated as already present instead of being duplicated. Distinct
- * records that differ only in fields the identity does not cover, or that have no parsable
- * timestamp, cannot always be distinguished.
+ * <ul>
+ *   <li>The SHA-256 of the original bytes, together with the source kind, is recorded in {@code
+ *       legacy_sources} in the same transaction that inserts the rows. A retry after a failed
+ *       rename therefore skips the source instead of duplicating it, and the source is renamed only
+ *       after that transaction commits.
+ *   <li>Each imported task/history row carries the source id and a canonical content signature.
+ *       Only legacy-imported rows participate in deduplication: an application-created row is
+ *       invisible to the matcher and can never suppress a legacy record. Signatures are consumed as
+ *       a multiset, so repeated identical entries inside one source keep their multiplicity and
+ *       overlapping sources import each shared record once.
+ *   <li>History signatures use the canonical <em>local</em> timestamp from the legacy file, not a
+ *       resolved instant, so a retry or restored backup under a different JVM time zone keeps the
+ *       same identity. The instant is resolved once with the import-time zone for storage/display.
+ * </ul>
+ *
+ * <p>Singleton sources keep their deterministic precedence: the home root is processed before the
+ * application data directory, so a conflicting data-directory geometry/settings file wins. A source
+ * already recorded as processed is not re-applied, which protects current user settings from a
+ * restored stale backup.
+ *
+ * <p>Known ambiguity: legacy records carry no stable identifier, so two records with identical
+ * fields are indistinguishable. Within one source the multiset policy preserves them; across
+ * independently created sources, counts are matched, so an overlap is deduplicated while distinct
+ * records are kept. Rows written before schema v2 have unknown provenance and are deliberately not
+ * counted: a source restored after upgrading such a database can therefore import one duplicate
+ * occurrence if it was previously imported without provenance. That residual limitation cannot be
+ * resolved without inventing information the legacy data does not contain.
  */
 public class LegacyDataMigrator {
 
@@ -55,18 +73,23 @@ public class LegacyDataMigrator {
     private final TaskRepository taskRepository;
     private final HistoryRepository historyRepository;
     private final PreferenceRepository preferenceRepository;
+    private final LegacyImportRepository legacyImportRepository;
+    private final ZoneId zone;
 
     public LegacyDataMigrator(
             Path dataDirectory,
             TaskRepository taskRepository,
             HistoryRepository historyRepository,
-            PreferenceRepository preferenceRepository) {
+            PreferenceRepository preferenceRepository,
+            LegacyImportRepository legacyImportRepository) {
         this(
                 dataDirectory,
                 Paths.get(System.getProperty("user.home")),
                 taskRepository,
                 historyRepository,
-                preferenceRepository);
+                preferenceRepository,
+                legacyImportRepository,
+                ZoneId.systemDefault());
     }
 
     /** Test seam so migration tests never read the developer's real home directory. */
@@ -75,12 +98,16 @@ public class LegacyDataMigrator {
             Path legacyHomeDirectory,
             TaskRepository taskRepository,
             HistoryRepository historyRepository,
-            PreferenceRepository preferenceRepository) {
+            PreferenceRepository preferenceRepository,
+            LegacyImportRepository legacyImportRepository,
+            ZoneId zone) {
         this.dataDirectory = dataDirectory;
         this.legacyHomeDirectory = legacyHomeDirectory;
         this.taskRepository = taskRepository;
         this.historyRepository = historyRepository;
         this.preferenceRepository = preferenceRepository;
+        this.legacyImportRepository = legacyImportRepository;
+        this.zone = zone;
     }
 
     public void migrateIfNecessary() {
@@ -133,11 +160,18 @@ public class LegacyDataMigrator {
 
     private void migrateTasksFile(File file) {
         try {
-            List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
-            Map<TaskIdentity, Integer> alreadyStored = existingTaskIdentities();
-            List<Task> pending = new ArrayList<>();
+            // Read once: the hash that identifies the source and the bytes that are parsed must be
+            // the same snapshot.
+            byte[] sourceBytes = Files.readAllBytes(file.toPath());
+            String sourceHash = SqliteLegacyImportRepository.sha256(sourceBytes);
+            if (skipAlreadyImported(file, LegacyImportRepository.KIND_TASKS, sourceHash)) {
+                return;
+            }
+
+            List<Map<String, Object>> list =
+                    objectMapper.readValue(sourceBytes, new TypeReference<>() {});
+            List<LegacyTaskCandidate> candidates = new ArrayList<>();
             int skippedCount = 0;
-            int duplicateCount = 0;
             for (Map<String, Object> map : list) {
                 try {
                     // A missing/non-string name falls back to the legacy default, but an explicit
@@ -158,17 +192,11 @@ public class LegacyDataMigrator {
                     Task task =
                             Task.create(name, priority, totalSeconds)
                                     .withRemainingSeconds(remaining);
-                    TaskIdentity identity = TaskIdentity.of(task);
-                    int stored = alreadyStored.getOrDefault(identity, 0);
-                    if (stored > 0) {
-                        alreadyStored.put(identity, stored - 1);
-                        duplicateCount++;
-                        continue;
-                    }
-                    pending.add(task);
+                    candidates.add(
+                            new LegacyTaskCandidate(task, LegacyRecordSignature.forTask(task)));
                 } catch (RuntimeException e) {
                     // Isolate malformed records: aborting here would leave the file unimported
-                    // while the rows already inserted make every later startup skip it.
+                    // while earlier rows make every later startup look like a completed import.
                     skippedCount++;
                     log.warn(
                             "Skipping malformed legacy task record in {}: {}",
@@ -176,15 +204,23 @@ public class LegacyDataMigrator {
                             e.getMessage());
                 }
             }
-            // One transaction for the whole file: an interrupted import leaves no rows behind, so
-            // the next startup retries the file instead of skipping it as "already imported".
-            taskRepository.saveAll(pending);
+
+            ImportOutcome outcome =
+                    legacyImportRepository.importBatch(
+                            new ImportBatch(
+                                    LegacyImportRepository.KIND_TASKS,
+                                    sourceHash,
+                                    file.getName(),
+                                    sourceBytes.length,
+                                    candidates,
+                                    List.of()));
             log.info(
-                    "Migrated {} active tasks from legacy file {} ({} already present, {} invalid records skipped)",
-                    pending.size(),
+                    "Migrated {} active tasks from legacy file {} ({} already present, {} invalid records skipped{})",
+                    outcome.insertedTasks(),
                     file,
-                    duplicateCount,
-                    skippedCount);
+                    outcome.skippedTasks(),
+                    skippedCount,
+                    outcome.sourceAlreadyProcessed() ? ", source was already processed" : "");
             renameToMigrated(file);
         } catch (IOException | RuntimeException e) {
             log.warn("Failed to parse legacy tasks file {}: {}", file, e.getMessage());
@@ -193,10 +229,18 @@ public class LegacyDataMigrator {
 
     private void migrateHistoryFile(File file) {
         try {
-            List<Map<String, Object>> list = objectMapper.readValue(file, new TypeReference<>() {});
-            List<ParsedHistory> parsed = new ArrayList<>();
+            byte[] sourceBytes = Files.readAllBytes(file.toPath());
+            String sourceHash = SqliteLegacyImportRepository.sha256(sourceBytes);
+            if (skipAlreadyImported(file, LegacyImportRepository.KIND_HISTORY, sourceHash)) {
+                return;
+            }
+
+            List<Map<String, Object>> list =
+                    objectMapper.readValue(sourceBytes, new TypeReference<>() {});
+            List<LegacyHistoryCandidate> candidates = new ArrayList<>();
             int skippedCount = 0;
-            // One fallback for the whole file; it is only a stored value, never a match identity.
+            // One fallback for the whole file; it is only a stored display value and is never a
+            // match identity.
             Instant fallbackEventAt = Instant.now();
             for (Map<String, Object> map : list) {
                 try {
@@ -214,17 +258,15 @@ public class LegacyDataMigrator {
                             HistoryEventType.fromCode(getString(map, "history_event", "completed"));
                     boolean completedManually = getBoolean(map.get("completed_manually"));
 
-                    // Prefer event_at, but a non-empty unparsable value must not hide a usable
-                    // completed_at: older files used either field, and both may be present.
-                    Optional<Instant> sourceEventAt =
-                            DateTimeUtil.parseLegacy(getString(map, "event_at", null));
-                    if (sourceEventAt.isEmpty()) {
-                        sourceEventAt =
-                                DateTimeUtil.parseLegacy(getString(map, "completed_at", null));
-                    }
-                    // Missing, blank, and unparsable timestamps are all unreliable: they get a
-                    // display fallback but must not be treated as exact identities.
-
+                    // event_at wins when it parses; a missing, blank, or unparsable value must not
+                    // hide a usable completed_at. If neither parses, the record is stored with the
+                    // fallback instant but marked unreliable for identity purposes.
+                    LegacyTimestamp timestamp =
+                            DateTimeUtil.parseLegacyTimestamp(
+                                    getString(map, "event_at", null),
+                                    getString(map, "completed_at", null),
+                                    zone,
+                                    fallbackEventAt);
                     HistoryItem item =
                             new HistoryItem(
                                     null,
@@ -234,8 +276,13 @@ public class LegacyDataMigrator {
                                     remaining,
                                     eventType,
                                     completedManually,
-                                    sourceEventAt.orElse(fallbackEventAt));
-                    parsed.add(new ParsedHistory(item, sourceEventAt.isPresent()));
+                                    timestamp.instant());
+                    String canonicalTimestamp = timestamp.canonicalLocalTimestamp().orElse(null);
+                    candidates.add(
+                            new LegacyHistoryCandidate(
+                                    item,
+                                    LegacyRecordSignature.forHistory(item, canonicalTimestamp),
+                                    canonicalTimestamp));
                 } catch (RuntimeException e) {
                     skippedCount++;
                     log.warn(
@@ -245,35 +292,22 @@ public class LegacyDataMigrator {
                 }
             }
 
-            // Reserve exact timestamp matches first: an untimestamped record earlier in the file
-            // must not consume a row needed by a timestamped record that follows it.
-            HistoryBaseline alreadyStored = HistoryBaseline.from(historyRepository.findAll());
-            List<ParsedHistory> unmatched = new ArrayList<>();
-            int duplicateCount = 0;
-            for (ParsedHistory record : parsed) {
-                if (record.hasReliableTimestamp() && alreadyStored.consumeExact(record.item())) {
-                    duplicateCount++;
-                } else {
-                    unmatched.add(record);
-                }
-            }
-            List<HistoryItem> pending = new ArrayList<>();
-            for (ParsedHistory record : unmatched) {
-                if (!record.hasReliableTimestamp()
-                        && alreadyStored.consumeByContent(record.item())) {
-                    duplicateCount++;
-                } else {
-                    pending.add(record.item());
-                }
-            }
-
-            historyRepository.saveAll(pending);
+            ImportOutcome outcome =
+                    legacyImportRepository.importBatch(
+                            new ImportBatch(
+                                    LegacyImportRepository.KIND_HISTORY,
+                                    sourceHash,
+                                    file.getName(),
+                                    sourceBytes.length,
+                                    List.of(),
+                                    candidates));
             log.info(
-                    "Migrated {} history items from legacy file {} ({} already present, {} invalid records skipped)",
-                    pending.size(),
+                    "Migrated {} history items from legacy file {} ({} already present, {} invalid records skipped{})",
+                    outcome.insertedHistory(),
                     file,
-                    duplicateCount,
-                    skippedCount);
+                    outcome.skippedHistory(),
+                    skippedCount,
+                    outcome.sourceAlreadyProcessed() ? ", source was already processed" : "");
             renameToMigrated(file);
         } catch (IOException | RuntimeException e) {
             log.warn("Failed to parse legacy history file {}: {}", file, e.getMessage());
@@ -282,13 +316,26 @@ public class LegacyDataMigrator {
 
     private void migrateGeometryFile(File file) {
         try {
-            JsonNode node = objectMapper.readTree(file);
+            byte[] sourceBytes = Files.readAllBytes(file.toPath());
+            String sourceHash = SqliteLegacyImportRepository.sha256(sourceBytes);
+            if (skipAlreadyImported(file, LegacyImportRepository.KIND_GEOMETRY, sourceHash)) {
+                return;
+            }
+
+            JsonNode node = objectMapper.readTree(sourceBytes);
             if (node.has("x") && node.has("y") && node.has("width") && node.has("height")) {
                 double x = node.get("x").asDouble(100);
                 double y = node.get("y").asDouble(100);
                 double width = node.get("width").asDouble(340);
                 double height = node.get("height").asDouble(560);
+                // Apply first, record afterwards: a crash in between replays an identical
+                // singleton value, whereas recording first could lose the value permanently.
                 preferenceRepository.saveGeometry(new WindowGeometry(x, y, width, height));
+                legacyImportRepository.markSourceProcessed(
+                        LegacyImportRepository.KIND_GEOMETRY,
+                        sourceHash,
+                        file.getName(),
+                        sourceBytes.length);
                 log.info("Migrated legacy window geometry: [{}, {}, {}, {}]", x, y, width, height);
             } else {
                 log.warn(
@@ -302,7 +349,13 @@ public class LegacyDataMigrator {
 
     private void migrateSettingsFile(File file) {
         try {
-            JsonNode node = objectMapper.readTree(file);
+            byte[] sourceBytes = Files.readAllBytes(file.toPath());
+            String sourceHash = SqliteLegacyImportRepository.sha256(sourceBytes);
+            if (skipAlreadyImported(file, LegacyImportRepository.KIND_SETTINGS, sourceHash)) {
+                return;
+            }
+
+            JsonNode node = objectMapper.readTree(sourceBytes);
             ThemeMode theme = ThemeMode.DARK;
             if (node.has("theme")) {
                 theme = ThemeMode.fromCode(node.get("theme").asText("dark"));
@@ -311,11 +364,16 @@ public class LegacyDataMigrator {
             if (node.has("always_on_top") && !node.get("always_on_top").isNull()) {
                 alwaysOnTop = node.get("always_on_top").asBoolean(false);
             }
-            // Preserve already-stored preferences (language, sound); only legacy-controlled
-            // keys are overwritten. Fresh databases load defaults, matching prior behavior.
+            // Preserve already-stored preferences (language, sound); only legacy-controlled keys
+            // are overwritten.
             UserPreferences existing = preferenceRepository.loadPreferences(false);
             preferenceRepository.savePreferences(
                     existing.withTheme(theme).withAlwaysOnTop(alwaysOnTop));
+            legacyImportRepository.markSourceProcessed(
+                    LegacyImportRepository.KIND_SETTINGS,
+                    sourceHash,
+                    file.getName(),
+                    sourceBytes.length);
             log.info("Migrated legacy user settings: theme={}, alwaysOnTop={}", theme, alwaysOnTop);
             renameToMigrated(file);
         } catch (IOException | RuntimeException e) {
@@ -323,19 +381,21 @@ public class LegacyDataMigrator {
         }
     }
 
-    private Map<TaskIdentity, Integer> existingTaskIdentities() {
-        Map<TaskIdentity, Integer> counts = new HashMap<>();
-        for (Task task : taskRepository.findAll()) {
-            counts.merge(TaskIdentity.of(task), 1, Integer::sum);
+    /** True when the exact source was already imported; the source is then retired and skipped. */
+    private boolean skipAlreadyImported(File file, String kind, String sourceHash) {
+        if (!legacyImportRepository.isSourceProcessed(kind, sourceHash)) {
+            return false;
         }
-        return counts;
+        log.info("Legacy {} source {} was already imported; skipping", kind, file);
+        renameToMigrated(file);
+        return true;
     }
 
     /**
      * Moves a processed file aside so it imports exactly once. Never overwrites an existing backup:
      * if {@code *.migrated} is already there (a restored backup, or a previous rename that could
      * not move the source) a numbered suffix is used. Leaving the source in place would instead
-     * re-import it on every startup and silently overwrite newer preferences.
+     * re-import it on every startup.
      */
     private void renameToMigrated(File file) {
         Path source = file.toPath();
@@ -386,88 +446,5 @@ public class LegacyDataMigrator {
             }
         }
         return defaultValue;
-    }
-
-    /** Legacy tasks have no identifier; content is the only available identity. */
-    private record TaskIdentity(
-            String name, Priority priority, int totalSeconds, int remainingSeconds) {
-
-        static TaskIdentity of(Task task) {
-            return new TaskIdentity(
-                    task.name(), task.priority(), task.totalSeconds(), task.remainingSeconds());
-        }
-    }
-
-    /** History identity without the event time, used for records that carry no timestamp. */
-    private record HistoryIdentity(
-            String name,
-            Priority priority,
-            int totalSeconds,
-            int remainingSeconds,
-            HistoryEventType eventType,
-            boolean completedManually) {
-
-        static HistoryIdentity of(HistoryItem item) {
-            return new HistoryIdentity(
-                    item.name(),
-                    item.priority(),
-                    item.totalSeconds(),
-                    item.remainingSeconds(),
-                    item.eventType(),
-                    item.completedManually());
-        }
-    }
-
-    /** A parsed history record plus whether its source timestamp could actually be parsed. */
-    private record ParsedHistory(HistoryItem item, boolean hasReliableTimestamp) {}
-
-    /** Exact identity of an existing history row, including its event time. */
-    private record HistoryExactKey(HistoryIdentity identity, Instant eventAt) {}
-
-    /**
-     * Consumable snapshot of the history rows that already exist. Exact timestamp matches are
-     * consumed in a first pass, so untimestamped records can only use the content fallback
-     * afterwards; the outcome therefore does not depend on the order of records in the source file.
-     * Each existing row is consumed at most once, preserving duplicate entries.
-     */
-    private static final class HistoryBaseline {
-
-        private final Map<HistoryExactKey, Integer> exactCounts = new HashMap<>();
-        private final Map<HistoryIdentity, Integer> contentCounts = new HashMap<>();
-
-        static HistoryBaseline from(List<HistoryItem> items) {
-            HistoryBaseline baseline = new HistoryBaseline();
-            for (HistoryItem item : items) {
-                HistoryIdentity identity = HistoryIdentity.of(item);
-                baseline.contentCounts.merge(identity, 1, Integer::sum);
-                baseline.exactCounts.merge(
-                        new HistoryExactKey(identity, item.eventAt()), 1, Integer::sum);
-            }
-            return baseline;
-        }
-
-        boolean consumeExact(HistoryItem item) {
-            HistoryIdentity identity = HistoryIdentity.of(item);
-            HistoryExactKey key = new HistoryExactKey(identity, item.eventAt());
-            int available = exactCounts.getOrDefault(key, 0);
-            if (available == 0) {
-                return false;
-            }
-            exactCounts.put(key, available - 1);
-            // The exact row is also one of the content matches, so an untimestamped record later
-            // in the file must not reuse it.
-            contentCounts.computeIfPresent(identity, (ignored, count) -> count - 1);
-            return true;
-        }
-
-        boolean consumeByContent(HistoryItem item) {
-            HistoryIdentity identity = HistoryIdentity.of(item);
-            int available = contentCounts.getOrDefault(identity, 0);
-            if (available == 0) {
-                return false;
-            }
-            contentCounts.put(identity, available - 1);
-            return true;
-        }
     }
 }

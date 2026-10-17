@@ -18,7 +18,7 @@ import org.slf4j.LoggerFactory;
 public class SoundService {
 
     private static final Logger log = LoggerFactory.getLogger(SoundService.class);
-    private final PlatformService platformService;
+    private final Path userSoundPath;
     private final Consumer<Path> playbackDispatcher;
     private AudioClip cachedAudioClip;
     private Path lastLoadedSoundPath;
@@ -32,7 +32,16 @@ public class SoundService {
             PlatformService platformService,
             Consumer<Path> playbackDispatcher,
             boolean provisionDefaultSound) {
-        this.platformService = Objects.requireNonNull(platformService);
+        this(
+                Objects.requireNonNull(platformService).getUserSoundPath(),
+                playbackDispatcher,
+                provisionDefaultSound);
+    }
+
+    /** Test seam: a sound path that never touches the real user data directory. */
+    SoundService(
+            Path userSoundPath, Consumer<Path> playbackDispatcher, boolean provisionDefaultSound) {
+        this.userSoundPath = Objects.requireNonNull(userSoundPath);
         this.playbackDispatcher =
                 playbackDispatcher == null ? this::dispatchPlayback : playbackDispatcher;
         if (provisionDefaultSound) {
@@ -42,7 +51,7 @@ public class SoundService {
 
     /** Ensures default bell.mp3 is copied to user directory if not already customized. */
     public void ensureDefaultSoundExists() {
-        Path userSound = platformService.getUserSoundPath();
+        Path userSound = userSoundPath;
         if (Files.exists(userSound)) {
             return;
         }
@@ -125,7 +134,7 @@ public class SoundService {
     }
 
     private Path resolveSoundPath() {
-        Path userSound = platformService.getUserSoundPath();
+        Path userSound = userSoundPath;
         if (Files.exists(userSound)) {
             return userSound;
         }

@@ -51,6 +51,61 @@ jobs:
       - name: Build native application image (jpackage)
         run: ./gradlew --no-daemon jpackageImage
 
+      # Packaged-app verification: resource inventory plus a launch/exit smoke test that
+      # requires a startup marker and a normal shutdown (a timeout is a failure guard only).
+      - name: Install Xvfb (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Verify and smoke-test the packaged app image (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          python3 tools/app_smoke_test.py --image build/dist/TaskFlow --mode verify
+          xvfb-run -a python3 tools/app_smoke_test.py --image build/dist/TaskFlow --mode launch --timeout 120
+
+      - name: Build and smoke-test the Linux AppImage
+        if: runner.os == 'Linux'
+        env:
+          APPIMAGETOOL_SHA256: 95cbe7cce9717fce90c484e34052ee7c7f1d7635b33c12525b4776826a7d29b6
+        run: |
+          ./gradlew --no-daemon jpackagePackage
+          xvfb-run -a python3 tools/app_smoke_test.py \
+            --appimage build/dist/TaskFlow-1.2.3-x86_64.AppImage --mode all --timeout 180
+
+      - name: Verify and smoke-test the packaged app bundle (macOS)
+        if: runner.os == 'macOS'
+        run: python3 tools/app_smoke_test.py --image build/dist/TaskFlow.app --mode all --timeout 120
+
+      - name: Build DMG and smoke-test a copied installation (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./gradlew --no-daemon jpackagePackage
+          DMG="build/dist/TaskFlow-1.2.3.dmg"
+          MOUNT="$(mktemp -d)"
+          hdiutil attach "$DMG" -mountpoint "$MOUNT" -nobrowse -quiet
+          rm -rf build/dist/InstalledTaskFlow.app
+          cp -R "$MOUNT/TaskFlow.app" build/dist/InstalledTaskFlow.app
+          hdiutil detach "$MOUNT" -quiet
+          python3 tools/app_smoke_test.py --image build/dist/InstalledTaskFlow.app --mode launch --timeout 120
+
+      - name: Verify and smoke-test the packaged app image (Windows)
+        if: runner.os == 'Windows'
+        run: python tools/app_smoke_test.py --image build/dist/TaskFlow --mode all --timeout 120
+
+      - name: Build, install, smoke-test, and remove the MSI package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./gradlew.bat --no-daemon jpackagePackage
+          $msi = (Get-ChildItem build/dist/TaskFlow-*.msi | Select-Object -First 1).FullName
+          if (-not $msi) { throw "MSI installer was not produced" }
+          Start-Process msiexec.exe -Wait -ArgumentList "/i `"$msi`" /qn /norestart"
+          $launcher = Join-Path $env:ProgramFiles 'TaskFlow\TaskFlow.exe'
+          if (-not (Test-Path $launcher)) { throw "Installed launcher missing: $launcher" }
+          python tools/app_smoke_test.py --image (Split-Path $launcher) --mode all --timeout 120
+          Start-Process msiexec.exe -Wait -ArgumentList "/x `"$msi`" /qn /norestart"
+          if (Test-Path $launcher) { throw "Uninstall left the application behind" }
+
       - name: Upload native application image
         # actions/upload-artifact v7.0.2
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

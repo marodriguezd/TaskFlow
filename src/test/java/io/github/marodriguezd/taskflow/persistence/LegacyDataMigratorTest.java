@@ -13,7 +13,12 @@ import io.github.marodriguezd.taskflow.util.DateTimeUtil;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -24,6 +29,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 class LegacyDataMigratorTest {
 
+    private static final String TIMESTAMP = "10:00  —  01/10/26";
+
     @TempDir Path tempDir;
 
     private Path dataDir;
@@ -32,6 +39,7 @@ class LegacyDataMigratorTest {
     private SqliteTaskRepository taskRepository;
     private SqliteHistoryRepository historyRepository;
     private SqlitePreferenceRepository preferenceRepository;
+    private SqliteLegacyImportRepository legacyImportRepository;
     private LegacyDataMigrator migrator;
 
     @BeforeEach
@@ -44,10 +52,9 @@ class LegacyDataMigratorTest {
         taskRepository = new SqliteTaskRepository(databaseManager);
         historyRepository = new SqliteHistoryRepository(databaseManager);
         preferenceRepository = new SqlitePreferenceRepository(databaseManager);
+        legacyImportRepository = new SqliteLegacyImportRepository(databaseManager);
 
-        migrator =
-                new LegacyDataMigrator(
-                        dataDir, homeDir, taskRepository, historyRepository, preferenceRepository);
+        migrator = migratorInZone(ZoneId.systemDefault());
     }
 
     @AfterEach
@@ -55,9 +62,20 @@ class LegacyDataMigratorTest {
         databaseManager.close();
     }
 
+    private LegacyDataMigrator migratorInZone(ZoneId zone) {
+        return new LegacyDataMigrator(
+                dataDir,
+                homeDir,
+                taskRepository,
+                historyRepository,
+                preferenceRepository,
+                legacyImportRepository,
+                zone);
+    }
+
     @Test
-    @DisplayName("Successfully migrates legacy JSON files into SQLite")
-    void testSuccessfulMigration() throws IOException {
+    @DisplayName("Successfully migrates legacy JSON files into SQLite with provenance")
+    void testSuccessfulMigration() throws IOException, SQLException {
         String tasksJson =
                 """
                 [
@@ -123,11 +141,12 @@ class LegacyDataMigratorTest {
         assertThat(tasks.get(0).priority()).isEqualTo(Priority.HIGH);
         assertThat(tasks.get(0).remainingSeconds()).isEqualTo(1200);
 
-        // 2. Verify history
+        // 2. Verify history and its canonical source timestamp
         List<HistoryItem> history = historyRepository.findAll();
         assertThat(history).hasSize(1);
         assertThat(history.get(0).name()).isEqualTo("Legacy Completed");
         assertThat(history.get(0).eventType()).isEqualTo(HistoryEventType.COMPLETED);
+        assertThat(legacySourceTimestamp("Legacy Completed")).isEqualTo("2026-10-01T14:30");
 
         // 3. Verify geometry
         Optional<WindowGeometry> geometry = preferenceRepository.loadGeometry();
@@ -140,7 +159,15 @@ class LegacyDataMigratorTest {
         assertThat(prefs.theme()).isEqualTo(ThemeMode.LIGHT);
         assertThat(prefs.alwaysOnTop()).isTrue();
 
-        // 5. Verify files were renamed to .migrated
+        // 5. Every source kind is durably recorded, and every imported row carries provenance.
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isEqualTo(1);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_HISTORY)).isEqualTo(1);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_GEOMETRY)).isEqualTo(1);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_SETTINGS)).isEqualTo(1);
+        assertThat(importedRowCount("tasks")).isEqualTo(2);
+        assertThat(importedRowCount("history")).isEqualTo(1);
+
+        // 6. Verify files were renamed to .migrated
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json.migrated"))).isTrue();
     }
 
@@ -242,24 +269,27 @@ class LegacyDataMigratorTest {
                 .filteredOn(item -> item.name().equals("Shared completion"))
                 .extracting(HistoryItem::eventAt)
                 .containsExactlyInAnyOrder(
-                        DateTimeUtil.parseLegacyOrDefault("10:00  —  01/10/26", Instant.EPOCH),
-                        DateTimeUtil.parseLegacyOrDefault("13:00  —  01/10/26", Instant.EPOCH));
+                        legacyInstant("10:00  —  01/10/26"), legacyInstant("13:00  —  01/10/26"));
+
+        // Overlapping records are deduplicated through row provenance; both source files are
+        // nevertheless recorded as processed because each contributed at least one record.
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isEqualTo(2);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_HISTORY)).isEqualTo(2);
     }
 
     @Test
-    @DisplayName(
-            "An untimestamped record listed first cannot consume a later exact timestamp match")
-    void testUntimestampedRecordDoesNotStealExactMatchWhenListedFirst() throws IOException {
+    @DisplayName("An untimestamped snapshot record listed first cannot consume the timestamped row")
+    void testUntimestampedRecordListedFirstDoesNotConsumeTimestampedRow() throws IOException {
         assertOrderIndependentTimestampMatching(
                 historyJson("Shared completion", null),
-                historyJson("Shared completion", "10:00  —  01/10/26"));
+                historyJson("Shared completion", TIMESTAMP));
     }
 
     @Test
-    @DisplayName("Timestamped-first ordering produces the same history rows")
-    void testTimestampedRecordFirstMatchesExactRow() throws IOException {
+    @DisplayName("A timestamped snapshot record listed first matches the existing legacy row")
+    void testTimestampedRecordListedFirstMatchesExistingLegacyRow() throws IOException {
         assertOrderIndependentTimestampMatching(
-                historyJson("Shared completion", "10:00  —  01/10/26"),
+                historyJson("Shared completion", TIMESTAMP),
                 historyJson("Shared completion", null));
     }
 
@@ -292,6 +322,7 @@ class LegacyDataMigratorTest {
 
         assertThat(historyRepository.count()).isEqualTo(1);
         Instant firstImportEvent = historyRepository.findAll().getFirst().eventAt();
+        assertThat(canonicalTimestamp("Invalid date")).isNull();
 
         // Restored backup: the source reappears after a successful import.
         Files.copy(
@@ -322,7 +353,7 @@ class LegacyDataMigratorTest {
         Instant fallbackEventAt = stored.getFirst().eventAt();
         assertThat(stored).extracting(HistoryItem::eventAt).containsOnly(fallbackEventAt);
 
-        // Restored source: three existing rows are consumed by content identity, one per record.
+        // Restored source: the source ledger skips it and preserves the stored multiplicity.
         Files.copy(
                 dataDir.resolve("taskflow_history.json.migrated"),
                 dataDir.resolve("taskflow_history.json"));
@@ -337,8 +368,7 @@ class LegacyDataMigratorTest {
     @DisplayName("A malformed history record does not abort the rest of the file")
     void testMalformedHistoryRecordDoesNotAbortImport() throws IOException {
         // The second element is null (unusable) and the third has a blank name. Aborting on the
-        // first bad record would lose the records after it, and because rows already exist the
-        // next startup would skip the file entirely.
+        // first bad record would lose the records after it.
         String legacyHistory =
                 """
                 [
@@ -398,8 +428,10 @@ class LegacyDataMigratorTest {
 
         migrator.migrateIfNecessary();
 
-        // The whole file is one transaction: nothing imported and the source is left for a retry.
+        // The whole file is one transaction: no rows, no false source-completion record, and the
+        // source is left for a retry.
         assertThat(historyRepository.count()).isZero();
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_HISTORY)).isZero();
         assertThat(Files.exists(dataDir.resolve("taskflow_history.json"))).isTrue();
         assertThat(Files.exists(dataDir.resolve("taskflow_history.json.migrated"))).isFalse();
 
@@ -412,6 +444,7 @@ class LegacyDataMigratorTest {
         assertThat(historyRepository.findAll())
                 .extracting(HistoryItem::name)
                 .containsExactlyInAnyOrder("A", "B");
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_HISTORY)).isEqualTo(1);
         assertThat(Files.exists(dataDir.resolve("taskflow_history.json"))).isFalse();
         assertThat(Files.exists(dataDir.resolve("taskflow_history.json.migrated"))).isTrue();
     }
@@ -430,6 +463,7 @@ class LegacyDataMigratorTest {
         Instant expected = legacyInstant("09:30  —  01/10/26");
         assertThat(historyRepository.count()).isEqualTo(1);
         assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(expected);
+        assertThat(canonicalTimestamp("Fallback")).isEqualTo("2026-10-01T09:30");
 
         // The fallback timestamp is a reliable identity, so a restored source is not re-imported.
         Files.copy(
@@ -477,6 +511,7 @@ class LegacyDataMigratorTest {
         assertThat(historyRepository.findAll().getFirst().eventAt())
                 .isEqualTo(legacyInstant("10:00  —  01/10/26"))
                 .isNotEqualTo(legacyInstant("09:00  —  01/10/26"));
+        assertThat(canonicalTimestamp("Both dates")).isEqualTo("2026-10-01T10:00");
     }
 
     @Test
@@ -498,8 +533,8 @@ class LegacyDataMigratorTest {
     }
 
     @Test
-    @DisplayName("A non-empty database still receives previously unimported legacy records")
-    void testImportsIntoExistingDatabase() throws IOException {
+    @DisplayName("Application-created rows never suppress a legacy record")
+    void testApplicationCreatedRowsDoNotSuppressLegacyImport() throws IOException {
         taskRepository.save(Task.create("Existing task", Priority.MEDIUM, 600));
         historyRepository.save(
                 new HistoryItem(
@@ -510,12 +545,13 @@ class LegacyDataMigratorTest {
                         0,
                         HistoryEventType.COMPLETED,
                         false,
-                        DateTimeUtil.parseLegacyOrDefault("09:00  —  01/10/26", Instant.EPOCH)));
+                        legacyInstant("09:00  —  01/10/26")));
 
         Files.writeString(
                 dataDir.resolve("taskflow_data.json"),
                 arrayOf(
-                        // Same content as the existing row: one logical record, not two.
+                        // Same content as the application-created row. Content alone cannot prove
+                        // that the legacy record was already imported, so it is imported.
                         taskJson("Existing task", 600, 600), taskJson("Legacy only", 300, 300)));
         Files.writeString(
                 dataDir.resolve("taskflow_history.json"),
@@ -527,16 +563,19 @@ class LegacyDataMigratorTest {
 
         assertThat(taskRepository.findAll())
                 .extracting(Task::name)
-                .containsExactlyInAnyOrder("Existing task", "Legacy only");
+                .containsExactlyInAnyOrder("Existing task", "Existing task", "Legacy only");
         assertThat(historyRepository.findAll())
                 .extracting(HistoryItem::name)
-                .containsExactlyInAnyOrder("Existing history", "Legacy history");
+                .containsExactlyInAnyOrder(
+                        "Existing history", "Existing history", "Legacy history");
+        assertThat(importedRowCount("tasks")).isEqualTo(2);
+        assertThat(importedRowCount("history")).isEqualTo(2);
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json.migrated"))).isTrue();
     }
 
     @Test
     @DisplayName("Restoring a migrated source and restarting does not duplicate records")
-    void testRestoredSourcesAreNotImportedTwice() throws IOException {
+    void testRestoredSourcesAreNotImportedTwice() throws IOException, SQLException {
         Files.writeString(
                 dataDir.resolve("taskflow_data.json"), arrayOf(taskJson("Only once", 600, 600)));
         Files.writeString(
@@ -547,8 +586,10 @@ class LegacyDataMigratorTest {
         migrator.migrateIfNecessary();
         assertThat(taskRepository.count()).isEqualTo(1);
         assertThat(historyRepository.count()).isEqualTo(1);
+        Instant originalEvent = historyRepository.findAll().getFirst().eventAt();
 
-        // Simulate a restored backup or a rename that could not happen: the source reappears.
+        // Simulate a restored backup or a rename that could not happen: the source reappears with
+        // the exact same bytes after the provenance transaction committed.
         Files.copy(
                 dataDir.resolve("taskflow_data.json.migrated"),
                 dataDir.resolve("taskflow_data.json"));
@@ -560,8 +601,187 @@ class LegacyDataMigratorTest {
 
         assertThat(taskRepository.count()).isEqualTo(1);
         assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(originalEvent);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isEqualTo(1);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_HISTORY)).isEqualTo(1);
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json.migrated.1"))).isTrue();
         assertThat(Files.exists(dataDir.resolve("taskflow_history.json.migrated.1"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("A restored source is not re-imported after the JVM time zone changes")
+    void testRestoredSourceAcrossTimeZoneChangeDoesNotDuplicate() throws IOException {
+        ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(historyJson("Tokyo completion", TIMESTAMP)));
+
+        migratorInZone(tokyo).migrateIfNecessary();
+        Instant tokyoEvent = legacyInstant(TIMESTAMP, tokyo);
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(tokyoEvent);
+
+        Files.copy(
+                dataDir.resolve("taskflow_history.json.migrated"),
+                dataDir.resolve("taskflow_history.json"));
+        migratorInZone(ZoneId.of("America/Los_Angeles")).migrateIfNecessary();
+
+        // Same source bytes: the durable source record skips it, so neither the row count nor the
+        // originally stored instant changes.
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(historyRepository.findAll().getFirst().eventAt()).isEqualTo(tokyoEvent);
+    }
+
+    @Test
+    @DisplayName("Cross-source deduplication uses canonical local time, not the JVM zone")
+    void testCrossSourceDeduplicationIgnoresTimeZoneChange() throws IOException {
+        ZoneId tokyo = ZoneId.of("Asia/Tokyo");
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(historyJson("Shared completion", TIMESTAMP)));
+        migratorInZone(tokyo).migrateIfNecessary();
+        Instant tokyoEvent = legacyInstant(TIMESTAMP, tokyo);
+
+        // A different source snapshot (different bytes) contains the same record, imported under a
+        // different zone. Its canonical local timestamp must still match the stored provenance.
+        Files.writeString(
+                homeDir.resolve(".taskflow_history.json"),
+                arrayOf(
+                        historyJson("Shared completion", TIMESTAMP),
+                        historyJson("Home only", "11:00  —  01/10/26")));
+        migratorInZone(ZoneId.of("America/Los_Angeles")).migrateIfNecessary();
+
+        List<HistoryItem> stored = historyRepository.findAll();
+        assertThat(stored)
+                .extracting(HistoryItem::name)
+                .containsExactlyInAnyOrder("Shared completion", "Home only");
+        HistoryItem shared =
+                stored.stream()
+                        .filter(item -> item.name().equals("Shared completion"))
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(shared.eventAt()).isEqualTo(tokyoEvent);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_HISTORY)).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Deleting an imported row removes its provenance and allows a valid reimport")
+    void testDeletedImportedRowsCanBeReimportedFromAnotherSource() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_data.json"), arrayOf(taskJson("Reimport me", 600, 600)));
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(historyJson("Reimport history", TIMESTAMP)));
+        migrator.migrateIfNecessary();
+
+        taskRepository.deleteById(taskRepository.findAll().getFirst().id());
+        historyRepository.deleteById(historyRepository.findAll().getFirst().id());
+        assertThat(taskRepository.count()).isZero();
+        assertThat(historyRepository.count()).isZero();
+        assertThat(importedRowCount("tasks")).isZero();
+        assertThat(importedRowCount("history")).isZero();
+
+        // A different source snapshot contains the same records; the deleted provenance no longer
+        // suppresses them.
+        Files.writeString(
+                homeDir.resolve(".taskflow_data.json"),
+                arrayOf(taskJson("Reimport me", 600, 600), taskJson("Other task", 300, 300)));
+        Files.writeString(
+                homeDir.resolve(".taskflow_history.json"),
+                arrayOf(
+                        historyJson("Reimport history", TIMESTAMP),
+                        historyJson("Other history", "11:00  —  01/10/26")));
+        migrator.migrateIfNecessary();
+
+        assertThat(taskRepository.findAll())
+                .extracting(Task::name)
+                .containsExactlyInAnyOrder("Reimport me", "Other task");
+        assertThat(historyRepository.findAll())
+                .extracting(HistoryItem::name)
+                .containsExactlyInAnyOrder("Reimport history", "Other history");
+    }
+
+    @Test
+    @DisplayName("A fully overlapping source is marked processed exactly once")
+    void testFullyOverlappingSourceIsMarkedProcessedAndNotReimported() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_data.json"), arrayOf(taskJson("Shared", 600, 600)));
+        migrator.migrateIfNecessary();
+
+        // Different bytes (extra unknown field), identical record: nothing new is inserted, but the
+        // second source is still recorded as processed.
+        Files.writeString(
+                homeDir.resolve(".taskflow_data.json"),
+                "[{\"name\":\"Shared\",\"priority\":\"Media\",\"total_seconds\":600,"
+                        + "\"remaining\":600,\"unknown_field\":true}]");
+        migrator.migrateIfNecessary();
+
+        assertThat(taskRepository.count()).isEqualTo(1);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isEqualTo(2);
+
+        Files.copy(
+                homeDir.resolve(".taskflow_data.json.migrated"),
+                homeDir.resolve(".taskflow_data.json"));
+        migrator.migrateIfNecessary();
+
+        assertThat(taskRepository.count()).isEqualTo(1);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isEqualTo(2);
+        assertThat(Files.exists(homeDir.resolve(".taskflow_data.json.migrated.1"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("Identical source copies are imported once and both are retired")
+    void testIdenticalSourceCopiesImportOnce() throws IOException {
+        String json = arrayOf(taskJson("Copy", 600, 600));
+        Files.writeString(homeDir.resolve(".taskflow_data.json"), json);
+        Files.writeString(dataDir.resolve("taskflow_data.json"), json);
+
+        migrator.migrateIfNecessary();
+
+        assertThat(taskRepository.count()).isEqualTo(1);
+        // Identical bytes are the same source: one ledger entry, no duplicate rows.
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isEqualTo(1);
+        assertThat(Files.exists(homeDir.resolve(".taskflow_data.json.migrated"))).isTrue();
+        assertThat(Files.exists(dataDir.resolve("taskflow_data.json.migrated"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("A restored singleton source cannot overwrite newer geometry")
+    void testRestoredGeometryDoesNotOverwriteCurrentValue() throws IOException {
+        Files.writeString(
+                dataDir.resolve("taskflow_geometry.json"),
+                "{\"x\":1,\"y\":2,\"width\":340,\"height\":560}");
+        migrator.migrateIfNecessary();
+
+        preferenceRepository.saveGeometry(new WindowGeometry(9, 8, 700, 800));
+        Files.copy(
+                dataDir.resolve("taskflow_geometry.json.migrated"),
+                dataDir.resolve("taskflow_geometry.json"));
+        migrator.migrateIfNecessary();
+
+        WindowGeometry geometry = preferenceRepository.loadGeometry().orElseThrow();
+        assertThat(geometry.x()).isEqualTo(9.0);
+        assertThat(geometry.width()).isEqualTo(700.0);
+    }
+
+    @Test
+    @DisplayName("Conflicting geometry resolves deterministically: data directory wins")
+    void testDataDirectoryGeometryWinsOverConflictingHomeGeometry() throws IOException {
+        Files.writeString(
+                homeDir.resolve(".taskflow_geometry.json"),
+                "{\"x\":10,\"y\":20,\"width\":300,\"height\":500}");
+        Files.writeString(
+                dataDir.resolve("taskflow_geometry.json"),
+                "{\"x\":40,\"y\":50,\"width\":360,\"height\":600}");
+
+        migrator.migrateIfNecessary();
+
+        WindowGeometry geometry = preferenceRepository.loadGeometry().orElseThrow();
+        assertThat(geometry.x()).isEqualTo(40.0);
+        assertThat(geometry.y()).isEqualTo(50.0);
+        assertThat(geometry.width()).isEqualTo(360.0);
+        assertThat(geometry.height()).isEqualTo(600.0);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_GEOMETRY)).isEqualTo(2);
     }
 
     @Test
@@ -621,8 +841,7 @@ class LegacyDataMigratorTest {
     @DisplayName("A malformed record does not abort the rest of the file")
     void testMalformedRecordDoesNotAbortImport() throws IOException {
         // The middle element is null (unusable) and the last has a zero duration. Aborting on the
-        // first bad record would lose the remaining tasks, and because rows already exist the next
-        // startup would skip the file entirely.
+        // first bad record would lose the remaining tasks.
         String tasksJson =
                 """
                 [
@@ -651,7 +870,7 @@ class LegacyDataMigratorTest {
     }
 
     @Test
-    @DisplayName("An existing .migrated backup never causes the source to be re-imported")
+    @DisplayName("An existing .migrated backup never causes settings to be re-applied")
     void testRepeatedMigrationDoesNotReapplySettings() throws IOException {
         // A restored backup can leave both the source and the original .migrated file on disk.
         Files.writeString(
@@ -674,7 +893,7 @@ class LegacyDataMigratorTest {
     }
 
     @Test
-    @DisplayName("A failed bulk import leaves no rows behind and is retried on the next startup")
+    @DisplayName("A failed bulk import leaves no rows or source record and is retried")
     void testFailedImportRollsBackAndRetries() throws Exception {
         String tasksJson =
                 """
@@ -694,8 +913,10 @@ class LegacyDataMigratorTest {
 
         migrator.migrateIfNecessary();
 
-        // The whole file is one transaction: nothing imported and the source is left for a retry.
+        // The whole file is one transaction: no rows, no false source-completion record, and the
+        // source is left for a retry.
         assertThat(taskRepository.count()).isZero();
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isZero();
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json"))).isTrue();
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json.migrated"))).isFalse();
 
@@ -706,6 +927,7 @@ class LegacyDataMigratorTest {
         migrator.migrateIfNecessary();
 
         assertThat(taskRepository.count()).isEqualTo(2);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isEqualTo(1);
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json"))).isFalse();
     }
 
@@ -715,36 +937,81 @@ class LegacyDataMigratorTest {
         Files.writeString(dataDir.resolve("taskflow_data.json"), "{ NOT VALID JSON :::");
         migrator.migrateIfNecessary();
         assertThat(taskRepository.count()).isEqualTo(0);
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_TASKS)).isZero();
         assertThat(Files.exists(dataDir.resolve("taskflow_data.json"))).isTrue();
     }
 
     private void assertOrderIndependentTimestampMatching(String first, String second)
             throws IOException {
-        Instant existingEvent = legacyInstant("10:00  —  01/10/26");
-        historyRepository.save(
-                new HistoryItem(
-                        null,
-                        "Shared completion",
-                        Priority.MEDIUM,
-                        900,
-                        0,
-                        HistoryEventType.COMPLETED,
-                        false,
-                        existingEvent));
+        // Import the timestamped record through an initial source, then present a different
+        // snapshot with both records in the requested order.
+        Files.writeString(
+                dataDir.resolve("taskflow_history.json"),
+                arrayOf(historyJson("Shared completion", TIMESTAMP)));
+        migrator.migrateIfNecessary();
+        Instant existingEvent = legacyInstant(TIMESTAMP);
+        assertThat(historyRepository.count()).isEqualTo(1);
 
-        Files.writeString(dataDir.resolve("taskflow_history.json"), arrayOf(first, second));
+        Files.writeString(homeDir.resolve(".taskflow_history.json"), arrayOf(first, second));
         migrator.migrateIfNecessary();
 
-        // One existing row is consumed by the timestamped record, whichever order they appear
-        // in; the untimestamped record is then a genuinely additional entry.
+        // The timestamped record matches its existing legacy row; the untimestamped record is a
+        // genuinely additional entry, whichever order they appear in.
         List<HistoryItem> stored = historyRepository.findAll();
         assertThat(stored).hasSize(2);
         assertThat(stored).filteredOn(item -> item.eventAt().equals(existingEvent)).hasSize(1);
         assertThat(stored).filteredOn(item -> !item.eventAt().equals(existingEvent)).hasSize(1);
     }
 
+    private int legacySourceCount(String kind) {
+        String sql = "SELECT COUNT(*) FROM legacy_sources WHERE source_kind = ?";
+        try (Connection connection = databaseManager.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, kind);
+            try (ResultSet result = statement.executeQuery()) {
+                result.next();
+                return result.getInt(1);
+            }
+        } catch (SQLException e) {
+            throw new AssertionError("Could not count legacy sources", e);
+        }
+    }
+
+    private int importedRowCount(String table) {
+        String sql = "SELECT COUNT(*) FROM " + table + " WHERE legacy_signature IS NOT NULL";
+        try (Connection connection = databaseManager.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet result = statement.executeQuery()) {
+            result.next();
+            return result.getInt(1);
+        } catch (SQLException e) {
+            throw new AssertionError("Could not count imported rows", e);
+        }
+    }
+
+    private String canonicalTimestamp(String name) {
+        String sql = "SELECT legacy_source_timestamp FROM history WHERE name = ?";
+        try (Connection connection = databaseManager.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, name);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? result.getString(1) : null;
+            }
+        } catch (SQLException e) {
+            throw new AssertionError("Could not read the canonical timestamp", e);
+        }
+    }
+
+    private String legacySourceTimestamp(String name) {
+        return canonicalTimestamp(name);
+    }
+
     private static Instant legacyInstant(String text) {
         return DateTimeUtil.parseLegacyOrDefault(text, Instant.EPOCH);
+    }
+
+    private static Instant legacyInstant(String text, ZoneId zone) {
+        return DateTimeUtil.parseLegacy(text, zone).orElseThrow();
     }
 
     private static String arrayOf(String... records) {
