@@ -81,11 +81,14 @@ jobs:
         run: |
           ./gradlew --no-daemon jpackagePackage
           DMG="build/dist/TaskFlow-1.2.3.dmg"
+          ls -la build/dist
           MOUNT="$(mktemp -d)"
-          hdiutil attach "$DMG" -mountpoint "$MOUNT" -nobrowse -quiet
+          # The jpackage DMG carries the GPL license file; -agree accepts it non-interactively.
+          hdiutil attach "$DMG" -mountpoint "$MOUNT" -nobrowse -noautoopen -agree
+          trap 'hdiutil detach "$MOUNT" -force -quiet >/dev/null 2>&1 || true' EXIT
           rm -rf build/dist/InstalledTaskFlow.app
-          cp -R "$MOUNT/TaskFlow.app" build/dist/InstalledTaskFlow.app
-          hdiutil detach "$MOUNT" -quiet
+          ditto "$MOUNT/TaskFlow.app" build/dist/InstalledTaskFlow.app
+          hdiutil detach "$MOUNT" -force -quiet
           python3 tools/app_smoke_test.py --image build/dist/InstalledTaskFlow.app --mode launch --timeout 120
 
       - name: Verify and smoke-test the packaged app image (Windows)
