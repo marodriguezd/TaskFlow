@@ -785,6 +785,24 @@ class LegacyDataMigratorTest {
     }
 
     @Test
+    @DisplayName("Settings are read only from the data directory; a home-root file is ignored")
+    void testHomeRootSettingsFileIsNotApplied() throws IOException {
+        // There is no home-root settings source in the legacy contract. Pin that policy so a
+        // settings file left in the home directory cannot silently override the data directory.
+        Files.writeString(
+                homeDir.resolve(".taskflow_settings.json"),
+                "{\"theme\":\"light\",\"always_on_top\":true}");
+
+        migrator.migrateIfNecessary();
+
+        UserPreferences prefs = preferenceRepository.loadPreferences(false);
+        assertThat(prefs.theme()).isEqualTo(ThemeMode.DARK);
+        assertThat(prefs.alwaysOnTop()).isFalse();
+        assertThat(Files.exists(homeDir.resolve(".taskflow_settings.json"))).isTrue();
+        assertThat(legacySourceCount(LegacyImportRepository.KIND_SETTINGS)).isZero();
+    }
+
+    @Test
     @DisplayName("Settings migration preserves existing language and sound preferences")
     void testSettingsMigrationPreservesExistingPreferences() throws IOException {
         // Preferences already stored (e.g. language chosen, sound disabled) before a legacy
