@@ -1,17 +1,25 @@
 package io.github.marodriguezd.taskflow.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import io.github.marodriguezd.taskflow.domain.UserPreferences;
 import io.github.marodriguezd.taskflow.persistence.DatabaseManager;
 import io.github.marodriguezd.taskflow.persistence.SqlitePreferenceRepository;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class SoundServiceTest {
+
+    @TempDir Path tempDir;
 
     @Test
     @DisplayName("Persisted disabled preference suppresses runtime playback dispatch")
@@ -46,15 +54,95 @@ class SoundServiceTest {
     }
 
     @Test
-    @DisplayName("Enabled sound dispatches completion playback")
-    void enabledSoundDispatchesPlayback() {
-        PlatformService platformService = new PlatformService();
+    @DisplayName("Enabled sound dispatches the configured user sound path")
+    void enabledSoundDispatchesPlayback() throws IOException {
+        Path userSound = tempDir.resolve("TaskFlow/bell.mp3");
+        Files.createDirectories(userSound.getParent());
+        Files.write(userSound, new byte[] {0x49, 0x44, 0x33});
         List<Path> dispatched = new ArrayList<>();
-        SoundService service = new SoundService(platformService, dispatched::add, false);
+        SoundService service = new SoundService(userSound, dispatched::add, false);
 
         service.setSoundEnabled(true);
         service.playCompletionSound();
 
-        assertThat(dispatched).hasSize(1);
+        assertThat(dispatched).containsExactly(userSound);
+    }
+
+    @Test
+    @DisplayName("The bundled notification sound is present in the application resources")
+    void bundledSoundResourceIsReadable() throws IOException {
+        try (InputStream in = getClass().getResourceAsStream("/assets/bell.mp3")) {
+            assertThat(in).as("bundled /assets/bell.mp3").isNotNull();
+            byte[] bytes = in.readAllBytes();
+            assertThat(bytes.length).isGreaterThan(1_000);
+            // MP3 frames start with 0xFF, or an ID3 tag starts with "ID3".
+            assertThat((bytes[0] & 0xFF) == 0xFF || (bytes[0] == 'I' && bytes[1] == 'D')).isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("MPEG frame detection rejects garbage but accepts tagged and raw frames")
+    void mpegFrameDetection() {
+        assertThat(SoundService.containsMpegFrame("not an mp3".getBytes(StandardCharsets.UTF_8)))
+                .isFalse();
+        assertThat(SoundService.containsMpegFrame(new byte[] {(byte) 0xFF, (byte) 0xFB, 0x10}))
+                .isTrue();
+
+        byte[] tagged = new byte[20];
+        tagged[0] = 'I';
+        tagged[1] = 'D';
+        tagged[2] = '3';
+        // Zero-length ID3v2 tag, followed by a frame sync at offset 10.
+        tagged[10] = (byte) 0xFF;
+        tagged[11] = (byte) 0xFB;
+        assertThat(SoundService.containsMpegFrame(tagged)).isTrue();
+
+        // A tag that extends beyond the probed window cannot be judged as corrupt.
+        byte[] largeTag = new byte[20];
+        largeTag[0] = 'I';
+        largeTag[1] = 'D';
+        largeTag[2] = '3';
+        largeTag[9] = 0x7f;
+        assertThat(SoundService.containsMpegFrame(largeTag)).isTrue();
+    }
+
+    @Test
+    @DisplayName("The bundled WAV fallback is a valid PCM file for backends without MP3 support")
+    void bundledWaveFallbackIsValid() throws IOException {
+        try (InputStream in = getClass().getResourceAsStream("/assets/bell.wav")) {
+            assertThat(in).as("bundled /assets/bell.wav").isNotNull();
+            byte[] bytes = in.readAllBytes();
+            assertThat(bytes.length).isGreaterThan(1_000);
+            assertThat(new String(bytes, 0, 4, StandardCharsets.US_ASCII)).isEqualTo("RIFF");
+            assertThat(new String(bytes, 8, 4, StandardCharsets.US_ASCII)).isEqualTo("WAVE");
+        }
+    }
+
+    @Test
+    @DisplayName("Default sound provisioning copies the bundled resource into the data directory")
+    void provisioningCopiesBundledSound() throws IOException {
+        Path userSound = tempDir.resolve("TaskFlow/bell.mp3");
+        SoundService service = new SoundService(userSound, path -> {}, true);
+
+        assertThat(Files.exists(userSound)).isTrue();
+        try (InputStream expected = getClass().getResourceAsStream("/assets/bell.mp3")) {
+            assertThat(expected).isNotNull();
+            assertThat(Files.size(userSound)).isEqualTo(expected.readAllBytes().length);
+        }
+    }
+
+    @Test
+    @DisplayName("Playback failures never escape the service")
+    void playbackFailureDoesNotEscape() {
+        SoundService service =
+                new SoundService(
+                        tempDir.resolve("missing/bell.mp3"),
+                        path -> {
+                            throw new IllegalArgumentException("simulated missing audio device");
+                        },
+                        false);
+        service.setSoundEnabled(true);
+
+        assertThatCode(service::playCompletionSound).doesNotThrowAnyException();
     }
 }

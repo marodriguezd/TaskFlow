@@ -32,7 +32,7 @@
 - **置顶模式**——可切换的窗口置顶
 - **窗口几何持久化**——会话间记住窗口位置与尺寸
 - **旧数据迁移**——自动一次性导入旧版本 JSON 数据
-- **音频提醒**——计时器结束时可选铃声提醒（用户可替换）
+- **音频提醒**——计时器结束时可选铃声提醒（用户可替换；内置 WAV 副本可在系统媒体后端无法解码 MP3 时继续发声）
 
 ## 技术
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** 是唯一接触 SQLite 的层，通过仓储接口暴露。
 - **`service.PlatformService`** 隔离所有操作系统相关行为（数据目录、窗口约定、默认置顶状态）。
 
-资源位于 `src/main/resources`：CSS 主题（`css/base.css`、`css/light.css`、`css/dark.css`）、翻译包（`i18n/messages*.properties`）、应用图标（`assets/`）、默认提醒音（`assets/bell.mp3`）与 Logback 配置。
+资源位于 `src/main/resources`：CSS 主题（`css/base.css`、`css/light.css`、`css/dark.css`）、翻译包（`i18n/messages*.properties`）、应用图标（`assets/`）、默认提醒音（`assets/bell.mp3`，以及供不支持 MP3 的媒体后端使用的 `assets/bell.wav` 后备）与 Logback 配置。
 
 ## 上手
 
@@ -192,12 +192,14 @@ TaskFlow 界面恰好支持六种语言：
 - `taskflow_geometry.json`（窗口几何）
 - `taskflow_settings.json`（主题与窗口偏好）
 
-旧文件在数据目录与 home 根目录查找（`~/.taskflow_data.json`、`~/.taskflow_history.json`、`~/.taskflow_geometry.json`）。每个处理过的文件重命名加 `.migrated` 后缀（如 `taskflow_data.json.migrated`）以仅导入一次；原始内容保留为备份。迁移失败会被记录，绝不阻止应用启动。
+旧文件在数据目录与 home 根目录查找（`~/.taskflow_data.json`、`~/.taskflow_history.json`、`~/.taskflow_geometry.json`）。每个处理过的文件重命名加 `.migrated` 后缀（如 `taskflow_data.json.migrated`）；原始内容保留为备份。迁移失败会被记录，绝不阻止应用启动。
+
+自 schema 2 起，数据库保留持久来源信息：`legacy_sources` 记录来源类型与原始字节的 SHA-256，导入的任务/历史行携带来源 ID 与规范签名。来源记录、数据行及来源信息在同一事务中提交，随后才重命名文件；因此重试、恢复备份或相同副本都不会产生重复。只有已导入的行参与去重，应用内创建的行绝不会抑制旧版记录。同一文件内重复条目保留其数量，重叠快照中的共同记录只导入一次。历史身份使用文件中的规范本地时间而非已解析的时刻，所以时区变化不会重复导入，也不会改变已存储的时间。`event_at` 优先，其次 `completed_at`；两者都无法解析时使用仅用于显示的备用时间，且不作为可靠身份。home 根目录的窗口几何先应用，数据目录的值随后覆盖；设置只从数据目录读取。schema 升级为增量式并保留全部数据；schema 2 之前的行不会被标记为已导入，因为其来源无法证明。
 
 ## 开发
 
 - **格式**由 Spotless（Google Java Format，AOSP 风格）强制。提交前运行 `./gradlew spotlessApply`；`spotlessCheck` 违规会导致 CI 失败。
-- **测试**使用 JUnit 6 与 AssertJ：覆盖领域模型、服务、仓储、旧版迁移、国际化（包完整性、回退、语言检测）、计时器边界、schema 与事务行为、几何恢复与端到端流程。JaCoCo 强制最低 45% 行覆盖率。测试 headless 运行——无需显示器或 JavaFX toolkit。
+- **测试**使用 JUnit 6 与 AssertJ：覆盖领域模型、服务、仓储、旧版迁移、国际化（包完整性、回退、语言检测）、计时器边界、schema 与事务行为、几何恢复与端到端流程。JaCoCo 强制最低 45% 行覆盖率。测试 headless 运行——无需显示器或 JavaFX toolkit。CI 校验打包镜像及其资源，并在三大平台启动/退出应用（Linux 使用 Xvfb）。`python3 tools/upgrade_check.py` 用真实 v1 数据库（fixture `src/test/resources/schema-v1.sql`）启动打包应用，验证升级到 v2、数据保留与 NULL 来源标记。`python3 tools/data_preservation_check.py` 记录数据库、`bell.mp3` 和哨兵任务，移除已安装包（MSI 卸载、复制的 `.app`、AppImage），并验证数据完好保留。在 Linux 上，`python3 tools/acceptance_check.py` 在私有 Xvfb 显示器、一次性配置和私有 ALSA 文件 PCM 中驱动打包应用，覆盖增删改查、计时器、历史、主题/语言/几何持久化，以及声音开启/关闭/损坏/缺失路径：播放时必须产生**非静音的采集样本**，关闭声音时必须静音；不使用你的桌面、鼠标或声卡。物理可听性和视觉质量仍需人工检查。
 
 ## 仓库管理
 

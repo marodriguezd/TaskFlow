@@ -3,8 +3,10 @@ package io.github.marodriguezd.taskflow;
 import io.github.marodriguezd.taskflow.domain.UserPreferences;
 import io.github.marodriguezd.taskflow.persistence.DatabaseManager;
 import io.github.marodriguezd.taskflow.persistence.LegacyDataMigrator;
+import io.github.marodriguezd.taskflow.persistence.LegacyImportRepository;
 import io.github.marodriguezd.taskflow.persistence.PreferenceRepository;
 import io.github.marodriguezd.taskflow.persistence.SqliteHistoryRepository;
+import io.github.marodriguezd.taskflow.persistence.SqliteLegacyImportRepository;
 import io.github.marodriguezd.taskflow.persistence.SqlitePreferenceRepository;
 import io.github.marodriguezd.taskflow.persistence.SqliteTaskRepository;
 import io.github.marodriguezd.taskflow.service.PlatformService;
@@ -46,12 +48,15 @@ public class TaskFlowApp extends Application {
             PreferenceRepository preferenceRepository =
                     new SqlitePreferenceRepository(databaseManager);
 
+            LegacyImportRepository legacyImportRepository =
+                    new SqliteLegacyImportRepository(databaseManager);
             LegacyDataMigrator migrator =
                     new LegacyDataMigrator(
                             platformService.getDataDirectory(),
                             taskRepository,
                             historyRepository,
-                            preferenceRepository);
+                            preferenceRepository,
+                            legacyImportRepository);
             migrator.migrateIfNecessary();
 
             UserPreferences preferences =
@@ -87,6 +92,7 @@ public class TaskFlowApp extends Application {
                             localeManager);
             mainWindow.show();
             log.info("TaskFlow application window rendered successfully.");
+            SmokeTestSupport.signalStartupSuccess(primaryStage);
 
         } catch (Exception e) {
             log.error("Fatal startup error in TaskFlow application", e);

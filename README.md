@@ -32,7 +32,7 @@ English · [Español](README_es.md) · [Deutsch](README_de.md) · [Français](RE
 - **Always-on-top mode** — toggleable window pinning
 - **Window geometry persistence** — window position and size are remembered between sessions
 - **Legacy data migration** — automatic one-time import of JSON data from previous versions
-- **Audio notification** — an optional bell chime plays when a timer completes (user-replaceable)
+- **Audio notification** — an optional bell chime plays when a timer completes (user-replaceable; a bundled WAV copy keeps the chime working when the host media backend cannot decode MP3)
 
 ## Technology
 
@@ -47,7 +47,7 @@ English · [Español](README_es.md) · [Deutsch](README_de.md) · [Français](RE
 | Packaging | `jpackage` with a bundled Java 21 runtime |
 | Logging | SLF4J + Logback |
 | Legacy migration | Jackson (JSON) |
-| Internationalization | Java `ResourceBundle` (UTF-8, 5 locales) |
+| Internationalization | Java `ResourceBundle` (UTF-8, 6 locales) |
 
 The CI pipeline builds, tests, formats-checks, and packages the application on Ubuntu, Windows, and macOS.
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** is the only layer that touches SQLite, exposed through repository interfaces.
 - **`service.PlatformService`** isolates all operating-system-specific behavior (data directories, windowing conventions, default always-on-top state).
 
-Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/light.css`, `css/dark.css`), the translation bundles (`i18n/messages*.properties`), application icons (`assets/`), the default notification sound (`assets/bell.mp3`), and the Logback configuration.
+Resources live under `src/main/resources`: the CSS themes (`css/base.css`, `css/light.css`, `css/dark.css`), the translation bundles (`i18n/messages*.properties`), application icons (`assets/`), the default notification sound (`assets/bell.mp3` plus the `assets/bell.wav` fallback for media backends without MP3 support), and the Logback configuration.
 
 ## Getting Started
 
@@ -192,12 +192,25 @@ If you used a previous version of TaskFlow that stored data as JSON, the applica
 - `taskflow_geometry.json` (window geometry)
 - `taskflow_settings.json` (theme and window preferences)
 
-Legacy files are looked up in the data directory and in the home directory root (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`). Each processed file is renamed with a `.migrated` suffix (e.g. `taskflow_data.json.migrated`) so it is imported only once; the original contents are preserved as a backup. Migration failures are logged and never prevent the application from starting.
+Legacy files are looked up in the data directory and in the home directory root (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`). Every discovered location is imported, even when another location already populated the database. Each processed file is renamed with a `.migrated` suffix (e.g. `taskflow_data.json.migrated`), never overwriting an existing backup; the original contents are preserved as a backup. Migration failures are logged and never prevent the application from starting.
+
+### Import provenance and deduplication
+
+Legacy JSON has no stable record identifiers. Since schema version 2 the database therefore keeps durable import provenance instead of guessing from the current table contents:
+
+- **Source ledger** — `legacy_sources` records the source kind (`tasks`, `history`, `geometry`, `settings`) and the SHA-256 of the original bytes. The source record, the imported rows, and their provenance are written in one transaction; the file is renamed only after that transaction commits. A retry after a failed rename, or a restored source backup with identical bytes, is skipped rather than duplicated. A failed parse or transaction leaves neither partial rows nor a false completion record.
+- **Row provenance** — imported `tasks` and `history` rows carry the source id and a canonical content signature. Only imported rows participate in matching: an application-created row is invisible to the matcher and can never suppress a legacy record. Provenance lives on the row itself, so deleting an imported row also removes its provenance.
+- **Multiset matching** — signatures are counted and consumed one-for-one. Repeated identical entries inside one file keep their multiplicity, and overlapping source snapshots import each shared record once while keeping every distinct record. Rows are never overwritten during import.
+- **Timestamps** — history identity uses the canonical **local wall-clock** value written by the legacy file, not a resolved instant. A source retried or restored under a different JVM time zone therefore keeps the same identity. The instant is resolved once, with the zone in effect at first import, and used for storage/display. `event_at` wins when it parses; otherwise a parsable `completed_at` is used; when neither parses, the entry is stored with a fallback time and is explicitly not treated as a reliable timestamp.
+- **Singleton precedence** — geometry from the home root is applied before geometry from the data directory, so a conflicting data-directory value wins deterministically on first import. Settings are read only from the data directory. A source already recorded as processed is not re-applied, so a restored stale backup cannot overwrite newer user settings or geometry.
+
+**Schema upgrade.** Schema version 2 is an additive upgrade: it creates `legacy_sources` and adds nullable provenance columns and indexes. Existing tasks, history, preferences, geometry, language, and sound settings are preserved unchanged, and the upgrade is idempotent. **Rows written before schema version 2 are not labelled as legacy-imported**, because their origin cannot be proven; they keep `NULL` provenance. Consequently, if a source was imported by a build that predates schema v2, is still on disk (or is restored later), and its rows still exist, the first provenance-aware upgrade can add one duplicate occurrence. This residual ambiguity is inherent to legacy data without identifiers and is not hidden by guessing. All imports performed by this version or later use the durable provenance ledger.
 
 ## Development
 
 - **Formatting** is enforced with Spotless (Google Java Format, AOSP style). Run `./gradlew spotlessApply` before committing; CI fails on `spotlessCheck` violations.
-- **Tests** use JUnit 6 with AssertJ and cover the domain model, services, repositories, legacy migration, internationalization (bundle completeness, fallback, language detection), timer edge cases, schema and transaction behavior, geometry recovery, and an end-to-end application flow. JaCoCo enforces a 45% minimum line-coverage threshold. Tests run headless — no display or JavaFX toolkit required.
+- **Tests** use JUnit 6 with AssertJ and cover the domain model, services, repositories, legacy migration and provenance, schema upgrades, internationalization (bundle completeness, fallback, language detection), timer edge cases, transaction behavior, geometry recovery, and an end-to-end application flow. JaCoCo enforces a 45% minimum line-coverage threshold. Unit and integration tests run headless — no display or JavaFX toolkit required.
+- **Packaged-app checks** run in CI on Ubuntu, Windows, and macOS: the jpackage image and its JAR resources (translations, themes, audio, JavaFX) are verified, then the packaged application is launched with an explicit smoke-test flag that requires the primary window to be showing and a normal shutdown. Linux uses Xvfb and also verifies the AppImage; macOS verifies a copy installed from the DMG; Windows verifies the MSI install/uninstall. `python3 tools/upgrade_check.py` boots the packaged app against a genuine v1 database built from `src/test/resources/schema-v1.sql` and verifies the v2 upgrade, data preservation and NULL provenance. `python3 tools/data_preservation_check.py` records the database, `bell.mp3` and a sentinel task in a disposable profile, removes the installed package (MSI uninstall, copied `.app`, AppImage), and verifies the data survived unchanged. `python3 tools/acceptance_check.py` (Linux) drives the packaged application on a private Xvfb display with a disposable profile and a private ALSA file PCM: CRUD, timers, history, theme/language/geometry persistence, and the enabled/disabled/corrupt/missing sound paths, asserting **non-silent captured samples** for playback and silence when sound is disabled, without using your desktop, mouse, or sound card. Physical audibility and interactive GUI quality still require the manual checks in [docs/MANUAL_ACCEPTANCE.md](docs/MANUAL_ACCEPTANCE.md).
 
 ## Repository administration
 

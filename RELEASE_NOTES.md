@@ -230,7 +230,7 @@ If you used TaskFlow before the Java rewrite, the application detects your legac
 - `taskflow_geometry.json` (window geometry)
 - `taskflow_settings.json` (theme and window preferences)
 
-Legacy files are looked up in the application data directory and in the home directory root (for example `~/.taskflow_data.json`). Each processed file is renamed with a `.migrated` suffix so it is imported only once; the original contents are preserved as a backup. Migration failures are logged and never prevent the application from starting. Settings migration preserves any already-stored language and sound preferences.
+Legacy files are looked up in the application data directory and in the home directory root (for example `~/.taskflow_data.json`). Every discovered location is imported, even when another location already populated the database. Because legacy records carry no stable identifiers, tasks and history are merged by content (name, priority, durations, and — for history — the event time), so already-present records are not duplicated while distinct records from every source are kept. Each processed file is renamed with a `.migrated` suffix, without overwriting an existing backup, so it is imported only once; the original contents are preserved as a backup. Migration failures are logged and never prevent the application from starting. Settings migration preserves any already-stored language and sound preferences.
 
 ## Data locations
 

@@ -9,11 +9,32 @@ import java.sql.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Manages the SQLite database connection lifecycle and schema migrations. */
+/**
+ * Manages the SQLite database connection lifecycle and schema migrations.
+ *
+ * <p>Schema versions: {@code 1} is the original tasks/history/preferences schema; {@code 2} adds
+ * additive legacy-import provenance (the {@code legacy_sources} table plus nullable provenance
+ * columns on {@code tasks} and {@code history}). The upgrade never rewrites or drops existing rows,
+ * and no pre-existing row is labelled as legacy-imported: the origin of rows written by builds
+ * without provenance is unknown and must stay unknown.
+ */
 public class DatabaseManager implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseManager.class);
-    private static final int CURRENT_SCHEMA_VERSION = 1;
+    private static final int CURRENT_SCHEMA_VERSION = 2;
+
+    private static final String CREATE_LEGACY_SOURCES_TABLE =
+            """
+            CREATE TABLE IF NOT EXISTS legacy_sources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_kind TEXT NOT NULL,
+                source_hash TEXT NOT NULL,
+                source_name TEXT NOT NULL,
+                source_size INTEGER NOT NULL,
+                imported_at TEXT NOT NULL,
+                UNIQUE (source_kind, source_hash)
+            )
+            """;
 
     private final String jdbcUrl;
     private final Connection keepAliveConnection;
@@ -133,7 +154,8 @@ public class DatabaseManager implements AutoCloseable {
 
                     if (version == 0) {
                         createCurrentSchema(conn);
-                    } else if (version < CURRENT_SCHEMA_VERSION) {
+                    }
+                    if (version < CURRENT_SCHEMA_VERSION) {
                         migrateSchema(conn, version);
                     } else {
                         ensureCurrentObjects(conn);
@@ -149,12 +171,53 @@ public class DatabaseManager implements AutoCloseable {
     }
 
     private void migrateSchema(Connection conn, int fromVersion) throws SQLException {
-        // Version-zero databases contain the original schema, which is unchanged for v1.
-        // Version-specific additive steps belong here before updating PRAGMA user_version.
-        if (fromVersion < 1) {
-            createCurrentSchema(conn);
+        // Version-zero databases may contain the original schema without a version stamp, so the
+        // idempotent column checks below cover both v0 and v1.
+        if (fromVersion < 2) {
+            upgradeToProvenanceSchema(conn);
         }
         ensureCurrentObjects(conn);
+    }
+
+    /**
+     * Additive v2 upgrade: creates the source ledger and adds nullable provenance columns. Existing
+     * rows keep {@code NULL} provenance, which honestly means "origin unknown" — backfilling would
+     * risk labelling user-created rows as imported. The column checks make a retried upgrade safe
+     * even if a previous attempt left some columns in place.
+     */
+    private void upgradeToProvenanceSchema(Connection conn) throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(CREATE_LEGACY_SOURCES_TABLE);
+        }
+        addColumnIfMissing(
+                conn, "tasks", "legacy_source_id", "INTEGER REFERENCES legacy_sources(id)");
+        addColumnIfMissing(conn, "tasks", "legacy_signature", "TEXT");
+        addColumnIfMissing(
+                conn, "history", "legacy_source_id", "INTEGER REFERENCES legacy_sources(id)");
+        addColumnIfMissing(conn, "history", "legacy_signature", "TEXT");
+        addColumnIfMissing(conn, "history", "legacy_source_timestamp", "TEXT");
+    }
+
+    private void addColumnIfMissing(Connection conn, String table, String column, String definition)
+            throws SQLException {
+        if (columnExists(conn, table, column)) {
+            return;
+        }
+        try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+        }
+    }
+
+    private boolean columnExists(Connection conn, String table, String column) throws SQLException {
+        try (Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) {
+                if (column.equalsIgnoreCase(rs.getString("name"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void ensureCurrentObjects(Connection conn) throws SQLException {
@@ -162,6 +225,10 @@ public class DatabaseManager implements AutoCloseable {
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)");
             stmt.executeUpdate(
                     "CREATE INDEX IF NOT EXISTS idx_history_event_at ON history(event_at DESC)");
+            stmt.executeUpdate(
+                    "CREATE INDEX IF NOT EXISTS idx_tasks_legacy_signature ON tasks(legacy_signature)");
+            stmt.executeUpdate(
+                    "CREATE INDEX IF NOT EXISTS idx_history_legacy_signature ON history(legacy_signature)");
         }
     }
 
@@ -175,7 +242,9 @@ public class DatabaseManager implements AutoCloseable {
                     total_seconds INTEGER NOT NULL,
                     remaining_seconds INTEGER NOT NULL,
                     created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    legacy_source_id INTEGER REFERENCES legacy_sources(id),
+                    legacy_signature TEXT
                 );
                 """;
         String createHistoryTable =
@@ -188,7 +257,10 @@ public class DatabaseManager implements AutoCloseable {
                     remaining_seconds INTEGER NOT NULL,
                     event_type TEXT NOT NULL,
                     completed_manually INTEGER NOT NULL,
-                    event_at TEXT NOT NULL
+                    event_at TEXT NOT NULL,
+                    legacy_source_id INTEGER REFERENCES legacy_sources(id),
+                    legacy_signature TEXT,
+                    legacy_source_timestamp TEXT
                 );
                 """;
         String createPreferencesTable =
@@ -200,11 +272,16 @@ public class DatabaseManager implements AutoCloseable {
                 """;
 
         try (Statement stmt = conn.createStatement()) {
+            stmt.executeUpdate(CREATE_LEGACY_SOURCES_TABLE);
             stmt.executeUpdate(createTasksTable);
             stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)");
             stmt.executeUpdate(createHistoryTable);
             stmt.executeUpdate(
                     "CREATE INDEX IF NOT EXISTS idx_history_event_at ON history(event_at DESC)");
+            stmt.executeUpdate(
+                    "CREATE INDEX IF NOT EXISTS idx_tasks_legacy_signature ON tasks(legacy_signature)");
+            stmt.executeUpdate(
+                    "CREATE INDEX IF NOT EXISTS idx_history_legacy_signature ON history(legacy_signature)");
             stmt.executeUpdate(createPreferencesTable);
         }
     }

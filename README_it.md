@@ -32,7 +32,7 @@ Un task manager desktop leggero e multipiattaforma con timer in stile Pomodoro, 
 - **Modalità sempre in primo piano** — fissaggio finestra commutabile
 - **Geometria persistente** — posizione e dimensione della finestra ricordate tra le sessioni
 - **Migrazione dati legacy** — importazione automatica una tantum dei dati JSON delle versioni precedenti
-- **Avviso sonoro** — una campana opzionale suona al completamento di un timer (sostituibile)
+- **Avviso sonoro** — una campana opzionale suona al completamento di un timer (sostituibile; una copia WAV inclusa mantiene il suono quando il backend multimediale di sistema non decodifica MP3)
 
 ## Tecnologia
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** è l'unico livello che tocca SQLite, esposto tramite interfacce repository.
 - **`service.PlatformService`** isola tutto il comportamento specifico del sistema operativo (directory dati, convenzioni finestra, stato di default del fissaggio).
 
-Le risorse vivono in `src/main/resources`: i temi CSS (`css/base.css`, `css/light.css`, `css/dark.css`), i bundle di traduzione (`i18n/messages*.properties`), le icone (`assets/`), il suono di notifica predefinito (`assets/bell.mp3`) e la configurazione Logback.
+Le risorse vivono in `src/main/resources`: i temi CSS (`css/base.css`, `css/light.css`, `css/dark.css`), i bundle di traduzione (`i18n/messages*.properties`), le icone (`assets/`), il suono di notifica predefinito (`assets/bell.mp3` più la copia `assets/bell.wav` per i backend senza supporto MP3) e la configurazione Logback.
 
 ## Primi passi
 
@@ -192,12 +192,14 @@ Se usavi una versione precedente di TaskFlow che salvava i dati come JSON, l'app
 - `taskflow_geometry.json` (geometria finestra)
 - `taskflow_settings.json` (tema e preferenze finestra)
 
-I file legacy sono cercati nella directory dati e nella radice della home (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`). Ogni file elaborato è rinominato con suffisso `.migrated` (es. `taskflow_data.json.migrated`) per essere importato una sola volta; il contenuto originale è conservato come backup. I fallimenti di migrazione sono loggati e non impediscono mai l'avvio dell'applicazione.
+I file legacy sono cercati nella directory dati e nella radice della home (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`). Ogni file elaborato è rinominato con suffisso `.migrated` (es. `taskflow_data.json.migrated`); il contenuto originale è conservato come backup. I fallimenti di migrazione sono loggati e non impediscono mai l'avvio dell'applicazione.
+
+Dallo schema 2 il database conserva una provenienza durevole: `legacy_sources` registra il tipo di sorgente e lo SHA-256 dei byte originali, mentre le righe importate portano l'id della sorgente e una firma canonica. Sorgente, righe e provenienza vengono confermate in un'unica transazione; solo dopo il file viene rinominato. Ripetizioni, ripristini e copie identiche non creano quindi duplicati. Solo le righe importate partecipano alla deduplicazione: una riga creata dall'applicazione non sopprime mai un record legacy. Le voci identiche dentro un file mantengono la loro molteplicità e gli snapshot sovrapposti importano ogni record condiviso una volta. L'identità della cronologia usa l'ora locale canonica del file, non un istante risolto: un cambio di fuso orario non duplica nulla e non altera l'ora salvata. `event_at` ha precedenza, poi `completed_at`; i valori illeggibili ricevono un orario di riserva che non identifica i record. La geometria dalla radice della home viene applicata prima di quella della directory dati (quest'ultima vince); le impostazioni sono lette solo dalla directory dati. L'aggiornamento dello schema è additivo e preserva tutti i dati; le righe precedenti allo schema 2 non vengono etichettate come importate perché la loro origine non è dimostrabile.
 
 ## Sviluppo
 
 - **Formattazione** imposta con Spotless (Google Java Format, stile AOSP). Esegui `./gradlew spotlessApply` prima di committare; la CI fallisce su violazioni di `spotlessCheck`.
-- **Test** con JUnit 6 e AssertJ: coprono modello di dominio, servizi, repository, migrazione legacy, internazionalizzazione (completezza bundle, fallback, rilevamento lingua), casi limite dei timer, comportamento schema/transazioni, recupero geometria e un flusso end-to-end. JaCoCo esige una soglia minima del 45% di copertura righe. I test girano headless — senza display né toolkit JavaFX.
+- **Test** con JUnit 6 e AssertJ: coprono modello di dominio, servizi, repository, migrazione legacy, internazionalizzazione (completezza bundle, fallback, rilevamento lingua), casi limite dei timer, comportamento schema/transazioni, recupero geometria e un flusso end-to-end. JaCoCo esige una soglia minima del 45% di copertura righe. I test girano headless — senza display né toolkit JavaFX. La CI verifica l'immagine pacchettizzata e le sue risorse e avvia/chiude l'applicazione su tutte e tre le piattaforme (Xvfb su Linux). `python3 tools/upgrade_check.py` avvia l'app pacchettizzata con un database v1 reale (fixture `src/test/resources/schema-v1.sql`) e verifica l'aggiornamento a v2, la conservazione dei dati e la provenienza NULL. `python3 tools/data_preservation_check.py` registra database, `bell.mp3` e un'attività sentinella, rimuove il pacchetto installato (disinstallazione MSI, `.app` copiata, AppImage) e verifica che i dati sopravvivano intatti. Su Linux, `python3 tools/acceptance_check.py` guida l'applicazione pacchettizzata su un display Xvfb privato, con profilo usa-e-getta e un PCM ALSA su file privato: CRUD, timer, cronologia, persistenza di tema/lingua/geometria e i percorsi suono attivo/disattivo/corrotto/assente, richiedendo **campioni catturati non silenziosi** durante la riproduzione e silenzio con audio disattivato, senza usare desktop, mouse o scheda audio. L'udibilità fisica e la qualità visiva restano verifiche manuali.
 
 ## Amministrazione del repository
 

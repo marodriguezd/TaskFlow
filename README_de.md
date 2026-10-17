@@ -32,7 +32,7 @@ Ein schlanker, plattformübergreifender Desktop-Taskmanager mit Timern im Pomodo
 - **Immer-im-Vordergrund-Modus** — umschaltbares Fenster-Anheften
 - **Fenstergeometrie-Speicherung** — Fensterposition und -größe bleiben zwischen Sitzungen erhalten
 - **Legacy-Datenmigration** — automatischer einmaliger Import von JSON-Daten aus früheren Versionen
-- **Audio-Benachrichtigung** — beim Abschluss eines Timers ertönt optional ein Glockenton (austauschbar)
+- **Audio-Benachrichtigung** — beim Abschluss eines Timers ertönt optional ein Glockenton (austauschbar; eine mitgelieferte WAV-Kopie hält den Ton am Laufen, wenn das Medien-Backend des Systems kein MP3 dekodieren kann)
 
 ## Technologie
 
@@ -92,7 +92,7 @@ io.github.marodriguezd.taskflow
 - **`persistence`** ist die einzige Schicht, die SQLite berührt, offengelegt über Repository-Interfaces.
 - **`service.PlatformService`** isoliert sämtliches betriebssystemspezifisches Verhalten (Datenverzeichnisse, Fensterkonventionen, Standard-Anheftstatus).
 
-Ressourcen liegen unter `src/main/resources`: die CSS-Designs (`css/base.css`, `css/light.css`, `css/dark.css`), die Übersetzungsbundles (`i18n/messages*.properties`), Anwendungssymbole (`assets/`), der Standard-Benachrichtigungston (`assets/bell.mp3`) und die Logback-Konfiguration.
+Ressourcen liegen unter `src/main/resources`: die CSS-Designs (`css/base.css`, `css/light.css`, `css/dark.css`), die Übersetzungsbundles (`i18n/messages*.properties`), Anwendungssymbole (`assets/`), der Standard-Benachrichtigungston (`assets/bell.mp3` plus `assets/bell.wav` als Ausweichdatei für Medien-Backends ohne MP3-Unterstützung) und die Logback-Konfiguration.
 
 ## Erste Schritte
 
@@ -192,12 +192,14 @@ Wer eine frühere TaskFlow-Version nutzte, die Daten als JSON speicherte: Die An
 - `taskflow_geometry.json` (Fenstergeometrie)
 - `taskflow_settings.json` (Design- und Fenstereinstellungen)
 
-Legacy-Dateien werden im Datenverzeichnis und im Home-Verzeichniswurzel (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`) gesucht. Jede verarbeitete Datei wird mit Suffix `.migrated` umbenannt (z. B. `taskflow_data.json.migrated`), sodass sie nur einmal importiert wird; der Originalinhalt bleibt als Sicherung erhalten. Migrationsfehler werden geloggt und verhindern niemals den Anwendungsstart.
+Legacy-Dateien werden im Datenverzeichnis und im Home-Verzeichniswurzel (`~/.taskflow_data.json`, `~/.taskflow_history.json`, `~/.taskflow_geometry.json`) gesucht. Jede verarbeitete Datei wird mit Suffix `.migrated` umbenannt (z. B. `taskflow_data.json.migrated`); der Originalinhalt bleibt als Sicherung erhalten. Migrationsfehler werden geloggt und verhindern niemals den Anwendungsstart.
+
+Seit Schema 2 speichert die Datenbank dauerhafte Herkunft: `legacy_sources` erfasst Quellentyp und SHA-256 der Originalbytes; importierte Zeilen tragen Quellen-ID und kanonische Signatur. Quelle, Zeilen und Herkunft werden in einer Transaktion bestätigt, erst danach wird die Datei umbenannt. Wiederholungen, Wiederherstellungen und identische Kopien erzeugen daher keine Duplikate. Nur importierte Zeilen nehmen an der Deduplizierung teil: eine in der Anwendung erstellte Zeile unterdrückt nie einen Legacy-Datensatz. Gleiche Einträge innerhalb einer Datei behalten ihre Vielfachheit, überlappende Snapshots importieren jeden gemeinsamen Datensatz einmal. Die Verlaufsidentität nutzt die kanonische lokale Uhrzeit der Datei, nicht einen aufgelösten Zeitpunkt; eine Zeitzonenänderung dupliziert daher nichts und ändert die gespeicherte Zeit nicht. `event_at` hat Vorrang, dann `completed_at`; unlesbare Werte erhalten eine Ersatzzeit, die keine Identität ist. Geometrie aus dem Home-Wurzelverzeichnis wird vor der aus dem Datenverzeichnis angewendet (letztere gewinnt); Einstellungen werden nur aus dem Datenverzeichnis gelesen. Das Schema-Upgrade ist additiv und erhält alle Daten; Zeilen vor Schema 2 werden nicht als importiert markiert, da ihre Herkunft nicht beweisbar ist.
 
 ## Entwicklung
 
 - **Formatierung** wird mit Spotless (Google Java Format, AOSP-Stil) erzwungen. Vor dem Committen `./gradlew spotlessApply` ausführen; CI scheitert bei `spotlessCheck`-Verstößen.
-- **Tests** nutzen JUnit 6 mit AssertJ und decken Domänenmodell, Services, Repositories, Legacy-Migration, Internationalisierung (Bundle-Vollständigkeit, Fallback, Spracherkennung), Timer-Randfälle, Schema- und Transaktionsverhalten, Geometrie-Wiederherstellung und einen End-to-End-Anwendungsfluss ab. JaCoCo erzwingt eine Mindest-Zeilenabdeckung von 45 %. Tests laufen headless — kein Display oder JavaFX-Toolkit erforderlich.
+- **Tests** nutzen JUnit 6 mit AssertJ und decken Domänenmodell, Services, Repositories, Legacy-Migration, Internationalisierung (Bundle-Vollständigkeit, Fallback, Spracherkennung), Timer-Randfälle, Schema- und Transaktionsverhalten, Geometrie-Wiederherstellung und einen End-to-End-Anwendungsfluss ab. JaCoCo erzwingt eine Mindest-Zeilenabdeckung von 45 %. Tests laufen headless — kein Display oder JavaFX-Toolkit erforderlich. CI prüft das gepackte Abbild und seine Ressourcen und startet/beendet die Anwendung auf allen drei Plattformen (Xvfb unter Linux). `python3 tools/upgrade_check.py` startet die gepackte App mit einer echten v1-Datenbank (Fixture `src/test/resources/schema-v1.sql`) und prüft Upgrade auf v2, Datenerhalt und NULL-Provenienz. `python3 tools/data_preservation_check.py` erfasst Datenbank, `bell.mp3` und eine Sentinel-Aufgabe, entfernt das installierte Paket (MSI-Deinstallation, kopierte `.app`, AppImage) und prüft, dass die Daten unverändert überleben. Unter Linux treibt `python3 tools/acceptance_check.py` die gepackte Anwendung auf einem privaten Xvfb-Display mit Wegwerfprofil und einem privaten ALSA-Datei-PCM an: CRUD, Timer, Verlauf, Persistenz von Theme/Sprache/Geometrie sowie die Pfade Ton an/aus/korrupt/fehlend, mit **nicht stummen aufgezeichneten Samples** bei Wiedergabe und Stille bei deaktiviertem Ton — ohne Desktop, Maus oder Soundkarte zu verwenden. Physische Hörbarkeit und visuelle Qualität erfordern weiterhin manuelle Prüfungen.
 
 ## Repository-Administration
 
