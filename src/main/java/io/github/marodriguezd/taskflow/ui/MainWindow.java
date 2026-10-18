@@ -317,7 +317,7 @@ public class MainWindow {
         dialog.showAndWait();
     }
 
-    private void openAboutDialog() {
+    void openAboutDialog() {
         AboutDialog dialog =
                 new AboutDialog(
                         stage,
@@ -325,10 +325,10 @@ public class MainWindow {
                         preferences.glassOpacity(),
                         newOpacity -> {
                             preferences = preferences.withGlassOpacity(newOpacity);
-                            preferenceRepository.savePreferences(preferences);
                             applyGlassOpacity(newOpacity);
                         });
         dialog.showAndWait();
+        preferenceRepository.savePreferences(preferences);
     }
 
     private void restoreTaskFromHistory(HistoryItem item) {

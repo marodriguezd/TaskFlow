@@ -82,4 +82,18 @@ class PriorityLabelsTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("PriorityLabels caches Priority.values() in a private static final array")
+    void testCachedValuesArray() throws Exception {
+        java.lang.reflect.Field field = PriorityLabels.class.getDeclaredField("VALUES");
+        int modifiers = field.getModifiers();
+        assertThat(java.lang.reflect.Modifier.isPrivate(modifiers)).isTrue();
+        assertThat(java.lang.reflect.Modifier.isStatic(modifiers)).isTrue();
+        assertThat(java.lang.reflect.Modifier.isFinal(modifiers)).isTrue();
+
+        field.setAccessible(true);
+        Priority[] cached = (Priority[]) field.get(null);
+        assertThat(cached).containsExactly(Priority.values());
+    }
 }

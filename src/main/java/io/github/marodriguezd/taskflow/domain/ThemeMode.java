@@ -5,6 +5,8 @@ public enum ThemeMode {
     DARK("dark", "🌙", "Dark theme"),
     LIGHT("light", "☀", "Light theme");
 
+    private static final ThemeMode[] VALUES = values();
+
     private final String code;
     private final String icon;
     private final String description;
@@ -36,7 +38,7 @@ public enum ThemeMode {
             return DARK;
         }
         String trimmed = code.trim();
-        for (ThemeMode mode : values()) {
+        for (ThemeMode mode : VALUES) {
             if (mode.code.equalsIgnoreCase(trimmed) || mode.name().equalsIgnoreCase(trimmed)) {
                 return mode;
             }

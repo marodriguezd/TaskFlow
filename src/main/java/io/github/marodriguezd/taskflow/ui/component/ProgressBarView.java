@@ -16,6 +16,8 @@ public class ProgressBarView extends Pane {
     private final Rectangle trackRect;
     private final Rectangle fillRect;
     private final String priorityColorHex;
+    private final Color baseColor;
+    private final Color darkerColor;
 
     private int totalSeconds;
     private int currentSeconds;
@@ -23,7 +25,20 @@ public class ProgressBarView extends Pane {
     public ProgressBarView(int totalSeconds, int currentSeconds, String priorityColorHex) {
         this.totalSeconds = Math.max(1, totalSeconds);
         this.currentSeconds = Math.max(0, currentSeconds);
-        this.priorityColorHex = priorityColorHex != null ? priorityColorHex : "#7c6af7";
+        String hex =
+                (priorityColorHex != null && !priorityColorHex.isBlank())
+                        ? priorityColorHex
+                        : "#7c6af7";
+        Color base;
+        try {
+            base = Color.web(hex);
+        } catch (IllegalArgumentException e) {
+            base = Color.web("#7c6af7");
+            hex = "#7c6af7";
+        }
+        this.priorityColorHex = hex;
+        this.baseColor = base;
+        this.darkerColor = this.baseColor.deriveColor(0, 1.0, 0.7, 1.0);
 
         setPrefHeight(4.0);
         setMinHeight(4.0);
@@ -63,8 +78,6 @@ public class ProgressBarView extends Pane {
         fillRect.setHeight(4.0);
 
         if (fillWidth > 0) {
-            Color baseColor = Color.web(priorityColorHex);
-            Color darkerColor = baseColor.deriveColor(0, 1.0, 0.7, 1.0);
             LinearGradient gradient =
                     new LinearGradient(
                             0,

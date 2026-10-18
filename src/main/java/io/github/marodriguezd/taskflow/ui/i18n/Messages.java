@@ -98,6 +98,9 @@ public final class Messages {
     }
 
     private static String lookup(String key) {
+        if (key == null) {
+            return "";
+        }
         ResourceBundle current = bundle;
         if (current.containsKey(key)) {
             return current.getString(key);

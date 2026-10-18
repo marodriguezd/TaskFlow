@@ -8,6 +8,8 @@ public enum Priority {
     MEDIUM("Medium", 1, "#ffb340", "#2a1a00"),
     LOW("Low", 2, "#3ddc84", "#021a0c");
 
+    private static final Priority[] VALUES = values();
+
     private final String displayName;
     private final int order;
     private final String hexColor;
@@ -41,7 +43,7 @@ public enum Priority {
             return MEDIUM;
         }
         String trimmed = name.trim();
-        for (Priority p : values()) {
+        for (Priority p : VALUES) {
             if (p.displayName.equalsIgnoreCase(trimmed) || p.name().equalsIgnoreCase(trimmed)) {
                 return p;
             }

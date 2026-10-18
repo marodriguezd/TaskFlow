@@ -114,6 +114,15 @@ class MessagesBundleTest {
     }
 
     @Test
+    @DisplayName("Null key returns empty string without throwing NullPointerException")
+    void testNullKeyReturnsEmptyString() {
+        assertThat(Messages.get(null)).isEmpty();
+        assertThat(Messages.get(null, "arg1", 42)).isEmpty();
+        assertThat(Messages.get((String) null, (Object[]) null)).isEmpty();
+        assertThat(Messages.get((String) null, new Object[0])).isEmpty();
+    }
+
+    @Test
     @DisplayName("English values match the 1.0.0 literals exactly (behavior preservation)")
     void testEnglishValuesPreserved() {
         assertThat(Messages.get("footer.newTask")).isEqualTo("＋  New task");

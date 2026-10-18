@@ -13,6 +13,8 @@ import java.util.Locale;
  */
 public final class PriorityLabels {
 
+    private static final Priority[] VALUES = Priority.values();
+
     private PriorityLabels() {}
 
     /** Returns the i18n key for a priority, e.g. {@code priority.high}. */
@@ -38,7 +40,7 @@ public final class PriorityLabels {
             return Priority.MEDIUM;
         }
         String trimmed = displayedLabel.trim();
-        for (Priority priority : Priority.values()) {
+        for (Priority priority : VALUES) {
             if (label(priority).equalsIgnoreCase(trimmed)) {
                 return priority;
             }

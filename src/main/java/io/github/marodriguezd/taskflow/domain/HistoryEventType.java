@@ -5,6 +5,8 @@ public enum HistoryEventType {
     COMPLETED("completed", "Completed"),
     DELETED("deleted", "Deleted");
 
+    private static final HistoryEventType[] VALUES = values();
+
     private final String code;
     private final String label;
 
@@ -26,7 +28,7 @@ public enum HistoryEventType {
             return COMPLETED;
         }
         String trimmed = code.trim();
-        for (HistoryEventType type : values()) {
+        for (HistoryEventType type : VALUES) {
             if (type.code.equalsIgnoreCase(trimmed) || type.name().equalsIgnoreCase(trimmed)) {
                 return type;
             }

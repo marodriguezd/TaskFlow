@@ -51,4 +51,18 @@ class PriorityTest {
         assertThat(Priority.fromDisplayName(input)).isEqualTo(Priority.MEDIUM);
         assertThat(Priority.fromDisplayName(null)).isEqualTo(Priority.MEDIUM);
     }
+
+    @Test
+    @DisplayName("Priority caches values() in a private static final array to avoid allocation")
+    void testCachedValuesArray() throws Exception {
+        java.lang.reflect.Field field = Priority.class.getDeclaredField("VALUES");
+        int modifiers = field.getModifiers();
+        assertThat(java.lang.reflect.Modifier.isPrivate(modifiers)).isTrue();
+        assertThat(java.lang.reflect.Modifier.isStatic(modifiers)).isTrue();
+        assertThat(java.lang.reflect.Modifier.isFinal(modifiers)).isTrue();
+
+        field.setAccessible(true);
+        Priority[] cached = (Priority[]) field.get(null);
+        assertThat(cached).containsExactly(Priority.values());
+    }
 }
