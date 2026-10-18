@@ -29,6 +29,9 @@ public class TaskFlowApp extends Application {
 
     private static final Logger log = LoggerFactory.getLogger(TaskFlowApp.class);
 
+    /** Pre-rendered PNG sizes, so the OS can pick a crisp window/taskbar icon at any DPI. */
+    private static final int[] ICON_SIZES = {16, 24, 32, 48, 64, 128, 256, 512};
+
     private DatabaseManager databaseManager;
     private TimerService timerService;
     private TaskService taskService;
@@ -101,12 +104,21 @@ public class TaskFlowApp extends Application {
     }
 
     private void loadApplicationIcon(Stage stage) {
-        try (InputStream iconStream = getClass().getResourceAsStream("/assets/TaskFlow.png")) {
+        for (int size : ICON_SIZES) {
+            addIcon(stage, "/assets/generated/taskflow-" + size + ".png");
+        }
+        if (stage.getIcons().isEmpty()) {
+            addIcon(stage, "/assets/TaskFlow.png");
+        }
+    }
+
+    private void addIcon(Stage stage, String resource) {
+        try (InputStream iconStream = getClass().getResourceAsStream(resource)) {
             if (iconStream != null) {
                 stage.getIcons().add(new Image(iconStream));
             }
         } catch (Exception e) {
-            log.warn("Could not load application icon: {}", e.getMessage());
+            log.warn("Could not load application icon {}: {}", resource, e.getMessage());
         }
     }
 

@@ -188,4 +188,21 @@ class SqliteTaskRepositoryTest {
         assertThat(repository.findAll()).isEmpty();
         assertThat(historyRepository.findById(item.id())).isPresent();
     }
+
+    @Test
+    @DisplayName(
+            "Completion archiving is idempotent: multiple calls for an expired task do not duplicate history")
+    void archiveCompletionIsIdempotentForAlreadyExpiredTask() {
+        Task task = repository.save(Task.create("Already zero", Priority.HIGH, 600));
+        HistoryItem historyItem = HistoryItem.fromTask(task, HistoryEventType.COMPLETED, false);
+
+        // First completion updates remaining_seconds to 0 and records history
+        repository.archiveCompletion(task, historyItem);
+        assertThat(historyRepository.count()).isEqualTo(1);
+        assertThat(repository.findById(task.id()).orElseThrow().remainingSeconds()).isZero();
+
+        // Second completion call on the already-expired task row must be ignored
+        repository.archiveCompletion(task, historyItem);
+        assertThat(historyRepository.count()).isEqualTo(1);
+    }
 }

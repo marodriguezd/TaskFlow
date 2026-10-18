@@ -4,9 +4,9 @@ package io.github.marodriguezd.taskflow.domain;
  * User preferences record.
  *
  * <p>{@code language} is the persisted UI language as a locale-independent BCP 47 tag ({@code en},
- * {@code es}, {@code de}, {@code it}, {@code zh-Hans}). Blank means "never chosen" and triggers
- * first-run OS detection in the composition root — the domain never interprets it. It must stay a
- * plain {@link String} (not an enum) precisely so "unset" remains distinguishable from "en".
+ * {@code es}, {@code de}, {@code fr}, {@code it}, {@code zh-Hans}). Blank means "never chosen" and
+ * triggers first-run OS detection in the composition root — the domain never interprets it. It must
+ * stay a plain {@link String} (not an enum) precisely so "unset" remains distinguishable from "en".
  */
 public record UserPreferences(
         ThemeMode theme,

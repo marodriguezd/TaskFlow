@@ -18,6 +18,7 @@ public class ProgressBarView extends Pane {
     private final String priorityColorHex;
     private final Color baseColor;
     private final Color darkerColor;
+    private final LinearGradient fillGradient;
 
     private int totalSeconds;
     private int currentSeconds;
@@ -39,6 +40,18 @@ public class ProgressBarView extends Pane {
         this.priorityColorHex = hex;
         this.baseColor = base;
         this.darkerColor = this.baseColor.deriveColor(0, 1.0, 0.7, 1.0);
+        // Proportional stops are resolution independent, so one immutable gradient serves every
+        // tick instead of allocating a LinearGradient plus two Stops per second.
+        this.fillGradient =
+                new LinearGradient(
+                        0,
+                        0,
+                        1,
+                        0,
+                        true,
+                        CycleMethod.NO_CYCLE,
+                        new Stop(0.0, darkerColor),
+                        new Stop(1.0, baseColor));
 
         setPrefHeight(4.0);
         setMinHeight(4.0);
@@ -52,6 +65,7 @@ public class ProgressBarView extends Pane {
         fillRect = new Rectangle();
         fillRect.setArcWidth(4.0);
         fillRect.setArcHeight(4.0);
+        fillRect.setFill(fillGradient);
 
         getChildren().addAll(trackRect, fillRect);
         updateProgress();
@@ -77,22 +91,7 @@ public class ProgressBarView extends Pane {
         fillRect.setWidth(fillWidth);
         fillRect.setHeight(4.0);
 
-        if (fillWidth > 0) {
-            LinearGradient gradient =
-                    new LinearGradient(
-                            0,
-                            0,
-                            fillWidth,
-                            0,
-                            false,
-                            CycleMethod.NO_CYCLE,
-                            new Stop(0.0, darkerColor),
-                            new Stop(1.0, baseColor));
-            fillRect.setFill(gradient);
-            fillRect.setVisible(true);
-        } else {
-            fillRect.setVisible(false);
-        }
+        fillRect.setVisible(fillWidth > 0);
     }
 
     @Override

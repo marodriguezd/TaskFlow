@@ -92,10 +92,12 @@ public class AboutDialog {
                 .valueProperty()
                 .addListener(
                         (obs, oldVal, newVal) -> {
-                            int percent = (int) Math.round(newVal.doubleValue());
-                            opacityValue.setText(percent + "%");
+                            // Round to 2 decimals: raw slider doubles can land on 0.3999999 and be
+                            // rejected/reset by UserPreferences' 0.40 lower bound.
+                            double percent = Math.round(newVal.doubleValue());
+                            opacityValue.setText((int) percent + "%");
                             if (onOpacityChanged != null) {
-                                onOpacityChanged.accept(newVal.doubleValue() / 100.0);
+                                onOpacityChanged.accept(percent / 100.0);
                             }
                         });
 
@@ -166,7 +168,8 @@ public class AboutDialog {
 
     private void openGplPage() {
         try {
-            if (Desktop.isDesktopSupported()) {
+            if (Desktop.isDesktopSupported()
+                    && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(URI.create(GPL_URL));
             }
         } catch (Exception ignored) {

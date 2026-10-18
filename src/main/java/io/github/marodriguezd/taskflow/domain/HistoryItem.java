@@ -63,6 +63,8 @@ public record HistoryItem(
     /** Converts this history item back into an active Task for restoration. */
     public Task toRestoredTask() {
         int restoredRemaining = remainingSeconds <= 0 ? totalSeconds : remainingSeconds;
-        return Task.create(name, priority, totalSeconds).withRemainingSeconds(restoredRemaining);
+        Instant now = Instant.now();
+        // Single allocation: Task.create(...) + withRemainingSeconds(...) built two records.
+        return new Task(null, name, priority, totalSeconds, restoredRemaining, now, now);
     }
 }

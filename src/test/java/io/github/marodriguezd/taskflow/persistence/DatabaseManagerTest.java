@@ -243,4 +243,73 @@ class DatabaseManagerTest {
             return result.getInt(1);
         }
     }
+
+    @Test
+    @DisplayName("Closing the manager marks it closed and prevents new connections")
+    void closedManagerRejectsGetConnection() throws Exception {
+        DatabaseManager manager = DatabaseManager.inMemory();
+        assertThat(manager.isClosed()).isFalse();
+
+        manager.close();
+        assertThat(manager.isClosed()).isTrue();
+
+        // Idempotent close
+        manager.close();
+        assertThat(manager.isClosed()).isTrue();
+
+        assertThatThrownBy(manager::getConnection)
+                .isInstanceOf(java.sql.SQLException.class)
+                .hasMessageContaining("DatabaseManager is closed");
+    }
+
+    @Test
+    @DisplayName("Disk-based database configures WAL mode, synchronous NORMAL, and foreign keys")
+    void diskDatabaseConfiguresExpectedPragmas() throws Exception {
+        Path dbFile = tempDir.resolve("pragma-test.db");
+        DatabaseManager manager = new DatabaseManager(dbFile);
+        try (Connection conn = manager.getConnection();
+                Statement stmt = conn.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery("PRAGMA journal_mode")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString(1)).isEqualToIgnoringCase("wal");
+            }
+            try (ResultSet rs = stmt.executeQuery("PRAGMA foreign_keys")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getInt(1)).isEqualTo(1);
+            }
+            try (ResultSet rs = stmt.executeQuery("PRAGMA busy_timeout")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getInt(1)).isEqualTo(3000);
+            }
+            try (ResultSet rs = stmt.executeQuery("PRAGMA synchronous")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getInt(1)).isEqualTo(1); // 1 = NORMAL
+            }
+        } finally {
+            manager.close();
+        }
+    }
+
+    @Test
+    @DisplayName("In-memory database retains memory journal mode without WAL pragma error")
+    void inMemoryDatabasePragmas() throws Exception {
+        DatabaseManager manager = DatabaseManager.inMemory();
+        try (Connection conn = manager.getConnection();
+                Statement stmt = conn.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery("PRAGMA journal_mode")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString(1)).isEqualToIgnoringCase("memory");
+            }
+            try (ResultSet rs = stmt.executeQuery("PRAGMA foreign_keys")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getInt(1)).isEqualTo(1);
+            }
+            try (ResultSet rs = stmt.executeQuery("PRAGMA busy_timeout")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getInt(1)).isEqualTo(3000);
+            }
+        } finally {
+            manager.close();
+        }
+    }
 }

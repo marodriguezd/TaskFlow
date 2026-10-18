@@ -1,10 +1,10 @@
 package io.github.marodriguezd.taskflow.service;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Locale;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,14 +28,39 @@ public class PlatformService {
     private final Path legacyDirectory;
 
     public PlatformService() {
-        this.currentOs = detectOs();
-        this.legacyDirectory = Paths.get(System.getProperty("user.home"), ".TaskFlow");
-        this.dataDirectory = resolveDataDirectory();
-        ensureDirectoryExists(dataDirectory);
+        this(
+                detectOs(),
+                Paths.get(System.getProperty("user.home", "."), ".TaskFlow"),
+                System::getenv,
+                System.getProperty("user.home"),
+                true);
         log.info(
                 "Initialized PlatformService. OS: {}, Data directory: {}",
                 currentOs,
                 dataDirectory);
+    }
+
+    /** Test seam: explicit OS, legacy directory, environment lookup, and user home. */
+    PlatformService(
+            OS os,
+            Path legacyDirectory,
+            Function<String, String> envLookup,
+            String userHome,
+            boolean ensureDirectory) {
+        this.currentOs = os != null ? os : detectOs();
+        this.legacyDirectory =
+                legacyDirectory != null
+                        ? legacyDirectory
+                        : Paths.get(
+                                (userHome != null && !userHome.isBlank())
+                                        ? userHome
+                                        : System.getProperty("user.home", "."),
+                                ".TaskFlow");
+        this.dataDirectory =
+                resolveDataDirectory(this.currentOs, this.legacyDirectory, envLookup, userHome);
+        if (ensureDirectory) {
+            ensureDirectoryExists(this.dataDirectory);
+        }
     }
 
     public OS getCurrentOs() {
@@ -80,49 +105,90 @@ public class PlatformService {
         return dataDirectory.resolve("bell.mp3");
     }
 
-    private OS detectOs() {
-        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        if (osName.contains("win")) {
-            return OS.WINDOWS;
-        } else if (osName.contains("mac") || osName.contains("darwin")) {
+    static OS detectOs() {
+        return detectOs(System.getProperty("os.name", ""));
+    }
+
+    static OS detectOs(String osName) {
+        String normalized = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
+        if (normalized.contains("mac") || normalized.contains("darwin")) {
             return OS.MACOS;
-        } else if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) {
+        } else if (normalized.contains("win")) {
+            return OS.WINDOWS;
+        } else if (normalized.contains("nix")
+                || normalized.contains("nux")
+                || normalized.contains("aix")) {
             return OS.LINUX;
         }
         return OS.OTHER;
     }
 
     private Path resolveDataDirectory() {
+        return resolveDataDirectory(
+                currentOs, legacyDirectory, System::getenv, System.getProperty("user.home"));
+    }
+
+    static Path resolveDataDirectory(
+            OS os, Path legacyDirectory, Function<String, String> envLookup, String userHome) {
         // If legacy ~/.TaskFlow already exists, prioritize keeping data in the established location
-        if (Files.exists(legacyDirectory) && Files.isDirectory(legacyDirectory)) {
+        if (legacyDirectory != null
+                && Files.exists(legacyDirectory)
+                && Files.isDirectory(legacyDirectory)) {
             return legacyDirectory;
         }
 
-        String userHome = System.getProperty("user.home");
-        return switch (currentOs) {
+        String safeHome =
+                (userHome != null && !userHome.isBlank())
+                        ? userHome
+                        : System.getProperty("user.home", ".");
+        return switch (os) {
             case WINDOWS -> {
-                String appData = System.getenv("APPDATA");
-                yield (appData != null && !appData.isBlank())
-                        ? Paths.get(appData, "TaskFlow")
-                        : Paths.get(userHome, ".TaskFlow");
+                String appData = envLookup != null ? envLookup.apply("APPDATA") : null;
+                Path validAppData = validateAndNormalizeDataHome(appData);
+                yield (validAppData != null)
+                        ? validAppData.resolve("TaskFlow")
+                        : Paths.get(safeHome, ".TaskFlow");
             }
-            case MACOS -> Paths.get(userHome, "Library", "Application Support", "TaskFlow");
+            case MACOS -> Paths.get(safeHome, "Library", "Application Support", "TaskFlow");
             case LINUX -> {
-                String xdgData = System.getenv("XDG_DATA_HOME");
-                yield (xdgData != null && !xdgData.isBlank())
-                        ? Paths.get(xdgData, "TaskFlow")
-                        : Paths.get(userHome, ".TaskFlow");
+                String xdgData = envLookup != null ? envLookup.apply("XDG_DATA_HOME") : null;
+                Path validXdgData = validateAndNormalizeDataHome(xdgData);
+                yield (validXdgData != null)
+                        ? validXdgData.resolve("TaskFlow")
+                        : Paths.get(safeHome, ".TaskFlow");
             }
-            case OTHER -> Paths.get(userHome, ".TaskFlow");
+            case OTHER -> Paths.get(safeHome, ".TaskFlow");
         };
+    }
+
+    /**
+     * Validates that an environment variable directory path is non-blank, absolute, and normalized.
+     * If relative or invalid, logs a warning and returns {@code null} to trigger fallback to
+     * ~/.TaskFlow per the XDG Base Directory specification.
+     */
+    static Path validateAndNormalizeDataHome(String rawPath) {
+        if (rawPath == null || rawPath.isBlank()) {
+            return null;
+        }
+        try {
+            Path path = Paths.get(rawPath);
+            if (!path.isAbsolute()) {
+                log.warn("Ignored non-absolute environment directory path: {}", rawPath);
+                return null;
+            }
+            return path.normalize();
+        } catch (Exception e) {
+            log.warn("Ignored invalid environment directory path: {}", rawPath, e);
+            return null;
+        }
     }
 
     private void ensureDirectoryExists(Path dir) {
         try {
-            if (!Files.exists(dir)) {
+            if (dir != null && !Files.exists(dir)) {
                 Files.createDirectories(dir);
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Failed to create application data directory: {}", dir, e);
         }
     }

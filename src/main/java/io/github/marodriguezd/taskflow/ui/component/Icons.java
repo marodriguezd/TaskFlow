@@ -1,6 +1,5 @@
 package io.github.marodriguezd.taskflow.ui.component;
 
-import javafx.scene.paint.Color;
 import javafx.scene.shape.SVGPath;
 
 /** Vector icon generator using scalable SVG paths for cross-platform visual fidelity. */
@@ -33,55 +32,52 @@ public final class Icons {
             "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z";
 
     public static SVGPath pin(double size) {
-        return createSvg(PIN_PATH, size, null);
+        return createSvg(PIN_PATH, size);
     }
 
     public static SVGPath history(double size) {
-        return createSvg(HISTORY_PATH, size, null);
+        return createSvg(HISTORY_PATH, size);
     }
 
     public static SVGPath sun(double size) {
-        return createSvg(SUN_PATH, size, null);
+        return createSvg(SUN_PATH, size);
     }
 
     public static SVGPath moon(double size) {
-        return createSvg(MOON_PATH, size, null);
+        return createSvg(MOON_PATH, size);
     }
 
     public static SVGPath close(double size) {
-        return createSvg(CLOSE_PATH, size, null);
+        return createSvg(CLOSE_PATH, size);
     }
 
     public static SVGPath edit(double size) {
-        return createSvg(EDIT_PATH, size, null);
+        return createSvg(EDIT_PATH, size);
     }
 
     public static SVGPath clipboard(double size) {
-        return createSvg(CLIPBOARD_PATH, size, null);
+        return createSvg(CLIPBOARD_PATH, size);
     }
 
     public static SVGPath globe(double size) {
-        return createSvg(GLOBE_PATH, size, null);
+        return createSvg(GLOBE_PATH, size);
     }
 
     private static final String INFO_PATH =
             "M11 17h2v-6h-2v6zm1-15C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 9h2V7h-2v2z";
 
     public static SVGPath info(double size) {
-        return createSvg(INFO_PATH, size, null);
+        return createSvg(INFO_PATH, size);
     }
 
-    private static SVGPath createSvg(String content, double targetSize, String fillHex) {
+    private static SVGPath createSvg(String content, double targetSize) {
         SVGPath path = new SVGPath();
         path.setContent(content);
         double scale = targetSize / 24.0;
         path.setScaleX(scale);
         path.setScaleY(scale);
-        if (fillHex != null) {
-            path.setFill(Color.web(fillHex));
-        } else {
-            path.getStyleClass().add("icon-svg");
-        }
+        // Fill colour is themed through the .icon-svg CSS class, never hard-coded here.
+        path.getStyleClass().add("icon-svg");
         return path;
     }
 }

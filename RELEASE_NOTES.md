@@ -1,25 +1,25 @@
 # TaskFlow v1.0.0 — Java 21 Desktop Task Manager
 
-TaskFlow 1.0.0 is a modern, lightweight desktop task manager featuring Pomodoro timers, local SQLite persistence, translucent Apple Liquid Glass design, and native bundles with Java 21 included.
+TaskFlow 1.0.0 is a cross-platform desktop task manager featuring Pomodoro timers, local SQLite storage, translucent Liquid Glass styling, and self-contained native bundles with Java 21 included.
 
 ## Highlights
 
-- **Desktop Task Management & Pomodoro:** Organize tasks by priority, run countdown timers with the single-active-timer invariant, and track progress visually.
-- **Translucent Liquid Glass Design:** Frameless interface with interactive opacity control, ambient mesh lighting, and native translucency across Dark and Light themes.
-- **Local SQLite Persistence:** Reliable, local-only storage for tasks, completion history, window geometry, and user preferences with WAL mode and atomic transactions.
-- **Internationalization (i18n):** Native interface across 6 languages (English, Español, Deutsch, Français, Italiano, 中文简体) with instant runtime switching and system locale detection.
-- **Reliable Audio Chime:** Customizable timer completion audio with bundled WAV fallback and zero external runtime dependencies.
-- **Cross-Platform Native Packaging:** Self-contained bundles packaging Java 21 for Windows (MSI), Linux (AppImage), and macOS (Apple Silicon DMG).
+- **Task Management & Pomodoro:** Prioritized tasks with countdown timers, visual progress bars, and the single-active-timer invariant. Timer listener notifications dispatch outside monitor locks to ensure zero UI thread contention.
+- **Liquid Glass Interface:** Frameless desktop window with adjustable glass opacity, dark and light themes, and multi-monitor dialog positioning.
+- **Optimized SQLite Persistence:** Local-only database with WAL mode, prepared statement reuse, atomic transaction batching, and idempotent history archival.
+- **Internationalization (i18n):** Native interface across six languages (English, Spanish, German, French, Italian, Simplified Chinese) with instant runtime switching.
+- **Audio Notification:** Customizable timer completion chime with synchronous audio probing and bundled PCM WAV fallback.
+- **Native Packaging:** Bundled Java 21 installers for Windows, Linux, and macOS Apple Silicon.
 
 ## Native packages with bundled Java
 
-Packages bundle Java 21, so a separate Java installation is not required.
+Packages bundle Java 21, so a separate runtime installation is not required.
 
 | Platform | Package | Notes |
 | --- | --- | --- |
 | Windows (x64) | `TaskFlow-1.0.0.msi` | MSI installer with Start Menu shortcut |
-| Linux (x86_64) | `TaskFlow-1.0.0-x86_64.AppImage` | Portable AppImage with bundled Java runtime |
-| macOS (Apple Silicon) | `TaskFlow-1.0.0.dmg` | DMG installer for Apple Silicon (ARM64) |
+| Linux (x86_64) | `TaskFlow-1.0.0-x86_64.AppImage` | Portable AppImage with desktop integration |
+| macOS (Apple Silicon) | `TaskFlow-1.0.0.dmg` | DMG disk image for ARM64 |
 
 Verify downloads with `sha256sum -c checksums.txt`.
 

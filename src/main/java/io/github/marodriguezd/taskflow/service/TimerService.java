@@ -1,6 +1,7 @@
 package io.github.marodriguezd.taskflow.service;
 
 import io.github.marodriguezd.taskflow.domain.Task;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,34 +53,44 @@ public class TimerService {
         this.nanoTime = nanoTime;
     }
 
-    public synchronized void start(Task task) {
-        if (task == null || task.isExpired()) {
-            return;
+    public void start(Task task) {
+        List<Runnable> notifications = new ArrayList<>();
+        synchronized (this) {
+            if (task == null || task.isExpired()) {
+                return;
+            }
+            if (activeTask != null) {
+                pauseActiveLocked(true, notifications);
+            }
+            activeTask = task;
+            rememberSnapshot(task);
+            if (task.id() != null) {
+                completedTaskIds.remove(task.id());
+            }
+            deadlineNanos = nanoTime.getAsLong() + task.remainingSeconds() * SECOND_NANOS;
+            long timerGeneration = ++generation;
+            notifications.add(() -> notifyRunningState(task.id(), true));
+            timerFuture =
+                    scheduler.scheduleAtFixedRate(
+                            () -> dispatchTick(timerGeneration), 1, 1, TimeUnit.SECONDS);
         }
-        if (activeTask != null) {
-            pauseActive(true);
-        }
-        activeTask = task;
-        rememberSnapshot(task);
-        if (task.id() != null) {
-            completedTaskIds.remove(task.id());
-        }
-        deadlineNanos = nanoTime.getAsLong() + task.remainingSeconds() * SECOND_NANOS;
-        long timerGeneration = ++generation;
-        notifyRunningState(task.id(), true);
-        timerFuture =
-                scheduler.scheduleAtFixedRate(
-                        () -> dispatchTick(timerGeneration), 1, 1, TimeUnit.SECONDS);
+        // Listener callbacks are foreign code: dispatch them once the monitor is released so a
+        // slow listener (or one that calls back into this service) can never block the timer or UI.
+        dispatch(notifications);
         log.debug("Started timer for task id={}", task.id());
     }
 
-    public synchronized void pause() {
-        if (activeTask != null) {
-            pauseActive(true);
+    public void pause() {
+        List<Runnable> notifications = new ArrayList<>();
+        synchronized (this) {
+            if (activeTask != null) {
+                pauseActiveLocked(true, notifications);
+            }
         }
+        dispatch(notifications);
     }
 
-    private void pauseActive(boolean applyElapsedTime) {
+    private void pauseActiveLocked(boolean applyElapsedTime, List<Runnable> notifications) {
         Task pausedTask = activeTask;
         if (applyElapsedTime) {
             updateRemainingFromDeadline(nanoTime.getAsLong());
@@ -89,37 +100,49 @@ public class TimerService {
         Task stoppedTask = activeTask;
         rememberSnapshot(stoppedTask);
         if (applyElapsedTime && pausedTask.remainingSeconds() != stoppedTask.remainingSeconds()) {
-            notifyTick(stoppedTask);
+            notifications.add(() -> notifyTick(stoppedTask));
         }
         activeTask = null;
-        notifyRunningState(pausedTask.id(), false);
+        notifications.add(() -> notifyRunningState(pausedTask.id(), false));
         if (stoppedTask.isExpired()) {
             if (stoppedTask.id() != null) {
                 completedTaskIds.add(stoppedTask.id());
             }
-            notifyCompletion(stoppedTask);
+            notifications.add(() -> notifyCompletion(stoppedTask));
         }
         log.debug("Paused timer for task id={}", pausedTask.id());
     }
 
-    public synchronized void toggle(Task task) {
+    public void toggle(Task task) {
         if (task == null) {
             return;
         }
-        if (isRunning(task.id())) {
+        boolean running;
+        synchronized (this) {
+            running = isRunningLocked(task.id());
+        }
+        if (running) {
             pause();
         } else {
             start(task);
         }
     }
 
-    public synchronized void stopIfRunning(long taskId) {
-        if (isRunning(taskId)) {
+    public void stopIfRunning(long taskId) {
+        boolean running;
+        synchronized (this) {
+            running = isRunningLocked(taskId);
+        }
+        if (running) {
             pause();
         }
     }
 
     public synchronized boolean isRunning(Long taskId) {
+        return isRunningLocked(taskId);
+    }
+
+    private boolean isRunningLocked(Long taskId) {
         return activeTask != null && activeTask.id() != null && activeTask.id().equals(taskId);
     }
 
@@ -163,27 +186,37 @@ public class TimerService {
         }
     }
 
-    private synchronized void dispatchTick(long timerGeneration) {
-        if (timerGeneration != generation || activeTask == null) {
-            return;
-        }
-        Task previousTask = activeTask;
-        updateRemainingFromDeadline(nanoTime.getAsLong());
-        Task currentTask = activeTask;
-        rememberSnapshot(currentTask);
-        if (previousTask.remainingSeconds() != currentTask.remainingSeconds()) {
-            notifyTick(currentTask);
-        }
-        if (currentTask.isExpired() && timerGeneration == generation) {
-            stopScheduledTimer();
-            generation++;
-            rememberSnapshot(currentTask);
-            if (currentTask.id() != null) {
-                completedTaskIds.add(currentTask.id());
+    private void dispatchTick(long timerGeneration) {
+        List<Runnable> notifications = new ArrayList<>();
+        synchronized (this) {
+            if (timerGeneration != generation || activeTask == null) {
+                return;
             }
-            activeTask = null;
-            notifyRunningState(currentTask.id(), false);
-            notifyCompletion(currentTask);
+            Task previousTask = activeTask;
+            updateRemainingFromDeadline(nanoTime.getAsLong());
+            Task currentTask = activeTask;
+            rememberSnapshot(currentTask);
+            if (previousTask.remainingSeconds() != currentTask.remainingSeconds()) {
+                notifications.add(() -> notifyTick(currentTask));
+            }
+            if (currentTask.isExpired() && timerGeneration == generation) {
+                stopScheduledTimer();
+                generation++;
+                rememberSnapshot(currentTask);
+                if (currentTask.id() != null) {
+                    completedTaskIds.add(currentTask.id());
+                }
+                activeTask = null;
+                notifications.add(() -> notifyRunningState(currentTask.id(), false));
+                notifications.add(() -> notifyCompletion(currentTask));
+            }
+        }
+        dispatch(notifications);
+    }
+
+    private static void dispatch(List<Runnable> notifications) {
+        for (Runnable notification : notifications) {
+            notification.run();
         }
     }
 

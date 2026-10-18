@@ -5,6 +5,7 @@ import io.github.marodriguezd.taskflow.domain.Task;
 import io.github.marodriguezd.taskflow.ui.i18n.Messages;
 import io.github.marodriguezd.taskflow.ui.i18n.PriorityLabels;
 import io.github.marodriguezd.taskflow.util.TimeFormatter;
+import java.util.List;
 import java.util.function.Consumer;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,6 +21,7 @@ public class TaskCardView extends HBox {
 
     private Task task;
     private boolean isRunning;
+    private String playButtonStyleState;
 
     private final Region sideBar;
     private final Label nameLabel;
@@ -154,27 +156,44 @@ public class TaskCardView extends HBox {
     }
 
     public void updateTask(Task updatedTask) {
+        boolean wasExpired = this.task.isExpired();
+        Priority previousPriority = this.task.priority();
         this.task = updatedTask;
+
+        // Ticks run once per second: only touch styles when the data that drives them changed,
+        // otherwise every tick forces a JavaFX CSS re-application across the card.
         nameLabel.setText(task.name());
-        pillLabel.setText(PriorityLabels.label(task.priority()));
-        getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
-        getStyleClass().add("priority-" + task.priority().name().toLowerCase());
-        sideBar.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
-        sideBar.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
-        pillLabel.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
-        pillLabel.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
-        timerLabel.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
-        timerLabel.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
-        doneButton.getStyleClass().removeAll("priority-high", "priority-medium", "priority-low");
-        doneButton.getStyleClass().add("priority-" + task.priority().name().toLowerCase());
+        if (previousPriority != task.priority()) {
+            applyPriorityStyles(previousPriority, task.priority());
+            pillLabel.setText(PriorityLabels.label(task.priority()));
+        }
         timerLabel.setText(TimeFormatter.format(task.remainingSeconds()));
         progressBar.setProgress(task.remainingSeconds(), task.totalSeconds());
         updatePlayButtonStyle();
 
-        getStyleClass().removeAll("task-card-expired", "task-card-hover");
-        if (task.isExpired()) {
-            getStyleClass().add("task-card-expired");
+        if (wasExpired != task.isExpired()) {
+            // The hover class is deliberately left untouched: a countdown tick must not drop it.
+            getStyleClass().remove("task-card-expired");
+            if (task.isExpired()) {
+                getStyleClass().add("task-card-expired");
+            }
         }
+    }
+
+    private void applyPriorityStyles(Priority previousPriority, Priority priority) {
+        String oldClass = priorityStyleClass(previousPriority);
+        String newClass = priorityStyleClass(priority);
+        if (oldClass.equals(newClass)) {
+            return;
+        }
+        for (Region node : List.of(this, sideBar, pillLabel, timerLabel, doneButton)) {
+            node.getStyleClass().remove(oldClass);
+            node.getStyleClass().add(newClass);
+        }
+    }
+
+    private static String priorityStyleClass(Priority priority) {
+        return "priority-" + priority.name().toLowerCase();
     }
 
     public void setRunning(boolean running) {
@@ -184,6 +203,12 @@ public class TaskCardView extends HBox {
 
     private void updatePlayButtonStyle() {
         Priority pri = task.priority();
+        String state =
+                task.isExpired() ? "expired" : (isRunning ? "running:" : "paused:") + pri.name();
+        if (state.equals(playButtonStyleState)) {
+            return;
+        }
+        playButtonStyleState = state;
         if (task.isExpired()) {
             playButton.setText("✓");
             playButton.getStyleClass().remove("play-button");

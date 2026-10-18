@@ -17,6 +17,10 @@ import org.slf4j.LoggerFactory;
 public class SqlitePreferenceRepository implements PreferenceRepository {
 
     private static final Logger log = LoggerFactory.getLogger(SqlitePreferenceRepository.class);
+    private static final String UPSERT_PREFERENCE_SQL =
+            "INSERT INTO preferences (pref_key, pref_value) VALUES (?, ?) "
+                    + "ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value";
+
     private final DatabaseManager databaseManager;
 
     public SqlitePreferenceRepository(DatabaseManager databaseManager) {
@@ -59,14 +63,16 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
     public void savePreferences(UserPreferences preferences) {
         databaseManager.inTransaction(
                 conn -> {
-                    savePreference(conn, "theme", preferences.theme().getCode());
-                    savePreference(
-                            conn, "always_on_top", String.valueOf(preferences.alwaysOnTop()));
-                    savePreference(
-                            conn, "sound_enabled", String.valueOf(preferences.soundEnabled()));
-                    savePreference(conn, "language", preferences.language());
-                    savePreference(
-                            conn, "glass_opacity", String.valueOf(preferences.glassOpacity()));
+                    try (PreparedStatement stmt = conn.prepareStatement(UPSERT_PREFERENCE_SQL)) {
+                        savePreference(stmt, "theme", preferences.theme().getCode());
+                        savePreference(
+                                stmt, "always_on_top", String.valueOf(preferences.alwaysOnTop()));
+                        savePreference(
+                                stmt, "sound_enabled", String.valueOf(preferences.soundEnabled()));
+                        savePreference(stmt, "language", preferences.language());
+                        savePreference(
+                                stmt, "glass_opacity", String.valueOf(preferences.glassOpacity()));
+                    }
                     return null;
                 });
     }
@@ -93,26 +99,24 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
 
     @Override
     public void saveGeometry(WindowGeometry geometry) {
-        String sql =
-                "INSERT INTO preferences (pref_key, pref_value) VALUES (?, ?) "
-                        + "ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value";
         databaseManager.inTransaction(
                 conn -> {
-                    try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                        saveGeometryValue(stmt, "geo_x", geometry.x());
-                        saveGeometryValue(stmt, "geo_y", geometry.y());
-                        saveGeometryValue(stmt, "geo_width", geometry.width());
-                        saveGeometryValue(stmt, "geo_height", geometry.height());
+                    try (PreparedStatement stmt = conn.prepareStatement(UPSERT_PREFERENCE_SQL)) {
+                        addGeometryBatch(stmt, "geo_x", geometry.x());
+                        addGeometryBatch(stmt, "geo_y", geometry.y());
+                        addGeometryBatch(stmt, "geo_width", geometry.width());
+                        addGeometryBatch(stmt, "geo_height", geometry.height());
+                        stmt.executeBatch();
                     }
                     return null;
                 });
     }
 
-    private void saveGeometryValue(PreparedStatement stmt, String key, double value)
+    private void addGeometryBatch(PreparedStatement stmt, String key, double value)
             throws SQLException {
         stmt.setString(1, key);
         stmt.setString(2, String.valueOf(value));
-        stmt.executeUpdate();
+        stmt.addBatch();
     }
 
     private Map<String, String> getAllPreferences() {
@@ -131,14 +135,10 @@ public class SqlitePreferenceRepository implements PreferenceRepository {
         return result;
     }
 
-    private void savePreference(Connection conn, String key, String value) throws SQLException {
-        String sql =
-                "INSERT INTO preferences (pref_key, pref_value) VALUES (?, ?) "
-                        + "ON CONFLICT(pref_key) DO UPDATE SET pref_value = excluded.pref_value";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, key);
-            stmt.setString(2, value);
-            stmt.executeUpdate();
-        }
+    private void savePreference(PreparedStatement stmt, String key, String value)
+            throws SQLException {
+        stmt.setString(1, key);
+        stmt.setString(2, value);
+        stmt.executeUpdate();
     }
 }

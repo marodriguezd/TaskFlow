@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -144,5 +145,18 @@ class SoundServiceTest {
         service.setSoundEnabled(true);
 
         assertThatCode(service::playCompletionSound).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("Default sound provisioning handles a path with no parent without throwing NPE")
+    void provisioningHandlesBarePathWithoutParent() throws IOException {
+        Path bareSound = Paths.get("target-test-bell-" + System.nanoTime() + ".mp3");
+        assertThat(bareSound.getParent()).isNull();
+        try {
+            SoundService service = new SoundService(bareSound, path -> {}, true);
+            assertThat(Files.exists(bareSound)).isTrue();
+        } finally {
+            Files.deleteIfExists(bareSound);
+        }
     }
 }

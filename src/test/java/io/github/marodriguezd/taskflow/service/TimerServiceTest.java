@@ -112,6 +112,45 @@ class TimerServiceTest {
     }
 
     @Test
+    @DisplayName("Listeners are dispatched after the service monitor is released")
+    void listenersRunOutsideTheMonitor() {
+        AtomicLong clock = new AtomicLong();
+        timerService = new TimerService(clock::get);
+        TimerService service = timerService;
+        List<Boolean> monitorHeld = new ArrayList<>();
+        service.addRunningStateListener(
+                (id, running) -> monitorHeld.add(Thread.holdsLock(service)));
+        service.addTickListener(task -> monitorHeld.add(Thread.holdsLock(service)));
+        service.addCompletionListener(task -> monitorHeld.add(Thread.holdsLock(service)));
+
+        service.start(Task.create("Lock", Priority.HIGH, 1).withId(31L));
+        clock.set(TimeUnit.SECONDS.toNanos(1));
+        service.tickForTest();
+
+        assertThat(monitorHeld).isNotEmpty().doesNotContain(true);
+        assertThat(service.getRunningTaskId()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A running-state listener may re-enter the service without stalling it")
+    void listenerMayReenterService() {
+        TimerService service = newTimer();
+        List<String> events = new ArrayList<>();
+        service.addRunningStateListener(
+                (id, running) -> {
+                    events.add(id + ":" + running);
+                    if (Boolean.TRUE.equals(running)) {
+                        service.pause();
+                    }
+                });
+
+        service.start(Task.create("Reentrant", Priority.LOW, 60).withId(32L));
+
+        assertThat(events).containsExactly("32:true", "32:false");
+        assertThat(service.getRunningTaskId()).isEmpty();
+    }
+
+    @Test
     @DisplayName("Toggle pauses and resumes a task")
     void testToggle() {
         TimerService service = newTimer();

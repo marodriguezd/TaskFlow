@@ -65,7 +65,10 @@ public class SoundService {
 
         try (InputStream in = getClass().getResourceAsStream("/assets/bell.mp3")) {
             if (in != null) {
-                Files.createDirectories(userSound.getParent());
+                Path parent = userSound.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
                 Files.copy(in, userSound, StandardCopyOption.REPLACE_EXISTING);
                 log.info("Provisioned default bell sound to {}", userSound);
             } else {

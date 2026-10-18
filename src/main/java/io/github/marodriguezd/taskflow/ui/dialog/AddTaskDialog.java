@@ -152,6 +152,14 @@ public class AddTaskDialog {
             return;
         }
 
+        // An editable spinner only commits typed text on Enter/focus loss; commit explicitly so a
+        // duration typed right before clicking Add/Save is not silently reverted.
+        try {
+            minutesSpinner.commitValue();
+        } catch (Exception ignored) {
+            // Unparsable text keeps the last valid spinner value.
+        }
+
         int minutes = minutesSpinner.getValue() != null ? minutesSpinner.getValue() : 25;
         Priority priority =
                 priorityCombo.getValue() != null ? priorityCombo.getValue() : Priority.MEDIUM;
@@ -161,10 +169,7 @@ public class AddTaskDialog {
     }
 
     public Optional<TaskFormData> showAndWait() {
-        if (stage.getOwner() != null) {
-            stage.setX(Math.max(0, stage.getOwner().getX() - 310));
-            stage.setY(stage.getOwner().getY() + 60);
-        }
+        DialogPositioning.placeNearOwner(stage, -310, 60, 320, 260);
         stage.showAndWait();
         return Optional.ofNullable(result);
     }

@@ -25,7 +25,12 @@ public final class TimeFormatter {
         return sb.toString();
     }
 
-    /** Parses MM:SS or integer minute strings into seconds. */
+    /**
+     * Converts a whole number of minutes into seconds, clamping non-positive input to one minute.
+     *
+     * @param minutes duration in minutes
+     * @return the equivalent duration in seconds ({@code minutes * 60}, at least 60)
+     */
     public static int parseMinutesToSeconds(int minutes) {
         return Math.max(1, minutes) * 60;
     }

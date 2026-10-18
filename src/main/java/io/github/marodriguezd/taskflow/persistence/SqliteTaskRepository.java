@@ -264,16 +264,17 @@ public class SqliteTaskRepository implements TaskRepository, TaskLifecycleReposi
                     int updated;
                     try (PreparedStatement stmt =
                             conn.prepareStatement(
-                                    "UPDATE tasks SET remaining_seconds = 0, updated_at = ? WHERE id = ?")) {
+                                    "UPDATE tasks SET remaining_seconds = 0, updated_at = ? WHERE id = ? AND remaining_seconds > 0")) {
                         stmt.setString(1, Instant.now().toString());
                         stmt.setLong(2, task.id());
                         updated = stmt.executeUpdate();
                     }
                     if (updated == 0) {
-                        // The task was completed manually or deleted while this completion was
-                        // queued; it already has its history entry (or was intentionally removed).
+                        // The task was completed manually, deleted, or already marked expired while
+                        // this completion was queued; it already has its history entry (or was
+                        // intentionally removed).
                         log.warn(
-                                "Skipping completion history for task id={} because it no longer exists",
+                                "Skipping completion history for task id={} because it no longer exists or was already completed",
                                 task.id());
                         return null;
                     }

@@ -162,10 +162,7 @@ public class HistoryDialog {
     }
 
     public void showAndWait() {
-        if (stage.getOwner() != null) {
-            stage.setX(Math.max(0, stage.getOwner().getX() - 330));
-            stage.setY(stage.getOwner().getY() + 40);
-        }
+        DialogPositioning.placeNearOwner(stage, -330, 40, 420, 420);
         stage.showAndWait();
     }
 }

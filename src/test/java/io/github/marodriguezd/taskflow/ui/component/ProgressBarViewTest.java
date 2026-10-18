@@ -38,9 +38,12 @@ class ProgressBarViewTest {
         assertThat(gradient.getStops().get(0).getColor()).isSameAs(darkerColor);
         assertThat(gradient.getStops().get(1).getColor()).isSameAs(baseColor);
 
-        // Update progress and verify the same Color instances are reused
+        assertThat(gradient.isProportional()).isTrue();
+
+        // Update progress and verify the cached gradient instance is reused (no per-tick churn)
         bar.setProgress(80, 100);
         LinearGradient updatedGradient = (LinearGradient) fillRect.getFill();
+        assertThat(updatedGradient).isSameAs(gradient);
         assertThat(updatedGradient.getStops().get(0).getColor()).isSameAs(darkerColor);
         assertThat(updatedGradient.getStops().get(1).getColor()).isSameAs(baseColor);
     }

@@ -6,6 +6,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,9 @@ public class DatabaseManager implements AutoCloseable {
             """;
 
     private final String jdbcUrl;
+    private final boolean inMemory;
     private final Connection keepAliveConnection;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public DatabaseManager(Path dbPath) {
         this("jdbc:sqlite:" + dbPath.toAbsolutePath());
@@ -48,8 +51,10 @@ public class DatabaseManager implements AutoCloseable {
             // Unique shared in-memory database URI per manager instance
             this.jdbcUrl =
                     "jdbc:sqlite:file:memdb_" + System.nanoTime() + "?mode=memory&cache=shared";
+            this.inMemory = true;
         } else {
             this.jdbcUrl = url;
+            this.inMemory = url.contains("mode=memory");
         }
 
         try {
@@ -57,6 +62,7 @@ public class DatabaseManager implements AutoCloseable {
             this.keepAliveConnection = DriverManager.getConnection(this.jdbcUrl);
             configurePragmas(keepAliveConnection);
         } catch (SQLException e) {
+            this.closed.set(true);
             throw new PersistenceException(
                     "Could not open SQLite database connection: " + this.jdbcUrl, e);
         }
@@ -69,6 +75,9 @@ public class DatabaseManager implements AutoCloseable {
     }
 
     public Connection getConnection() throws SQLException {
+        if (closed.get()) {
+            throw new SQLException("DatabaseManager is closed: " + jdbcUrl);
+        }
         Connection conn = DriverManager.getConnection(jdbcUrl);
         configurePragmas(conn);
         return conn;
@@ -118,9 +127,16 @@ public class DatabaseManager implements AutoCloseable {
             // Set the busy timeout before any statement that can take a write lock, so a
             // concurrent connection waits instead of failing the whole operation.
             stmt.execute("PRAGMA busy_timeout = 3000;");
-            if (!jdbcUrl.contains("mode=memory")) {
-                stmt.execute("PRAGMA journal_mode = WAL;");
+            if (!inMemory) {
                 stmt.execute("PRAGMA synchronous = NORMAL;");
+            }
+        }
+    }
+
+    private void configureDatabaseMode(Connection conn) throws SQLException {
+        if (!inMemory) {
+            try (Statement stmt = conn.createStatement()) {
+                stmt.execute("PRAGMA journal_mode = WAL;");
             }
         }
     }
@@ -128,7 +144,12 @@ public class DatabaseManager implements AutoCloseable {
     private void initializeSchema() {
         log.info("Initializing SQLite database schema at {}", jdbcUrl);
         try {
+            configureDatabaseMode(keepAliveConnection);
             initializeSchemaTransaction();
+        } catch (SQLException e) {
+            close();
+            throw new PersistenceException(
+                    "Could not configure SQLite database pragmas: " + jdbcUrl, e);
         } catch (RuntimeException e) {
             close();
             throw e;
@@ -286,15 +307,21 @@ public class DatabaseManager implements AutoCloseable {
         }
     }
 
+    public boolean isClosed() {
+        return closed.get();
+    }
+
     @Override
     public void close() {
-        if (keepAliveConnection != null) {
-            try {
-                if (!keepAliveConnection.isClosed()) {
-                    keepAliveConnection.close();
+        if (closed.compareAndSet(false, true)) {
+            if (keepAliveConnection != null) {
+                try {
+                    if (!keepAliveConnection.isClosed()) {
+                        keepAliveConnection.close();
+                    }
+                } catch (SQLException e) {
+                    log.warn("Could not close SQLite keep-alive connection", e);
                 }
-            } catch (SQLException e) {
-                log.warn("Could not close SQLite keep-alive connection", e);
             }
         }
     }
