@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "io.github.marodriguezd.taskflow"
-version = "1.2.4"
+version = "1.0.0"
 
 java {
     toolchain {

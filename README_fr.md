@@ -140,7 +140,7 @@ TaskFlow fonctionne sur Windows, Linux et macOS. Les workflows GitHub Actions (`
 ### Publications
 
 > [!NOTE]
-> **Dernière : [TaskFlow v1.2.4](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.4)** — sécurise l'importation des anciennes données avec une provenance transactionnelle, raccorde l'historique quel que soit le fuseau horaire et bascule sur le `bell.wav` fourni lorsque `bell.mp3` ne peut pas être décodé. Les paquets natifs embarquent un runtime Java 21 complet pour Windows (`.msi`), Linux (`.AppImage`) et macOS (`.dmg`, Apple Silicon), avec checksums SHA-256 pour vérifier chaque téléchargement.
+> **Dernière : [TaskFlow v1.0.0](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.0.0)** — comprend des minuteurs Pomodoro, la persistance locale SQLite, un design translucide Apple Liquid Glass et des paquets natifs avec Java 21 pour Windows (`.msi`), Linux (`.AppImage`) et macOS (`.dmg`, Apple Silicon), avec checksums SHA-256 pour vérifier chaque téléchargement.
 
 Les publications officielles sont générées automatiquement sur la [page GitHub Releases](https://github.com/marodriguezd/TaskFlow/releases) quand un tag `vMAJEUR.MINEUR.PATCH` est poussé (p. ex. `v1.0.0`). Le pipeline :
 

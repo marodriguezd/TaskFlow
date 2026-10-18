@@ -140,7 +140,7 @@ TaskFlow 运行于 Windows、Linux 与 macOS。GitHub Actions 工作流（`.gith
 ### 发布
 
 > [!NOTE]
-> **最新：[TaskFlow v1.2.4](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.2.4)**——以事务性来源记录强化遗留数据导入，跨时区匹配历史记录，并在无法解码 `bell.mp3` 时回退到内置的 `bell.wav`。原生包为 Windows（`.msi`）、Linux（`.AppImage`）与 macOS（`.dmg`，Apple Silicon）捆绑完整 Java 21 运行时，并附 SHA-256 校验和供验证下载。
+> **最新：[TaskFlow v1.0.0](https://github.com/marodriguezd/TaskFlow/releases/tag/v1.0.0)**——具备番茄钟定时器、本地 SQLite 持久化、半透明 Apple Liquid Glass 设计，并为 Windows（`.msi`）、Linux（`.AppImage`）与 macOS（`.dmg`，Apple Silicon）捆绑完整 Java 21 运行时，附 SHA-256 校验和。
 
 推送 `v主.次.补丁` 标签（如 `v1.0.0`）时，官方发布自动发布于 [GitHub Releases 页面](https://github.com/marodriguezd/TaskFlow/releases)。流水线：
 

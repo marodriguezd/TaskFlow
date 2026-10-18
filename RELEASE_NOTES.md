@@ -1,3 +1,30 @@
+# TaskFlow v1.0.0 — Java 21 Desktop Task Manager
+
+TaskFlow 1.0.0 is a modern, lightweight desktop task manager featuring Pomodoro timers, local SQLite persistence, translucent Apple Liquid Glass design, and native bundles with Java 21 included.
+
+## Highlights
+
+- **Desktop Task Management & Pomodoro:** Organize tasks by priority, run countdown timers with the single-active-timer invariant, and track progress visually.
+- **Translucent Liquid Glass Design:** Frameless interface with interactive opacity control, ambient mesh lighting, and native translucency across Dark and Light themes.
+- **Local SQLite Persistence:** Reliable, local-only storage for tasks, completion history, window geometry, and user preferences with WAL mode and atomic transactions.
+- **Internationalization (i18n):** Native interface across 6 languages (English, Español, Deutsch, Français, Italiano, 中文简体) with instant runtime switching and system locale detection.
+- **Reliable Audio Chime:** Customizable timer completion audio with bundled WAV fallback and zero external runtime dependencies.
+- **Cross-Platform Native Packaging:** Self-contained bundles packaging Java 21 for Windows (MSI), Linux (AppImage), and macOS (Apple Silicon DMG).
+
+## Native packages with bundled Java
+
+Packages bundle Java 21, so a separate Java installation is not required.
+
+| Platform | Package | Notes |
+| --- | --- | --- |
+| Windows (x64) | `TaskFlow-1.0.0.msi` | MSI installer with Start Menu shortcut |
+| Linux (x86_64) | `TaskFlow-1.0.0-x86_64.AppImage` | Portable AppImage with bundled Java runtime |
+| macOS (Apple Silicon) | `TaskFlow-1.0.0.dmg` | DMG installer for Apple Silicon (ARM64) |
+
+Verify downloads with `sha256sum -c checksums.txt`.
+
+---
+
 # TaskFlow v1.2.4 — Legacy Import & Sound Reliability Patch
 
 TaskFlow 1.2.4 improves legacy-data import safety, time-zone-independent history matching, and completion-sound fallback. It also strengthens packaged-app checks and verifies user data survives package removal.
