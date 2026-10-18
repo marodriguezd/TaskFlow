@@ -131,7 +131,10 @@ Workflows (`.github/workflows/`):
 ## 10. Versioning
 
 - `build.gradle.kts` `version = "..."` is the single source of the project version; the release tag must equal `v` + that value.
-- Current published version is `1.2.3` (Liquid Glass intensity slider and dialog legibility patch); earlier versions (`1.2.2`, `1.2.1`, `1.2.0`, `1.1.3`, `1.1.2`, `1.1.1`, `1.1.0`, `1.0.0`) are historical, not development targets. Published releases/tags must remain immutable.
+- **Current published version is `1.0.0`** (Java 21 baseline: Liquid Glass UI, six-language i18n, hardened persistence/concurrency, multi-monitor dialogs). All six READMEs advertise it as *Latest*; `build.gradle.kts` stays on `1.0.0` until a deliberate version bump, and `1.0.0` is the only supported development target.
+- The earlier `1.2.x`/`1.1.x` line (`1.2.4`, `1.2.3`, `1.2.2`, `1.2.1`, `1.2.0`, `1.1.3`, `1.1.2`, `1.1.1`, `1.1.0`) survives only as historical sections in `RELEASE_NOTES.md`. Those tags no longer exist on GitHub, were superseded by the `1.0.0` reset, and must not be recreated or treated as development targets.
+- `RELEASE_NOTES.md` keeps one `# TaskFlow vX.Y.Z` section per release; only the section matching the pushed tag is published (`tools/extract_release_notes.py`), so new notes go on top and earlier sections are never concatenated into a release body.
+- Published releases/tags must remain immutable — no deletion, retagging, or editing of a published release unless the project owner explicitly requests it (the v1.0.0 cleanup of 2026-10-18 was such an explicit request).
 - Do not touch existing tags or the published release as part of unrelated work.
 
 ## 11. Packaging
