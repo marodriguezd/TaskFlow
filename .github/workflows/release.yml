@@ -295,3 +295,27 @@ jobs:
             release-assets/*.AppImage
             release-assets/*.dmg
             release-assets/checksums.txt
+
+      - name: Verify Release Assets & Checksums
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          echo "Verifying local SHA-256 checksums..."
+          cd release-assets
+          sha256sum -c checksums.txt
+          echo "Verifying draft release exists on GitHub..."
+          gh release view "$TAG"
+
+      - name: Publish Stable Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate.outputs.release_tag }}
+        run: |
+          set -euo pipefail
+          echo "Promoting draft release to public stable release..."
+          gh release edit "$TAG" --draft=false
+          echo "Release $TAG successfully published as stable."

@@ -178,7 +178,7 @@ La interfaz de TaskFlow existe en exactamente seis idiomas:
 | Chino simplificado | `zh-Hans` |
 
 - **Cambio en vivo** — elige un idioma desde el botón del globo en la cabecera; toda la UI (incluido el estado abierto como la insignia de tareas y los tooltips) se redibuja al instante, sin reiniciar.
-- **Persistente por usuario** — la elección se guarda en la tabla `preferences` (clave `language`) como etiqueta BCP 47 independiente del locale. Las bases existentes de 1.0.0 no necesitan migración: la clave simplemente se añade al guardar.
+- **Persistente por usuario** — la elección se guarda en la tabla `preferences` (clave `language`) como etiqueta BCP 47 independiente del locale. Las bases existentes de versiones anteriores no necesitan migración: la clave simplemente se añade al guardar.
 - **Detección en primer arranque** — en el primer lanzamiento el idioma se detecta desde el locale del SO. Los idiomas no soportados (incluido el portugués y cualquier idioma no distribuido) caen al inglés; los locales de chino tradicional también caen al inglés, ya que solo se distribuye chino simplificado.
 - **Inglés como reserva determinista** — las traducciones viven en `src/main/resources/i18n/messages*.properties`; cualquier clave ausente resuelve al bundle base inglés, y una clave ausente en todas partes se devuelve tal cual (registrada una vez) en lugar de fallar. La suite de pruebas exige que existan exactamente estos seis bundles y que estén completos (paridad de claves y placeholders).
 - **No traducido** — la salida de logs, los valores de base de datos, los códigos de prioridad/historial y los identificadores internos permanecen en inglés independiente del locale por compatibilidad de datos.
