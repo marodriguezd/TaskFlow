@@ -35,7 +35,7 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.6.5")
 
     // Jackson for legacy JSON migration & config
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.3")
 
     // Testing
