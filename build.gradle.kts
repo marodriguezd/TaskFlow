@@ -32,7 +32,7 @@ dependencies {
 
     // Logging: SLF4J + Logback
     implementation("org.slf4j:slf4j-api:2.0.20")
-    implementation("ch.qos.logback:logback-classic:1.6.5")
+    implementation("ch.qos.logback:logback-classic:1.6.6")
 
     // Jackson for legacy JSON migration & config
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
